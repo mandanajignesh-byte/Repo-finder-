@@ -1,0 +1,11 @@
+# Environment variables
+.env
+
+# Data files
+data/
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
