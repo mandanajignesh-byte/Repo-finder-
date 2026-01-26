@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { X, Bookmark, Heart, XCircle, Loader2, Trash2 } from 'lucide-react';
 import { motion, useMotionValue, useTransform, animate } from 'motion/react';
 import { RepoCard } from './RepoCard';
@@ -347,8 +347,16 @@ export function DiscoveryScreen() {
         source: 'discover',
       }).catch(err => console.error('Error tracking skip:', err));
     }
-    setCards((prev) => prev.slice(1));
-  }, [cards]);
+    // Remove the card
+    setCards((prev) => {
+      const newCards = prev.slice(1);
+      // If we're running low on cards, trigger loading more
+      if (newCards.length < 3 && !isLoadingMore && !loading) {
+        setTimeout(() => loadPersonalizedRepos(true), 100);
+      }
+      return newCards;
+    });
+  }, [cards, isLoadingMore, loading, loadPersonalizedRepos]);
 
   const handleLike = useCallback(async (repo?: Repository) => {
     const repoToLike = repo || cards[0];
@@ -360,8 +368,16 @@ export function DiscoveryScreen() {
       }).catch(err => console.error('Error tracking like:', err));
       setLikedRepos((liked) => [...liked, repoToLike]);
     }
-    setCards((prev) => prev.slice(1));
-  }, [cards]);
+    // Remove the card
+    setCards((prev) => {
+      const newCards = prev.slice(1);
+      // If we're running low on cards, trigger loading more
+      if (newCards.length < 3 && !isLoadingMore && !loading) {
+        setTimeout(() => loadPersonalizedRepos(true), 100);
+      }
+      return newCards;
+    });
+  }, [cards, isLoadingMore, loading, loadPersonalizedRepos]);
 
   const handleSave = useCallback(async (repo?: Repository) => {
     const repoToSave = repo || cards[0];
@@ -639,33 +655,33 @@ export function DiscoveryScreen() {
     );
   }
 
-  // Visible but subtle particles for discovery screen
+  // Optimized particles for discovery screen - reduced count for better performance
   const discoveryParticlesConfig = {
     particles: {
       number: { 
-        value: 150,
-        density: { enable: true, value_area: 600 }
+        value: 50, // Reduced from 150 to 50 for better performance
+        density: { enable: true, value_area: 800 }
       },
       color: { value: ['#22d3ee', '#ec4899'] },
       shape: { type: 'circle' },
       opacity: { 
-        value: 0.5,
+        value: 0.4, // Reduced opacity
         random: true 
       },
       size: { 
-        value: 3,
+        value: 2, // Smaller particles
         random: true 
       },
       line_linked: {
         enable: true,
-        distance: 150,
+        distance: 200, // Increased distance to reduce connections
         color: '#22d3ee',
-        opacity: 0.2,
+        opacity: 0.15, // Reduced opacity
         width: 1
       },
       move: {
         enable: true,
-        speed: 1.5,
+        speed: 0.8, // Slower movement
         direction: 'none',
         random: false,
         out_mode: 'out'
@@ -674,8 +690,8 @@ export function DiscoveryScreen() {
     interactivity: {
       detect_on: 'canvas',
       events: {
-        onhover: { enable: true, mode: 'repulse' },
-        onclick: { enable: true, mode: 'push' },
+        onhover: { enable: false, mode: 'repulse' }, // Disabled for performance
+        onclick: { enable: false, mode: 'push' }, // Disabled for performance
         resize: true
       },
       modes: {
@@ -683,7 +699,7 @@ export function DiscoveryScreen() {
         push: { particles_nb: 4 }
       }
     },
-    retina_detect: true
+    retina_detect: false // Disabled for better performance
   };
 
   return (
@@ -770,7 +786,7 @@ interface SwipeableCardProps {
   onSave?: () => void;
 }
 
-function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
+const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -778,19 +794,22 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
   const scrollStartY = useRef<number | null>(null);
   const isScrollingRef = useRef(false);
   
-  // Swipe threshold is 30% of screen width (assuming 360px screen = ~108px)
-  const SWIPE_THRESHOLD = 108;
+  // Calculate swipe threshold based on screen width (30% of screen) - memoized
+  const swipeThreshold = useMemo(() => {
+    if (typeof window === 'undefined') return 100;
+    return window.innerWidth * 0.3; // 30% of screen width
+  }, []);
   
   // More subtle rotation (2-5 degrees)
-  const rotate = useTransform(x, [-SWIPE_THRESHOLD * 2, SWIPE_THRESHOLD * 2], [-5, 5]);
+  const rotate = useTransform(x, [-swipeThreshold * 2, swipeThreshold * 2], [-5, 5]);
   
   // Opacity for swipe indicators
-  const skipOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
-  const saveOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
+  const skipOpacity = useTransform(x, [-swipeThreshold, 0], [1, 0]);
+  const saveOpacity = useTransform(x, [0, swipeThreshold], [0, 1]);
   
   // Glow effects
-  const cyanGlow = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
-  const pinkGlow = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
+  const cyanGlow = useTransform(x, [0, swipeThreshold], [0, 1]);
+  const pinkGlow = useTransform(x, [-swipeThreshold, 0], [1, 0]);
 
   const handleDragEnd = () => {
     if (!dragEnabled) {
@@ -801,10 +820,10 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
 
     const xValue = x.get();
     
-      // Swipe left = skip, swipe right = like
-    if (xValue < -SWIPE_THRESHOLD) {
+    // Swipe left = skip, swipe right = like
+    if (xValue < -swipeThreshold) {
       // Animate card off screen to the left (skip)
-      animate(x, -500, {
+      animate(x, -window.innerWidth, {
         type: 'spring',
         stiffness: 300,
         damping: 30,
@@ -813,10 +832,10 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
       // Trigger skip callback after a short delay
       setTimeout(() => {
         onSwipe('left');
-      }, 200);
-    } else if (xValue > SWIPE_THRESHOLD) {
+      }, 150);
+    } else if (xValue > swipeThreshold) {
       // Animate card off screen to the right (like)
-      animate(x, 500, {
+      animate(x, window.innerWidth, {
         type: 'spring',
         stiffness: 300,
         damping: 30,
@@ -825,7 +844,7 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
       // Trigger like callback after a short delay
       setTimeout(() => {
         onSwipe('right');
-      }, 200);
+      }, 150);
     } else {
       // Snap back to center with spring animation
       animate(x, 0, {
@@ -867,19 +886,25 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
     };
   }, []);
 
+  // Calculate max drag distance - memoized
+  const maxDrag = useMemo(() => {
+    return typeof window !== 'undefined' ? window.innerWidth * 1.5 : 500;
+  }, []);
+  
   return (
     <motion.div
       ref={cardRef}
       data-swipeable-card
       drag={dragEnabled ? "x" : false}
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.8}
+      dragConstraints={{ left: -maxDrag, right: maxDrag }}
+      dragElastic={0.2}
       onDragEnd={handleDragEnd}
       style={{ 
         x, 
         y, 
         rotate,
         cursor: dragEnabled ? 'grab' : 'default',
+        willChange: 'transform', // GPU acceleration hint
       }}
       className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[500px] md:h-[600px] max-h-[80vh] z-20"
       dragDirectionLock={true}
@@ -904,10 +929,20 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
           scrollStartY.current = clientY;
         }
         isScrollingRef.current = false;
+        
+        // Ensure drag is enabled for touch events
+        if ((event as any).touches || (event as any).pointerType === 'touch') {
+          setDragEnabled(true);
+        }
       }}
       onDrag={(_event, info) => {
-        // If drag is disabled or scrolling, reset position immediately
-        if (!dragEnabled || isScrollingRef.current) {
+        // If drag is disabled, don't process
+        if (!dragEnabled) {
+          return;
+        }
+        
+        // If we're scrolling, reset position
+        if (isScrollingRef.current) {
           x.set(0);
           y.set(0);
           return;
@@ -917,13 +952,22 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
         const deltaY = Math.abs(info.delta.y);
         const deltaX = Math.abs(info.delta.x);
         
-        // If vertical movement is more than horizontal, it's a scroll
-        if (deltaY > deltaX * 1.5 && deltaY > 10) {
+        // Only check for vertical scroll if there's significant vertical movement
+        // Use a more lenient ratio for mobile (2.5:1) to allow easier horizontal swipes
+        if (deltaY > deltaX * 2.5 && deltaY > 20) {
           isScrollingRef.current = true;
           setDragEnabled(false);
           x.set(0);
           y.set(0);
           return;
+        }
+        
+        // If horizontal movement is significant, ensure drag is enabled
+        if (deltaX > 5 && isScrollingRef.current === false) {
+          // Clear any scroll state if we're clearly swiping horizontally
+          if (deltaX > deltaY * 1.5) {
+            isScrollingRef.current = false;
+          }
         }
       }}
     >
@@ -976,4 +1020,4 @@ function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
       </div>
     </motion.div>
   );
-}
+});

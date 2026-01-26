@@ -69,7 +69,7 @@ export function SignatureCard({
           }}
           onClick={onClick}
         >
-        {/* Particles background - same effect as loading screen */}
+        {/* Particles background - optimized for performance */}
         {showParticles && (
           <div className="absolute inset-0 rounded-[26px] overflow-hidden" style={{ zIndex: 0 }}>
             <ParticlesBackground 
@@ -77,29 +77,29 @@ export function SignatureCard({
               config={{
                 particles: {
                   number: { 
-                    value: 80,
-                    density: { enable: true, value_area: 400 }
+                    value: 30, // Reduced from 80 to 30 for better performance
+                    density: { enable: true, value_area: 600 }
                   },
                   color: { value: ['#22d3ee', '#ec4899'] }, // Cyan and pink
                   shape: { type: 'circle' },
                   opacity: { 
-                    value: 0.5,
+                    value: 0.3, // Reduced opacity
                     random: true 
                   },
                   size: { 
-                    value: 3,
+                    value: 2, // Smaller particles
                     random: true 
                   },
                   line_linked: {
                     enable: true,
-                    distance: 120,
+                    distance: 150, // Increased distance
                     color: '#22d3ee',
-                    opacity: 0.3,
+                    opacity: 0.2, // Reduced opacity
                     width: 1
                   },
                   move: {
                     enable: true,
-                    speed: 1.5,
+                    speed: 0.6, // Slower movement
                     direction: 'none',
                     random: false,
                     out_mode: 'out'
@@ -113,7 +113,7 @@ export function SignatureCard({
                     resize: true
                   }
                 },
-                retina_detect: true
+                retina_detect: false // Disabled for better performance
               }}
               className="rounded-[26px]"
               style={{ zIndex: 0 }}

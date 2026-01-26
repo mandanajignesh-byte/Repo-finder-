@@ -188,16 +188,12 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                       : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                   }`}
                 >
-                  <div className="text-2xl mb-2">{level.icon}</div>
                   <div className="font-medium">{level.label}</div>
                 </button>
               ))}
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <span className="text-3xl">
-                {EXPERIENCE_LEVELS.find(l => l.id === preferences.experienceLevel)?.icon}
-              </span>
               <span className="text-white text-lg">
                 {EXPERIENCE_LEVELS.find(l => l.id === preferences.experienceLevel)?.label}
               </span>
@@ -309,7 +305,6 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                       : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                   }`}
                 >
-                  <div className="text-2xl mb-1">{useCase.icon}</div>
                   <div className="font-medium text-sm">{useCase.label}</div>
                 </button>
               ))}
@@ -320,7 +315,6 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                 const useCase = USE_CASES.find(uc => uc.id === goal);
                 return useCase ? (
                   <div key={goal} className="flex items-center gap-2 px-4 py-2 bg-gray-700 rounded-lg">
-                    <span className="text-xl">{useCase.icon}</span>
                     <span className="text-white text-sm">{useCase.label}</span>
                   </div>
                 ) : null;
@@ -352,7 +346,6 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                       : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                   }`}
                 >
-                  <div className="text-2xl mb-1">{domain.icon}</div>
                   <div className="text-xs font-medium">{domain.label}</div>
                 </button>
               ))}
@@ -363,7 +356,6 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                 const domain = DOMAINS.find(d => d.id === interest);
                 return domain ? (
                   <div key={interest} className="flex items-center gap-2 px-3 py-2 bg-gray-700 rounded-lg">
-                    <span className="text-lg">{domain.icon}</span>
                     <span className="text-white text-xs">{domain.label}</span>
                   </div>
                 ) : null;
@@ -395,7 +387,6 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                       : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                   }`}
                 >
-                  <div className="text-2xl mb-1">{type.icon}</div>
                   <div className="font-medium text-xs">{type.label}</div>
                 </button>
               ))}
@@ -406,7 +397,6 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                 const projectType = PROJECT_TYPES.find(pt => pt.id === type);
                 return projectType ? (
                   <div key={type} className="flex items-center gap-2 px-4 py-2 bg-gray-700 rounded-lg">
-                    <span className="text-xl">{projectType.icon}</span>
                     <span className="text-white text-sm">{projectType.label}</span>
                   </div>
                 ) : null;

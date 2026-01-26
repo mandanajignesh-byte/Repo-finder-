@@ -2,7 +2,7 @@ import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark } from 'lucide-reac
 import { motion } from 'motion/react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, memo } from 'react';
 
 interface RepoCardProps {
   repo: Repository;
@@ -10,7 +10,7 @@ interface RepoCardProps {
   onSave?: () => void;
 }
 
-export function RepoCard({ repo, style, onSave }: RepoCardProps) {
+export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCardProps) {
   const scrollableRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
@@ -45,17 +45,20 @@ export function RepoCard({ repo, style, onSave }: RepoCardProps) {
       }
     };
     
+    // Debounced calculation function
+    let debounceTimer: NodeJS.Timeout;
+    const debouncedCalculate = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(calculateHeight, 100);
+    };
+    
     // Calculate immediately
     calculateHeight();
     
-    // Also calculate after delays to ensure DOM is fully rendered
-    const timeoutId1 = setTimeout(calculateHeight, 50);
-    const timeoutId2 = setTimeout(calculateHeight, 200);
+    // Also calculate after a delay to ensure DOM is fully rendered
+    const timeoutId1 = setTimeout(calculateHeight, 100);
     
-    const resizeObserver = new ResizeObserver(() => {
-      // Debounce resize calculations
-      setTimeout(calculateHeight, 50);
-    });
+    const resizeObserver = new ResizeObserver(debouncedCalculate);
     
     if (cardRef.current) {
       resizeObserver.observe(cardRef.current);
@@ -66,7 +69,7 @@ export function RepoCard({ repo, style, onSave }: RepoCardProps) {
     
     return () => {
       clearTimeout(timeoutId1);
-      clearTimeout(timeoutId2);
+      clearTimeout(debounceTimer);
       resizeObserver.disconnect();
     };
   }, []);
@@ -278,4 +281,4 @@ export function RepoCard({ repo, style, onSave }: RepoCardProps) {
       </SignatureCard>
     </div>
   );
-}
+});
