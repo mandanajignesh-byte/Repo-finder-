@@ -56,6 +56,9 @@ export interface Recommendation {
 }
 
 export interface UserPreferences {
+  // User basic info
+  name?: string; // User's name
+  
   // NEW: Primary cluster selection (required for new onboarding)
   primaryCluster?: string; // 'frontend', 'backend', 'mobile', 'desktop', 'data-science', 'devops', 'game-dev', 'ai-ml'
   secondaryClusters?: string[]; // Optional secondary interests

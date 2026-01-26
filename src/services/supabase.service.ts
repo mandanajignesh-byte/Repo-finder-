@@ -19,7 +19,7 @@ class SupabaseService {
   /**
    * Get or create user ID
    */
-  async getOrCreateUserId(): Promise<string> {
+  async getOrCreateUserId(name?: string): Promise<string> {
     // Get user ID from localStorage or create one
     let userId = localStorage.getItem('user_id');
     
@@ -33,7 +33,7 @@ class SupabaseService {
     try {
       const { data: existingUser, error: checkError } = await supabase
         .from(TABLES.users)
-        .select('id')
+        .select('id, name')
         .eq('id', userId)
         .single();
       
@@ -43,6 +43,7 @@ class SupabaseService {
           .from(TABLES.users)
           .insert({
             id: userId,
+            name: name || null,
             created_at: new Date().toISOString(),
           });
         
@@ -52,6 +53,12 @@ class SupabaseService {
         } else {
           console.log('✅ User created/verified in Supabase:', userId);
         }
+      } else if (name && existingUser.name !== name) {
+        // Update name if provided and different
+        await supabase
+          .from(TABLES.users)
+          .update({ name, updated_at: new Date().toISOString() })
+          .eq('id', userId);
       }
     } catch (error) {
       console.error('Error ensuring user exists in Supabase:', error);
@@ -59,6 +66,29 @@ class SupabaseService {
     }
     
     return userId;
+  }
+  
+  /**
+   * Get user name
+   */
+  async getUserName(userId: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.users)
+        .select('name')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error getting user name:', error);
+        return null;
+      }
+      
+      return data?.name || null;
+    } catch (error) {
+      console.error('Error in getUserName:', error);
+      return null;
+    }
   }
 
   /**

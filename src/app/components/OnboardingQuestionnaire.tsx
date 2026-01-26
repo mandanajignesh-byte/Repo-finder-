@@ -70,6 +70,7 @@ const EXPERIENCE_LEVELS = [
 export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuestionnaireProps) {
   const [step, setStep] = useState(1);
   const [preferences, setPreferences] = useState<Partial<UserPreferences>>({
+    name: '',
     primaryCluster: undefined,
     secondaryClusters: [],
     techStack: [],
@@ -81,18 +82,22 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
     documentationImportance: 'important',
   });
 
-  const totalSteps = 6;
+  const totalSteps = 7; // Increased from 6 to 7 for name step
 
   const handleNext = () => {
-    if (step === 1 && !preferences.primaryCluster) {
+    if (step === 1 && (!preferences.name || preferences.name.trim().length === 0)) {
+      alert('Please enter your name');
+      return;
+    }
+    if (step === 2 && !preferences.primaryCluster) {
       alert('Please select your primary area of interest');
       return;
     }
-    if (step === 3 && !preferences.experienceLevel) {
+    if (step === 4 && !preferences.experienceLevel) {
       alert('Please select your experience level');
       return;
     }
-    if (step === 4 && (!preferences.goals || preferences.goals.length === 0)) {
+    if (step === 5 && (!preferences.goals || preferences.goals.length === 0)) {
       alert('Please select at least one goal');
       return;
     }
@@ -275,8 +280,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 2: Secondary Clusters */}
-            {step === 2 && (
+            {/* Step 3: Secondary Clusters */}
+            {step === 3 && (
               <motion.div
                 key="step2"
                 variants={stepVariants}
@@ -323,10 +328,10 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 3: Experience Level */}
-            {step === 3 && (
+            {/* Step 4: Experience Level */}
+            {step === 4 && (
               <motion.div
-                key="step3"
+                key="step4"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -366,10 +371,10 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 4: Goals/Use Cases */}
-            {step === 4 && (
+            {/* Step 5: Goals/Use Cases */}
+            {step === 5 && (
               <motion.div
-                key="step4"
+                key="step5"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -396,10 +401,10 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setPreferences({
                         ...preferences,
-                        goals: toggleSelection(preferences.goals || [], useCase.id)
+                        goals: toggleSelection(preferences.goals || [], useCase.id) as any
                       })}
                       className={`p-5 rounded-lg border-2 transition-all text-left ${
-                        preferences.goals?.includes(useCase.id)
+                        preferences.goals?.includes(useCase.id as any)
                           ? 'border-pink-400 bg-pink-400/10 text-white shadow-lg shadow-pink-400/20'
                           : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                       }`}
@@ -412,8 +417,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 5: Tech Stack */}
-            {step === 5 && (
+            {/* Step 6: Tech Stack */}
+            {step === 6 && (
               <motion.div
                 key="step5"
                 variants={stepVariants}
@@ -489,10 +494,10 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 6: Fine-tuning */}
-            {step === 6 && (
+            {/* Step 7: Fine-tuning */}
+            {step === 7 && (
               <motion.div
-                key="step6"
+                key="step7"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"

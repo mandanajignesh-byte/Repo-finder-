@@ -14,10 +14,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
+  name TEXT,
   email TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration: Add name column for existing databases
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS name TEXT;
 
 -- User preferences table
 CREATE TABLE IF NOT EXISTS user_preferences (

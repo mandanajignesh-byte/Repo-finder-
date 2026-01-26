@@ -422,7 +422,18 @@ export function DiscoveryScreen() {
     }
   };
 
-  const handleOnboardingComplete = (newPreferences: Partial<typeof preferences>) => {
+  const handleOnboardingComplete = async (newPreferences: Partial<typeof preferences>) => {
+    // Save name to user record if provided
+    if (newPreferences.name) {
+      try {
+        const { supabaseService } = await import('@/services/supabase.service');
+        await supabaseService.getOrCreateUserId(newPreferences.name);
+        console.log('✅ User name saved:', newPreferences.name);
+      } catch (error) {
+        console.error('Error saving user name:', error);
+      }
+    }
+    
     updatePreferences({
       ...newPreferences,
       onboardingCompleted: true,
@@ -868,11 +879,11 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
       isScrollingRef.current = true;
     };
     const handleEnableDrag = () => {
-      // Only re-enable after a delay to ensure scrolling has stopped
+      // Re-enable drag more quickly for better responsiveness
       setTimeout(() => {
         isScrollingRef.current = false;
         setDragEnabled(true);
-      }, 500);
+      }, 200); // Reduced from 500ms to 200ms
     };
     
     cardRef.current.addEventListener('disableDrag', handleDisableDrag);
@@ -885,10 +896,18 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
       }
     };
   }, []);
+  
+  // Reset drag state when component mounts or repo changes
+  useEffect(() => {
+    setDragEnabled(true);
+    isScrollingRef.current = false;
+    x.set(0);
+    y.set(0);
+  }, [repo.id]);
 
   // Calculate max drag distance - memoized
   const maxDrag = useMemo(() => {
-    return typeof window !== 'undefined' ? window.innerWidth * 1.5 : 500;
+    return typeof window !== 'undefined' ? window.innerWidth * 2 : 1000;
   }, []);
   
   return (
@@ -897,7 +916,8 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
       data-swipeable-card
       drag={dragEnabled ? "x" : false}
       dragConstraints={{ left: -maxDrag, right: maxDrag }}
-      dragElastic={0.2}
+      dragElastic={0.3}
+      dragMomentum={false}
       onDragEnd={handleDragEnd}
       style={{ 
         x, 
@@ -923,16 +943,14 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
           return false;
         }
         
+        // Reset scroll state and ensure drag is enabled
+        isScrollingRef.current = false;
+        setDragEnabled(true);
+        
         // Store initial Y position for scroll detection
         const clientY = (event as any).clientY ?? (event as any).touches?.[0]?.clientY;
         if (clientY !== undefined) {
           scrollStartY.current = clientY;
-        }
-        isScrollingRef.current = false;
-        
-        // Ensure drag is enabled for touch events
-        if ((event as any).touches || (event as any).pointerType === 'touch') {
-          setDragEnabled(true);
         }
       }}
       onDrag={(_event, info) => {
@@ -952,9 +970,10 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
         const deltaY = Math.abs(info.delta.y);
         const deltaX = Math.abs(info.delta.x);
         
-        // Only check for vertical scroll if there's significant vertical movement
-        // Use a more lenient ratio for mobile (2.5:1) to allow easier horizontal swipes
-        if (deltaY > deltaX * 2.5 && deltaY > 20) {
+        // Only disable drag if vertical movement is MUCH greater than horizontal
+        // Use a very lenient ratio (3:1) and higher threshold to allow horizontal swipes
+        if (deltaY > deltaX * 3 && deltaY > 30) {
+          // User is clearly scrolling vertically
           isScrollingRef.current = true;
           setDragEnabled(false);
           x.set(0);
@@ -962,11 +981,12 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
           return;
         }
         
-        // If horizontal movement is significant, ensure drag is enabled
-        if (deltaX > 5 && isScrollingRef.current === false) {
-          // Clear any scroll state if we're clearly swiping horizontally
-          if (deltaX > deltaY * 1.5) {
+        // If horizontal movement is significant, ensure we're not in scroll mode
+        if (deltaX > 10) {
+          // Clear scroll state if we're clearly swiping horizontally
+          if (deltaX > deltaY * 1.2) {
             isScrollingRef.current = false;
+            setDragEnabled(true);
           }
         }
       }}
