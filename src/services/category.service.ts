@@ -9,6 +9,10 @@ export type RepoCategory =
   | 'repos-all-should-know' 
   | 'frontend' 
   | 'backend' 
+  | 'mobile'
+  | 'desktop'
+  | 'data-science'
+  | 'devops'
   | 'ai' 
   | 'game-dev' 
   | 'generic';
@@ -338,6 +342,40 @@ class CategoryService {
       'ai', 'artificial intelligence', 'model', 'training', 'inference',
     ];
     
+    // Mobile indicators
+    const mobileKeywords = [
+      'mobile', 'ios', 'android', 'react native', 'react-native', 'reactnative',
+      'flutter', 'ionic', 'xamarin', 'cordova', 'phonegap',
+      'swift', 'kotlin', 'dart', 'mobile app', 'mobile application',
+      'app store', 'play store', 'mobile development', 'mobiledev',
+    ];
+    
+    // Desktop indicators
+    const desktopKeywords = [
+      'desktop', 'electron', 'tauri', 'qt', 'gtk', 'wxwidgets',
+      'desktop app', 'desktop application', 'native app',
+      'windows', 'macos', 'linux desktop', 'gui', 'gui framework',
+    ];
+    
+    // Data Science indicators
+    const dataScienceKeywords = [
+      'data science', 'datascience', 'data analysis', 'data analytics',
+      'pandas', 'numpy', 'scipy', 'matplotlib', 'seaborn', 'plotly',
+      'jupyter', 'notebook', 'data visualization', 'data viz',
+      'statistics', 'statistical', 'data processing', 'etl',
+      'r language', 'r programming', 'scikit-learn', 'sklearn',
+    ];
+    
+    // DevOps indicators
+    const devopsKeywords = [
+      'devops', 'ci/cd', 'cicd', 'continuous integration', 'continuous deployment',
+      'docker', 'kubernetes', 'k8s', 'container', 'containerization',
+      'terraform', 'ansible', 'puppet', 'chef', 'jenkins', 'github actions',
+      'gitlab ci', 'circleci', 'travis', 'infrastructure', 'infra',
+      'monitoring', 'logging', 'prometheus', 'grafana', 'elk',
+      'deployment', 'orchestration', 'helm', 'argo',
+    ];
+    
     // Game Dev indicators
     const gameDevKeywords = [
       'game', 'gaming', 'unity', 'unreal', 'godot', 'phaser',
@@ -348,6 +386,10 @@ class CategoryService {
     // Check categories in order of specificity
     const hasFrontend = frontendKeywords.some(keyword => text.includes(keyword));
     const hasBackend = backendKeywords.some(keyword => text.includes(keyword));
+    const hasMobile = mobileKeywords.some(keyword => text.includes(keyword));
+    const hasDesktop = desktopKeywords.some(keyword => text.includes(keyword));
+    const hasDataScience = dataScienceKeywords.some(keyword => text.includes(keyword));
+    const hasDevOps = devopsKeywords.some(keyword => text.includes(keyword));
     const hasAI = aiKeywords.some(keyword => text.includes(keyword));
     const hasGameDev = gameDevKeywords.some(keyword => text.includes(keyword));
     
@@ -360,6 +402,11 @@ class CategoryService {
       return 'backend';
     }
     
+    // Check categories in priority order
+    if (hasMobile) return 'mobile';
+    if (hasDesktop) return 'desktop';
+    if (hasDataScience) return 'data-science';
+    if (hasDevOps) return 'devops';
     if (hasFrontend) return 'frontend';
     if (hasBackend) return 'backend';
     if (hasAI) return 'ai';
@@ -375,7 +422,18 @@ class CategoryService {
     const categorized = new Map<RepoCategory, Repository[]>();
     
     // Initialize all categories
-    const categories: RepoCategory[] = ['repos-all-should-know', 'frontend', 'backend', 'ai', 'game-dev', 'generic'];
+    const categories: RepoCategory[] = [
+      'repos-all-should-know', 
+      'frontend', 
+      'backend', 
+      'mobile',
+      'desktop',
+      'data-science',
+      'devops',
+      'ai', 
+      'game-dev', 
+      'generic'
+    ];
     categories.forEach(cat => categorized.set(cat, []));
     
     // Categorize each repo
@@ -396,6 +454,10 @@ class CategoryService {
       'repos-all-should-know': 'Repos All Should Know',
       'frontend': 'Frontend',
       'backend': 'Backend',
+      'mobile': 'Mobile',
+      'desktop': 'Desktop',
+      'data-science': 'Data Science',
+      'devops': 'DevOps',
       'ai': 'AI & ML',
       'game-dev': 'Game Development',
       'generic': 'Other',
@@ -411,6 +473,10 @@ class CategoryService {
       'repos-all-should-know': 'Free AI tools and useful apps that run locally - image generation, LLMs, and productivity tools',
       'frontend': 'Frontend frameworks, libraries, and tools',
       'backend': 'Backend services, APIs, and server technologies',
+      'mobile': 'Mobile app development frameworks and tools',
+      'desktop': 'Desktop application frameworks and tools',
+      'data-science': 'Data analysis, visualization, and scientific computing tools',
+      'devops': 'CI/CD, containerization, infrastructure, and deployment tools',
       'ai': 'AI and Machine Learning projects',
       'game-dev': 'Game engines and game development tools',
       'generic': 'Other trending repositories',

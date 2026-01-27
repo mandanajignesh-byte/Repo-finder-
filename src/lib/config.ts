@@ -23,4 +23,7 @@ export const config = {
   app: {
     env: import.meta.env.VITE_ENV || 'development',
   },
+  payment: {
+    paypalUsername: import.meta.env.VITE_PAYPAL_USERNAME || '',
+  },
 } as const;

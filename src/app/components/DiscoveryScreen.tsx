@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { X, Bookmark, Heart, XCircle, Loader2, Trash2 } from 'lucide-react';
-import { motion, useMotionValue, useTransform, animate } from 'motion/react';
+import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'motion/react';
 import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
 import { SignatureCard } from './SignatureCard';
@@ -24,6 +24,8 @@ export function DiscoveryScreen() {
   const [showLiked, setShowLiked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [triggerSwipe, setTriggerSwipe] = useState<'left' | 'right' | null>(null);
 
   // Check if onboarding is needed
   useEffect(() => {
@@ -338,6 +340,14 @@ export function DiscoveryScreen() {
     }
   }, [cards.length, isLoadingMore, loading, preferences.onboardingCompleted, loadPersonalizedRepos]);
 
+  // Reset trigger when card changes
+  useEffect(() => {
+    if (cards[0]) {
+      setTriggerSwipe(null);
+      setIsSwiping(false);
+    }
+  }, [cards[0]?.id]);
+
   const handleSkip = useCallback(async (repo?: Repository) => {
     const repoToSkip = repo || cards[0];
     if (repoToSkip) {
@@ -413,14 +423,25 @@ export function DiscoveryScreen() {
     }
   }, []);
 
-  const handleSwipe = (direction: 'left' | 'right') => {
+  const handleSwipe = useCallback((direction: 'left' | 'right') => {
+    if (isSwiping || cards.length === 0 || triggerSwipe) return;
+    
+    setIsSwiping(true);
+    // Trigger the animation in SwipeableCard
+    setTriggerSwipe(direction);
+  }, [isSwiping, cards.length, triggerSwipe]);
+
+  // Handle the actual swipe action after animation completes
+  const handleSwipeComplete = useCallback((direction: 'left' | 'right') => {
     // Swipe left = skip, swipe right = like
     if (direction === 'left') {
       handleSkip();
     } else if (direction === 'right') {
       handleLike();
     }
-  };
+    setIsSwiping(false);
+    setTriggerSwipe(null); // Reset trigger
+  }, [handleSkip, handleLike]);
 
   const handleOnboardingComplete = async (newPreferences: Partial<typeof preferences>) => {
     // Save name to user record if provided
@@ -458,11 +479,11 @@ export function DiscoveryScreen() {
       switch (e.key) {
         case 'ArrowLeft':
           e.preventDefault();
-          handleSkip();
+          handleSwipe('left');
           break;
         case 'ArrowRight':
           e.preventDefault();
-          handleLike();
+          handleSwipe('right');
           break;
         case 'Enter':
           e.preventDefault();
@@ -477,7 +498,7 @@ export function DiscoveryScreen() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [cards.length, showSaved, handleSkip, handleSave]);
+  }, [cards.length, showSaved, handleSwipe, handleSave]);
 
   // Show onboarding if needed
   if (showOnboarding) {
@@ -534,11 +555,11 @@ export function DiscoveryScreen() {
                     {repo.fitScore || 'N/A'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg mb-1 text-white font-mono">{repo.name}</h3>
+                    <h3 className="font-bold text-lg mb-1 text-white font-mono">{repo.fullName || repo.name}</h3>
                     <p className="text-gray-300 text-sm mb-3 line-clamp-2">{repo.description}</p>
                     <div className="flex flex-wrap gap-2">
                       {repo.tags && repo.tags.length > 0 ? (
-                        repo.tags.slice(0, 3).map((tag: string) => (
+                        repo.tags.map((tag: string) => (
                           <span
                             key={tag}
                             className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
@@ -599,20 +620,24 @@ export function DiscoveryScreen() {
               <SignatureCard key={repo.id} className="p-4" showLayers={false}>
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-700 to-pink-700 text-white font-bold flex items-center justify-center text-xs shadow-md">
-                    {repo.fitScore}
+                    {repo.fitScore || 'N/A'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg mb-1 text-white font-mono">{repo.name}</h3>
+                    <h3 className="font-bold text-lg mb-1 text-white font-mono">{repo.fullName || repo.name}</h3>
                     <p className="text-gray-300 text-sm mb-3 line-clamp-2">{repo.description}</p>
                     <div className="flex flex-wrap gap-2">
-                      {repo.tags.map((tag: string) => (
-                        <span
-                          key={tag}
-                          className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                      {repo.tags && repo.tags.length > 0 ? (
+                        repo.tags.map((tag: string) => (
+                          <span
+                            key={tag}
+                            className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 text-xs">No tags</span>
+                      )}
                     </div>
                     {repo.url && (
                       <a
@@ -766,13 +791,19 @@ export function DiscoveryScreen() {
           )
         ) : (
           <>
-            <div className="relative w-full max-w-md">
-              {/* Active swipeable card - with integrated Save button */}
-              <SwipeableCard
-                repo={cards[0]}
-                onSwipe={handleSwipe}
-                onSave={() => handleSave(cards[0])}
-              />
+            <div className="relative w-full max-w-md" style={{ minHeight: '500px' }}>
+              <AnimatePresence mode="wait">
+                {cards[0] && (
+                  <SwipeableCard
+                    key={cards[0].id}
+                    repo={cards[0]}
+                    onSwipe={handleSwipeComplete}
+                    onSave={() => handleSave(cards[0])}
+                    isSwiping={isSwiping}
+                    triggerSwipe={triggerSwipe}
+                  />
+                )}
+              </AnimatePresence>
             </div>
             
             {/* Loading indicator when loading more repos */}
@@ -795,15 +826,20 @@ interface SwipeableCardProps {
   repo: Repository;
   onSwipe: (direction: 'left' | 'right') => void;
   onSave?: () => void;
+  isSwiping?: boolean;
+  triggerSwipe?: 'left' | 'right' | null;
 }
 
-const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: SwipeableCardProps) {
+const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, isSwiping = false, triggerSwipe }: SwipeableCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const opacity = useMotionValue(1);
   const cardRef = useRef<HTMLDivElement>(null);
   const [dragEnabled, setDragEnabled] = useState(true);
   const scrollStartY = useRef<number | null>(null);
   const isScrollingRef = useRef(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const prevTriggerSwipeRef = useRef<'left' | 'right' | null>(null);
   
   // Calculate swipe threshold based on screen width (30% of screen) - memoized
   const swipeThreshold = useMemo(() => {
@@ -814,6 +850,17 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
   // More subtle rotation (2-5 degrees)
   const rotate = useTransform(x, [-swipeThreshold * 2, swipeThreshold * 2], [-5, 5]);
   
+  // Scale effect during drag for better feedback
+  const scale = useTransform(x, [-swipeThreshold, 0, swipeThreshold], [0.95, 1, 0.95]);
+  
+  // Opacity fade when swiping off screen
+  const screenWidth = useMemo(() => typeof window !== 'undefined' ? window.innerWidth : 1000, []);
+  const opacityTransform = useTransform(
+    x,
+    [-screenWidth, -swipeThreshold, 0, swipeThreshold, screenWidth],
+    [0, 1, 1, 1, 0]
+  );
+  
   // Opacity for swipe indicators
   const skipOpacity = useTransform(x, [-swipeThreshold, 0], [1, 0]);
   const saveOpacity = useTransform(x, [0, swipeThreshold], [0, 1]);
@@ -823,7 +870,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
   const pinkGlow = useTransform(x, [-swipeThreshold, 0], [1, 0]);
 
   const handleDragEnd = () => {
-    if (!dragEnabled) {
+    if (!dragEnabled || isExiting) {
       animate(x, 0, { type: 'spring', stiffness: 400, damping: 30 });
       animate(y, 0, { type: 'spring', stiffness: 400, damping: 30 });
       return;
@@ -833,29 +880,51 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
     
     // Swipe left = skip, swipe right = like
     if (xValue < -swipeThreshold) {
-      // Animate card off screen to the left (skip)
-      animate(x, -window.innerWidth, {
+      setIsExiting(true);
+      // Animate card off screen to the left (skip) - slower and smoother
+      const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
+      animate(x, -screenWidth * 2, {
         type: 'spring',
-        stiffness: 300,
-        damping: 30,
+        stiffness: 100,
+        damping: 25,
+      });
+      animate(y, -100, {
+        type: 'spring',
+        stiffness: 100,
+        damping: 25,
+      });
+      animate(opacity, 0, {
+        duration: 0.8,
+        ease: 'easeOut',
       });
       
-      // Trigger skip callback after a short delay
+      // Trigger skip callback after animation completes
       setTimeout(() => {
         onSwipe('left');
-      }, 150);
+      }, 900);
     } else if (xValue > swipeThreshold) {
-      // Animate card off screen to the right (like)
-      animate(x, window.innerWidth, {
+      setIsExiting(true);
+      // Animate card off screen to the right (like) - slower and smoother
+      const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
+      animate(x, screenWidth * 2, {
         type: 'spring',
-        stiffness: 300,
-        damping: 30,
+        stiffness: 100,
+        damping: 25,
+      });
+      animate(y, -100, {
+        type: 'spring',
+        stiffness: 100,
+        damping: 25,
+      });
+      animate(opacity, 0, {
+        duration: 0.8,
+        ease: 'easeOut',
       });
       
-      // Trigger like callback after a short delay
+      // Trigger like callback after animation completes
       setTimeout(() => {
         onSwipe('right');
-      }, 150);
+      }, 900);
     } else {
       // Snap back to center with spring animation
       animate(x, 0, {
@@ -901,9 +970,67 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
   useEffect(() => {
     setDragEnabled(true);
     isScrollingRef.current = false;
+    setIsExiting(false);
     x.set(0);
     y.set(0);
+    opacity.set(1);
+    prevTriggerSwipeRef.current = null;
+  }, [repo.id, x, y, opacity]);
+
+  // Reset trigger when repo changes
+  useEffect(() => {
+    prevTriggerSwipeRef.current = null;
   }, [repo.id]);
+
+  // Handle programmatic swipe trigger (from keyboard/buttons)
+  useEffect(() => {
+    if (triggerSwipe && triggerSwipe !== prevTriggerSwipeRef.current && !isExiting) {
+      prevTriggerSwipeRef.current = triggerSwipe;
+      setIsExiting(true);
+      setDragEnabled(false);
+      
+      const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
+      
+      if (triggerSwipe === 'left') {
+        // Animate card off screen to the left (skip) - slower and smoother
+        animate(x, -screenWidth * 2, {
+          type: 'spring',
+          stiffness: 100,
+          damping: 25,
+        });
+        animate(y, -100, {
+          type: 'spring',
+          stiffness: 100,
+          damping: 25,
+        });
+        animate(opacity, 0, {
+          duration: 0.8,
+          ease: 'easeOut',
+        });
+      } else if (triggerSwipe === 'right') {
+        // Animate card off screen to the right (like) - slower and smoother
+        animate(x, screenWidth * 2, {
+          type: 'spring',
+          stiffness: 100,
+          damping: 25,
+        });
+        animate(y, -100, {
+          type: 'spring',
+          stiffness: 100,
+          damping: 25,
+        });
+        animate(opacity, 0, {
+          duration: 0.8,
+          ease: 'easeOut',
+        });
+      }
+      
+      // Trigger callback after animation completes
+      setTimeout(() => {
+        onSwipe(triggerSwipe);
+      }, 900); // Slower duration to see the full animation
+    }
+  }, [triggerSwipe, isExiting, x, y, opacity, onSwipe, screenWidth]);
 
   // Calculate max drag distance - memoized
   const maxDrag = useMemo(() => {
@@ -914,17 +1041,43 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave }: Swi
     <motion.div
       ref={cardRef}
       data-swipeable-card
-      drag={dragEnabled ? "x" : false}
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={isExiting ? { 
+        opacity: 0,
+        transition: { duration: 0 }
+      } : { 
+        opacity: 0, 
+        scale: 0.8, 
+        y: -50,
+        transition: {
+          duration: 0.4,
+          ease: 'easeInOut'
+        }
+      }}
+      transition={{ 
+        type: 'spring',
+        stiffness: 300,
+        damping: 30,
+        duration: 0.3
+      }}
+      drag={dragEnabled && !isExiting ? "x" : false}
       dragConstraints={{ left: -maxDrag, right: maxDrag }}
-      dragElastic={0.3}
+      dragElastic={0.2}
       dragMomentum={false}
+      whileDrag={{ 
+        cursor: 'grabbing',
+        zIndex: 30,
+      }}
       onDragEnd={handleDragEnd}
       style={{ 
         x, 
         y, 
         rotate,
-        cursor: dragEnabled ? 'grab' : 'default',
-        willChange: 'transform', // GPU acceleration hint
+        scale,
+        opacity: isExiting ? opacity : opacityTransform, // Use animated opacity when exiting, transform when dragging
+        cursor: dragEnabled && !isExiting ? 'grab' : 'default',
+        willChange: 'transform, opacity', // GPU acceleration hint
       }}
       className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[500px] md:h-[600px] max-h-[80vh] z-20"
       dragDirectionLock={true}

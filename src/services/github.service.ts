@@ -10,6 +10,7 @@ import { Repository, GitHubApiRepo, TrendingRepo } from '@/lib/types';
 interface CacheEntry {
   data: Repository[];
   timestamp: number;
+  ttl?: number; // Optional custom TTL for this entry
 }
 
 class GitHubService {
@@ -33,7 +34,8 @@ class GitHubService {
     if (!entry) return null;
     
     const now = Date.now();
-    if (now - entry.timestamp > this.CACHE_TTL) {
+    const ttl = entry.ttl || this.CACHE_TTL; // Use custom TTL if available
+    if (now - entry.timestamp > ttl) {
       this.cache.delete(key);
       return null;
     }
@@ -42,12 +44,13 @@ class GitHubService {
   }
 
   /**
-   * Set cache entry
+   * Set cache entry with optional custom TTL
    */
-  private setCache(key: string, data: Repository[]): void {
+  private setCache(key: string, data: Repository[], customTTL?: number): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
+      ttl: customTTL,
     });
   }
 
@@ -355,6 +358,37 @@ class GitHubService {
   }): Promise<TrendingRepo[]> {
     try {
       const since = options?.since || 'daily';
+      
+      // Create date-based cache key that refreshes daily/weekly/monthly
+      const today = new Date();
+      let cacheDateKey: string;
+      
+      if (since === 'daily') {
+        // Cache key includes today's date - refreshes once per day
+        cacheDateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      } else if (since === 'weekly') {
+        // Cache key includes week number - refreshes once per week
+        const weekNumber = this.getWeekNumber(today);
+        cacheDateKey = `${today.getFullYear()}-W${weekNumber}`;
+      } else {
+        // Cache key includes month - refreshes once per month
+        cacheDateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      }
+      
+      const cacheKey = `trending-${since}-${cacheDateKey}-${options?.language || 'all'}-${options?.excludeWellKnown !== false ? 'filtered' : 'all'}`;
+      
+      // Check date-based cache first
+      const cached = this.getCached(cacheKey);
+      if (cached) {
+        console.log(`Using cached trending repos for ${since} (${cacheDateKey})`);
+        // Convert to TrendingRepo format
+        return cached.map((repo, index) => ({
+          ...repo,
+          rank: index + 1,
+          trending: this.calculateTrendingScore(repo.stars, since),
+        })) as TrendingRepo[];
+      }
+      
       const date = new Date();
       
       // Calculate date range based on since parameter
@@ -445,15 +479,33 @@ class GitHubService {
       const limitedRepos = filteredRepos.slice(0, options?.perPage || 100);
 
       // Calculate trending score (stars gained recently)
-      return limitedRepos.map((repo, index) => ({
+      const trendingRepos = limitedRepos.map((repo, index) => ({
         ...repo,
         rank: index + 1,
         trending: this.calculateTrendingScore(repo.stars, since),
       }));
+
+      // Cache results with date-based key (will auto-refresh daily/weekly/monthly)
+      // Use a long TTL (24 hours) since the date in the key ensures daily refresh
+      const dailyTTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+      this.setCache(cacheKey, limitedRepos, dailyTTL);
+      
+      return trendingRepos;
     } catch (error) {
       console.error('Error fetching trending repos:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get week number for a given date
+   */
+  private getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
 
   /**

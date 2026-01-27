@@ -20,19 +20,8 @@ interface Message {
 const initialMessages: Message[] = [
   {
     id: '1',
-    text: "Hi! I'm your repo discovery agent. I'll help you find the perfect GitHub repositories for your needs.",
+    text: "Hi! I'm your repo discovery agent. We're currently working on making me better than all LLMs with real-time GitHub data, personalized recommendations, and context-aware suggestions.",
     sender: 'agent',
-  },
-  {
-    id: '2',
-    text: "What are you building? Tell me about your project and tech stack!",
-    sender: 'agent',
-    quickReplies: [
-      'Web app with React',
-      'Mobile app with Flutter',
-      'CLI tool with Python',
-      'AI project',
-    ],
   },
 ];
 
@@ -173,6 +162,37 @@ export function AgentScreen() {
         </div>
       </div>
 
+      {/* Work in Progress Banner */}
+      <div className="px-4 md:px-6 pt-4 max-w-4xl mx-auto w-full">
+        <div className="bg-gradient-to-r from-cyan-900/30 to-pink-900/30 border-2 border-cyan-700/50 rounded-[20px] p-4 md:p-6 relative overflow-hidden">
+          {/* Animated background effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-pink-500/5 animate-pulse" />
+          
+          <div className="relative z-10">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-pink-500 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg text-white font-bold mb-2" style={{ fontWeight: 700 }}>
+                  We're Building Something Special
+                </h3>
+                <p className="text-gray-300 text-sm md:text-base leading-relaxed">
+                  We're working hard to make our AI agent better than all LLMs. Our agent will provide 
+                  <span className="text-cyan-400 font-semibold"> real-time GitHub data</span>, 
+                  <span className="text-cyan-400 font-semibold"> personalized recommendations</span>, and 
+                  <span className="text-cyan-400 font-semibold"> context-aware suggestions</span> that 
+                  understand your project needs better than generic AI assistants.
+                </p>
+                <p className="text-gray-400 text-xs md:text-sm mt-3 italic">
+                  Stay tuned for updates! 🚀
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 max-w-4xl mx-auto w-full">
         {messages.map((message) => (
@@ -271,7 +291,7 @@ export function AgentScreen() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input - Disabled while in development */}
       <div className="p-4 md:p-6 border-t border-gray-700">
         <div className="flex gap-2 max-w-4xl mx-auto">
           <input
@@ -280,16 +300,21 @@ export function AgentScreen() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-3 bg-gray-800 text-white placeholder-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-white border border-gray-700"
+            placeholder="Coming soon..."
+            disabled
+            className="flex-1 px-4 py-3 bg-gray-800/50 text-gray-500 placeholder-gray-600 rounded-full border border-gray-700 cursor-not-allowed"
           />
           <button
             onClick={() => handleSend(inputValue)}
-            className="w-12 h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+            disabled
+            className="w-12 h-12 bg-gray-700 text-gray-500 rounded-full flex items-center justify-center cursor-not-allowed opacity-50"
           >
             <Send className="w-5 h-5" />
           </button>
         </div>
+        <p className="text-center text-gray-500 text-xs mt-2 max-w-4xl mx-auto">
+          Agent functionality is under development
+        </p>
       </div>
     </div>
   );

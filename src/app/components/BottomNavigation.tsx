@@ -1,9 +1,9 @@
-import { Compass, TrendingUp, Bot, User } from 'lucide-react';
+import { Compass, TrendingUp, Bot, User, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface BottomNavigationProps {
-  activeTab: 'discover' | 'trending' | 'agent' | 'profile';
-  onTabChange: (tab: 'discover' | 'trending' | 'agent' | 'profile') => void;
+  activeTab: 'discover' | 'trending' | 'agent' | 'profile' | 'support';
+  onTabChange: (tab: 'discover' | 'trending' | 'agent' | 'profile' | 'support') => void;
 }
 
 export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
@@ -12,6 +12,7 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
     { id: 'trending' as const, icon: TrendingUp, label: 'Trending' },
     { id: 'agent' as const, icon: Bot, label: 'Agent' },
     { id: 'profile' as const, icon: User, label: 'Profile' },
+    { id: 'support' as const, icon: Heart, label: 'Buy Me a Coffee' },
   ];
 
   return (
