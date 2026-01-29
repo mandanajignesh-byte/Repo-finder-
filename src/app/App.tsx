@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Analytics } from '@vercel/analytics/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
 import { DiscoveryScreen } from '@/app/components/DiscoveryScreen';
 import { TrendingScreen } from '@/app/components/TrendingScreen';
@@ -107,6 +108,9 @@ export default function App() {
 
       {/* Swipe hint popup for first-time visitors */}
       <SwipeHintPopup />
+      
+      {/* Vercel Analytics */}
+      <Analytics />
     </div>
   );
 }

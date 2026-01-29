@@ -56,7 +56,7 @@ const USE_CASES = [
   { id: 'learning-new-tech', label: 'Learning New Technology', description: 'I want to learn a new language or framework' },
   { id: 'building-project', label: 'Building a Project', description: 'I need code to build something' },
   { id: 'contributing', label: 'Contributing to Open Source', description: 'I want to contribute to projects' },
-  { id: 'finding-solutions', label: 'Finding Solutions', description: 'I need libraries/tools for specific problems' },
+  { id: 'finding-solutions', label: 'Finding Solutions', description: 'I need libraries/tools for specific missions' },
   { id: 'exploring', label: 'Exploring & Research', description: 'I\'m exploring what\'s out there' },
 ];
 
@@ -203,7 +203,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
             className="flex items-center justify-between mb-6"
           >
             <div>
-              <h2 className="text-2xl text-white mb-1" style={{ fontWeight: 700 }}>Let's personalize your experience</h2>
+              <h2 className="text-2xl text-white mb-1" style={{ fontWeight: 700 }}>Let's chart your course through the universe</h2>
               <p className="text-gray-400 text-sm">Step {step} of {totalSteps}</p>
             </div>
             {onSkip && (
@@ -237,10 +237,10 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
 
           {/* Step Content with AnimatePresence */}
           <AnimatePresence mode="wait">
-            {/* Step 1: Primary Cluster Selection */}
+            {/* Step 1: Name Input */}
             {step === 1 && (
               <motion.div
-                key="step1"
+                key="step1-name"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -252,8 +252,37 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What's your primary area of interest?</h3>
-                  <p className="text-gray-400 text-sm mb-4">Select your main focus. This helps us show you the most relevant repositories.</p>
+                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What's your name?</h3>
+                  <p className="text-gray-400 text-sm mb-4">This helps us personalize your experience.</p>
+                </motion.div>
+                <input
+                  type="text"
+                  value={preferences.name || ''}
+                  onChange={(e) => setPreferences({ ...preferences, name: e.target.value })}
+                  placeholder="Enter your name"
+                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  autoFocus
+                />
+              </motion.div>
+            )}
+
+            {/* Step 2: Primary Cluster Selection */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="space-y-6"
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>Which galaxy interests you most?</h3>
+                  <p className="text-gray-400 text-sm mb-4">Select your primary sector. This helps us chart your course through the repository universe.</p>
                 </motion.div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {PRIMARY_CLUSTERS.map((cluster, i) => (
@@ -295,8 +324,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What other areas interest you?</h3>
-                  <p className="text-gray-400 text-sm mb-4">Select any additional areas (optional). This helps us show you cross-domain repositories.</p>
+                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What other galaxies catch your eye?</h3>
+                  <p className="text-gray-400 text-sm mb-4">Select additional sectors (optional). This helps us explore cross-galactic repositories.</p>
                 </motion.div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {PRIMARY_CLUSTERS
@@ -386,8 +415,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What do you want to do with repositories?</h3>
-                  <p className="text-gray-400 text-sm mb-4">Select all that apply. This helps us show you the right type of repos.</p>
+                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What's your mission in this universe?</h3>
+                  <p className="text-gray-400 text-sm mb-4">Select all that apply. This helps us navigate you to the right stellar repositories.</p>
                 </motion.div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {USE_CASES.map((useCase, i) => (

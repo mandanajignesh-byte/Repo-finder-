@@ -52,8 +52,13 @@ export function SplashScreen() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center p-8 relative">
-      <ParticlesBackground id="splash-particles" config={splashParticlesConfig} />
+    <div className="fixed inset-0 bg-black flex items-center justify-center p-8 relative overflow-hidden">
+      <ParticlesBackground 
+        id="splash-particles" 
+        config={splashParticlesConfig}
+        className="fixed inset-0"
+        style={{ zIndex: 0 }}
+      />
       <div className="flex flex-col items-center gap-8 w-full max-w-md relative z-10">
         {/* Layered signature card */}
         <SignatureCard className="p-12 w-full">
@@ -64,10 +69,10 @@ export function SplashScreen() {
               <p className="text-xl mb-2 text-white">
                 <TypedText
                   strings={[
-                    'Hi, human. Act busy.',
-                    'I\'ll work. You... exist.',
-                    'Discovering amazing repos...',
-                    'Almost ready...',
+                    'Charting the GitHub universe...',
+                    'Mapping stellar repositories...',
+                    'Scanning the galaxy of code...',
+                    'Almost ready to explore...',
                   ]}
                   typeSpeed={60}
                   backSpeed={40}
@@ -83,7 +88,7 @@ export function SplashScreen() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2 text-white">
             <TypedText
-              strings={['RepoFinder']}
+              strings={['RepoVerse']}
               typeSpeed={100}
               showCursor={false}
             />
@@ -91,9 +96,9 @@ export function SplashScreen() {
           <p className="text-gray-300">
             <TypedText
               strings={[
-                'Discover the right GitHub repo faster',
-                'Find your next favorite project',
-                'Explore amazing repositories',
+                'Navigate the universe of GitHub repos',
+                'Discover stellar projects across the galaxy',
+                'Explore the cosmos of open source code',
               ]}
               typeSpeed={50}
               backSpeed={30}

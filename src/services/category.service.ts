@@ -7,6 +7,8 @@ import { Repository } from '@/lib/types';
 
 export type RepoCategory = 
   | 'repos-all-should-know' 
+  | 'ai-automation'
+  | 'open-source-alternatives'
   | 'frontend' 
   | 'backend' 
   | 'mobile'
@@ -383,6 +385,52 @@ class CategoryService {
       '2d', '3d', 'pixel', 'sprite', 'physics engine',
     ];
     
+    // AI Automation keywords (n8n, zapier, no-code, automation platforms)
+    const aiAutomationKeywords = [
+      'n8n', 'zapier', 'make', 'integromat', 'automation', 'workflow-automation',
+      'workflow automation', 'workflowautomation', 'no-code', 'nocode', 'no code',
+      'low-code', 'lowcode', 'low code', 'visual-workflow', 'visual workflow',
+      'visualworkflow', 'workflow-engine', 'workflow engine', 'workflowengine',
+      'automation-platform', 'automation platform', 'automationplatform',
+      'integration-platform', 'integration platform', 'integrationplatform',
+      'api-automation', 'api automation', 'apiautomation', 'webhook-automation',
+      'webhook automation', 'webhookautomation', 'trigger', 'triggers', 'action',
+      'actions', 'connector', 'connectors', 'integration', 'integrations',
+      'ifttt', 'if-this-then-that', 'if this then that', 'ifttt-alternative',
+      'ifttt alternative', 'iftttalternative', 'zapier-alternative', 'zapier alternative',
+      'zapieralternative', 'automation-tool', 'automation tool', 'automationtool',
+      'workflow-builder', 'workflow builder', 'workflowbuilder', 'process-automation',
+      'process automation', 'processautomation', 'task-automation', 'task automation',
+      'taskautomation', 'business-automation', 'business automation', 'businessautomation',
+      'rpa', 'robotic process automation', 'bot', 'bots', 'chatbot-automation',
+      'chatbot automation', 'chatbotautomation', 'ai-automation', 'ai automation',
+      'aiautomation', 'smart-automation', 'smart automation', 'smartautomation',
+      'orchestration', 'orchestrator', 'orchestrators', 'scheduler', 'schedulers',
+      'cron-alternative', 'cron alternative', 'cronalternative', 'job-scheduler',
+      'job scheduler', 'jobscheduler', 'event-driven', 'event driven', 'eventdriven',
+      'event-automation', 'event automation', 'eventautomation', 'rule-engine',
+      'rule engine', 'ruleengine', 'decision-engine', 'decision engine', 'decisionengine',
+    ];
+    
+    // Open-source Alternatives keywords (alternatives to popular tools)
+    const openSourceAlternativesKeywords = [
+      'alternative', 'alternatives', 'open-source-alternative', 'open source alternative',
+      'opensourcealternative', 'free-alternative', 'free alternative', 'freealternative',
+      'self-hosted-alternative', 'self-hosted alternative', 'selfhostedalternative',
+      'self-hosted', 'self hosted', 'selfhosted', 'privacy-focused', 'privacy focused',
+      'privacyfocused', 'open-source', 'opensource', 'open source', 'foss', 'free-software',
+      'free software', 'freesoftware', 'libre', 'replacement', 'replacements', 'substitute',
+      'substitutes', 'clone', 'clones', 'fork', 'forks', 'inspired-by', 'inspired by',
+      'inspiredby', 'similar-to', 'similar to', 'similarto', 'vs', 'comparison',
+      'comparisons', 'compare', 'versus', 'better-than', 'better than', 'betterthan',
+      'improved', 'enhanced', 'drop-in-replacement', 'drop-in replacement', 'dropinreplacement',
+      'compatible', 'compatibility', 'migration', 'migrate', 'port', 'rewrite',
+      'reimplementation', 'from-scratch', 'from scratch', 'fromscratch',
+      'lightweight-alternative', 'minimal-alternative', 'simple-alternative',
+      'modern-alternative', 'better-alternative', 'best-alternative',
+      'recommended-alternative', 'popular-alternative', 'trending-alternative',
+    ];
+    
     // Check categories in order of specificity
     const hasFrontend = frontendKeywords.some(keyword => text.includes(keyword));
     const hasBackend = backendKeywords.some(keyword => text.includes(keyword));
@@ -392,6 +440,8 @@ class CategoryService {
     const hasDevOps = devopsKeywords.some(keyword => text.includes(keyword));
     const hasAI = aiKeywords.some(keyword => text.includes(keyword));
     const hasGameDev = gameDevKeywords.some(keyword => text.includes(keyword));
+    const hasAIAutomation = aiAutomationKeywords.some(keyword => text.includes(keyword));
+    const hasOpenSourceAlternatives = openSourceAlternativesKeywords.some(keyword => text.includes(keyword));
     
     // Prioritize: if it has both frontend and backend, check which is stronger
     if (hasFrontend && hasBackend) {
@@ -401,6 +451,10 @@ class CategoryService {
       if (frontendMatches >= backendMatches) return 'frontend';
       return 'backend';
     }
+    
+    // Check new categories first (higher priority for user-friendly categories)
+    if (hasAIAutomation) return 'ai-automation';
+    if (hasOpenSourceAlternatives) return 'open-source-alternatives';
     
     // Check categories in priority order
     if (hasMobile) return 'mobile';
@@ -423,7 +477,9 @@ class CategoryService {
     
     // Initialize all categories
     const categories: RepoCategory[] = [
-      'repos-all-should-know', 
+      'repos-all-should-know',
+      'ai-automation',
+      'open-source-alternatives',
       'frontend', 
       'backend', 
       'mobile',
@@ -452,6 +508,8 @@ class CategoryService {
   getCategoryName(category: RepoCategory): string {
     const names: Record<RepoCategory, string> = {
       'repos-all-should-know': 'Repos All Should Know',
+      'ai-automation': 'AI Automation',
+      'open-source-alternatives': 'Open Source Alternatives',
       'frontend': 'Frontend',
       'backend': 'Backend',
       'mobile': 'Mobile',
@@ -471,6 +529,8 @@ class CategoryService {
   getCategoryDescription(category: RepoCategory): string {
     const descriptions: Record<RepoCategory, string> = {
       'repos-all-should-know': 'Free AI tools and useful apps that run locally - image generation, LLMs, and productivity tools',
+      'ai-automation': 'No-code automation platforms like n8n, Zapier alternatives, workflow automation, and integration tools',
+      'open-source-alternatives': 'Open-source alternatives to popular proprietary tools - image generation, productivity apps, and more',
       'frontend': 'Frontend frameworks, libraries, and tools',
       'backend': 'Backend services, APIs, and server technologies',
       'mobile': 'Mobile app development frameworks and tools',

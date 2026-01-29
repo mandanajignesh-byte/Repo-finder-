@@ -739,13 +739,13 @@ export function DiscoveryScreen() {
   };
 
   return (
-    <div className="h-full bg-black flex flex-col pb-48 md:pb-16 relative overflow-hidden">
+    <div className="h-full bg-black flex flex-col pb-20 md:pb-16 relative overflow-hidden">
       {/* Subtle particles background */}
       <ParticlesBackground id="discovery-particles" config={discoveryParticlesConfig} />
       
       {/* Header with bookmark and heart */}
-      <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10">
-        <h1 className="text-2xl text-white" style={{ fontWeight: 700 }}>Discover</h1>
+      <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-2 md:mb-0">
+        <h1 className="text-2xl text-white" style={{ fontWeight: 700 }}>Explore</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowLiked(true)}
@@ -773,25 +773,25 @@ export function DiscoveryScreen() {
       </div>
 
       {/* Card stack - centered both horizontally and vertically */}
-      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-4 pt-8 md:pt-12 pb-32 md:pb-24 z-10 min-h-0">
+      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-4 pt-4 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
         {cards.length === 0 ? (
           isLoadingMore || loading ? (
             <div className="flex flex-col items-center justify-center gap-4 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
               <div className="space-y-2">
-                <p className="text-white text-lg font-medium">Finding repos that fit for you...</p>
-                <p className="text-gray-400 text-sm">This may take a moment</p>
+                <p className="text-white text-lg font-medium">Scanning the galaxy for perfect repos...</p>
+                <p className="text-gray-400 text-sm">Charting your path through the universe</p>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center gap-4 text-center">
-              <p className="text-gray-400 text-lg">No more repos to discover</p>
-              <p className="text-gray-500 text-sm">Try adjusting your preferences to see more</p>
+              <p className="text-gray-400 text-lg">You've explored this sector of the universe</p>
+              <p className="text-gray-500 text-sm">Adjust your course to discover new galaxies</p>
             </div>
           )
         ) : (
           <>
-            <div className="relative w-full max-w-md" style={{ minHeight: '500px' }}>
+            <div className="relative w-full max-w-md" style={{ minHeight: '500px', marginTop: '1rem', marginBottom: '1rem' }}>
               <AnimatePresence mode="wait">
                 {cards[0] && (
                   <SwipeableCard
@@ -799,7 +799,6 @@ export function DiscoveryScreen() {
                     repo={cards[0]}
                     onSwipe={handleSwipeComplete}
                     onSave={() => handleSave(cards[0])}
-                    isSwiping={isSwiping}
                     triggerSwipe={triggerSwipe}
                   />
                 )}
@@ -811,7 +810,7 @@ export function DiscoveryScreen() {
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
                 <div className="flex items-center gap-2 text-gray-400 text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Finding more repos for you...</span>
+                  <span>Exploring deeper into the galaxy...</span>
                 </div>
               </div>
             )}
@@ -826,11 +825,10 @@ interface SwipeableCardProps {
   repo: Repository;
   onSwipe: (direction: 'left' | 'right') => void;
   onSave?: () => void;
-  isSwiping?: boolean;
   triggerSwipe?: 'left' | 'right' | null;
 }
 
-const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, isSwiping = false, triggerSwipe }: SwipeableCardProps) {
+const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, triggerSwipe }: SwipeableCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const opacity = useMotionValue(1);
@@ -841,10 +839,17 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, isSwi
   const [isExiting, setIsExiting] = useState(false);
   const prevTriggerSwipeRef = useRef<'left' | 'right' | null>(null);
   
-  // Calculate swipe threshold based on screen width (30% of screen) - memoized
+  // Detect if device supports touch
+  const isTouchDevice = useMemo(() => {
+    return typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
+  
+  // Calculate swipe threshold based on screen width - more lenient on mobile
   const swipeThreshold = useMemo(() => {
     if (typeof window === 'undefined') return 100;
-    return window.innerWidth * 0.3; // 30% of screen width
+    const isMobile = window.innerWidth < 768;
+    // Mobile: 25% threshold (easier to swipe), Desktop: 30%
+    return window.innerWidth * (isMobile ? 0.25 : 0.3);
   }, []);
   
   // More subtle rotation (2-5 degrees)
@@ -1065,6 +1070,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, isSwi
       dragConstraints={{ left: -maxDrag, right: maxDrag }}
       dragElastic={0.2}
       dragMomentum={false}
+      dragPropagation={false}
       whileDrag={{ 
         cursor: 'grabbing',
         zIndex: 30,
@@ -1078,30 +1084,35 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, isSwi
         opacity: isExiting ? opacity : opacityTransform, // Use animated opacity when exiting, transform when dragging
         cursor: dragEnabled && !isExiting ? 'grab' : 'default',
         willChange: 'transform, opacity', // GPU acceleration hint
+        touchAction: 'pan-x', // Allow horizontal panning (swipe) on touch devices
       }}
-      className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[500px] md:h-[600px] max-h-[80vh] z-20"
-      dragDirectionLock={true}
-      dragPropagation={false}
+      className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[450px] md:h-[600px] max-h-[75vh] md:max-h-[80vh] z-20 select-none"
+      dragDirectionLock={false} // Allow more freedom for touch gestures
       onDragStart={(event) => {
-        // Check if drag started on scrollable content or its children
-        const target = event.target as HTMLElement;
-        const scrollable = target.closest('.scrollable-content');
-        
-        if (scrollable) {
-          // Cancel drag immediately - user is trying to scroll
-          setDragEnabled(false);
-          isScrollingRef.current = true;
-          x.set(0);
-          y.set(0);
-          return false;
+        // On touch devices, be more lenient - allow drag even if starting on scrollable content
+        // Only prevent if user is clearly trying to scroll (we'll detect this in onDrag)
+        if (!isTouchDevice) {
+          // Desktop: check if drag started on scrollable content
+          const target = event.target as HTMLElement;
+          const scrollable = target.closest('.scrollable-content');
+          
+          if (scrollable) {
+            // Cancel drag immediately - user is trying to scroll
+            setDragEnabled(false);
+            isScrollingRef.current = true;
+            x.set(0);
+            y.set(0);
+            return false;
+          }
         }
         
         // Reset scroll state and ensure drag is enabled
         isScrollingRef.current = false;
         setDragEnabled(true);
         
-        // Store initial Y position for scroll detection
-        const clientY = (event as any).clientY ?? (event as any).touches?.[0]?.clientY;
+        // Store initial Y position for scroll detection (works for both mouse and touch)
+        const pointerEvent = event as any;
+        const clientY = pointerEvent.clientY ?? pointerEvent.touches?.[0]?.clientY ?? pointerEvent.changedTouches?.[0]?.clientY;
         if (clientY !== undefined) {
           scrollStartY.current = clientY;
         }
@@ -1123,21 +1134,35 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, isSwi
         const deltaY = Math.abs(info.delta.y);
         const deltaX = Math.abs(info.delta.x);
         
-        // Only disable drag if vertical movement is MUCH greater than horizontal
-        // Use a very lenient ratio (3:1) and higher threshold to allow horizontal swipes
-        if (deltaY > deltaX * 3 && deltaY > 30) {
-          // User is clearly scrolling vertically
-          isScrollingRef.current = true;
-          setDragEnabled(false);
-          x.set(0);
-          y.set(0);
-          return;
-        }
-        
-        // If horizontal movement is significant, ensure we're not in scroll mode
-        if (deltaX > 10) {
-          // Clear scroll state if we're clearly swiping horizontally
-          if (deltaX > deltaY * 1.2) {
+        // More lenient detection for touch screens - prioritize horizontal movement
+        if (isTouchDevice) {
+          // On touch devices, be very lenient - only disable if clearly vertical scrolling
+          // Require much more vertical movement (8:1 ratio) and higher threshold
+          if (deltaY > deltaX * 8 && deltaY > 80) {
+            // User is clearly scrolling vertically
+            isScrollingRef.current = true;
+            setDragEnabled(false);
+            x.set(0);
+            y.set(0);
+            return;
+          }
+          
+          // On touch, any horizontal movement should enable swipe
+          if (deltaX > 3) {
+            isScrollingRef.current = false;
+            setDragEnabled(true);
+          }
+        } else {
+          // Desktop: more strict detection
+          if (deltaY > deltaX * 5 && deltaY > 50) {
+            isScrollingRef.current = true;
+            setDragEnabled(false);
+            x.set(0);
+            y.set(0);
+            return;
+          }
+          
+          if (deltaX > 5 && deltaX >= deltaY * 0.8) {
             isScrollingRef.current = false;
             setDragEnabled(true);
           }
@@ -1166,7 +1191,15 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, isSwi
         }}
       />
       
-      <div className="relative h-full w-full rounded-[24px]" style={{ height: '100%', maxHeight: '100%', overflow: 'visible', padding: '0 16px 0 0' }}>
+      <div 
+        className="relative h-full w-full rounded-[24px]" 
+        style={{ 
+          height: '100%', 
+          maxHeight: '100%', 
+          overflow: 'visible', 
+          padding: '0 16px 0 0',
+        }}
+      >
         <RepoCard repo={repo} style={{ height: '100%', maxHeight: '100%' }} onSave={onSave} />
         
         {/* Skip indicator (left swipe) */}

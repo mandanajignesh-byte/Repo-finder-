@@ -8,7 +8,7 @@ interface BottomNavigationProps {
 
 export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
   const navItems = [
-    { id: 'discover' as const, icon: Compass, label: 'Discover' },
+    { id: 'discover' as const, icon: Compass, label: 'Explore' },
     { id: 'trending' as const, icon: TrendingUp, label: 'Trending' },
     { id: 'agent' as const, icon: Bot, label: 'Agent' },
     { id: 'profile' as const, icon: User, label: 'Profile' },
@@ -30,8 +30,8 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
           transition={{ delay: 0.1 }}
           className="px-6 mb-8"
         >
-          <h1 className="text-2xl font-bold text-white" style={{ fontWeight: 700 }}>RepoFinder</h1>
-          <p className="text-sm text-gray-400 mt-1">Discover GitHub repos</p>
+          <h1 className="text-2xl font-bold text-white" style={{ fontWeight: 700 }}>RepoVerse</h1>
+          <p className="text-sm text-gray-400 mt-1">Navigate the GitHub universe</p>
         </motion.div>
         <nav className="flex-1 space-y-2 px-4">
           {navItems.map((item, i) => {

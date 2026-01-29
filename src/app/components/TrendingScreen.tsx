@@ -50,6 +50,8 @@ export function TrendingScreen() {
   // Category display order
   const categoryOrder: RepoCategory[] = [
     'repos-all-should-know',
+    'ai-automation',
+    'open-source-alternatives',
     'frontend',
     'backend',
     'mobile',

@@ -74,6 +74,19 @@ export function ParticlesBackground({
 
       // Ensure container has dimensions
       const container = containerRef.current;
+      if (!container) return;
+      
+      // Force full screen dimensions for splash screen
+      if (id === 'splash-particles') {
+        container.style.width = '100vw';
+        container.style.height = '100vh';
+        container.style.position = 'fixed';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.right = '0';
+        container.style.bottom = '0';
+      }
+      
       if (container.offsetWidth === 0 || container.offsetHeight === 0) {
         // Wait a bit for layout
         setTimeout(loadParticles, 100);
@@ -191,8 +204,18 @@ export function ParticlesBackground({
     <div
       id={id}
       ref={containerRef}
-      className={`absolute inset-0 ${className}`}
-      style={{ zIndex: 0, ...style }}
+      className={`${className || 'absolute inset-0'}`}
+      style={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        ...style 
+      }}
     >
       {/* Canvas will be added by particles.js with class 'particles-js-canvas-el' */}
     </div>
