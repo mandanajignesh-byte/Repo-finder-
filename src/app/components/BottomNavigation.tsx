@@ -30,7 +30,14 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
           transition={{ delay: 0.1 }}
           className="px-6 mb-8"
         >
-          <h1 className="text-2xl font-bold text-white" style={{ fontWeight: 700 }}>RepoVerse</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <img 
+              src="/logo.png" 
+              alt="RepoVerse Logo" 
+              className="h-8 w-8 object-contain"
+            />
+            <h1 className="text-2xl font-bold text-white" style={{ fontWeight: 700 }}>RepoVerse</h1>
+          </div>
           <p className="text-sm text-gray-400 mt-1">Navigate the GitHub universe</p>
         </motion.div>
         <nav className="flex-1 space-y-2 px-4">

@@ -85,6 +85,19 @@ export function ParticlesBackground({
         container.style.left = '0';
         container.style.right = '0';
         container.style.bottom = '0';
+        container.style.zIndex = '0';
+        
+        // Also ensure the canvas created by particles.js is full screen
+        setTimeout(() => {
+          const canvas = container.querySelector('canvas');
+          if (canvas) {
+            canvas.style.width = '100vw';
+            canvas.style.height = '100vh';
+            canvas.style.position = 'fixed';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+          }
+        }, 200);
       }
       
       if (container.offsetWidth === 0 || container.offsetHeight === 0) {

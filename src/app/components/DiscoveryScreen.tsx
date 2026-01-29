@@ -691,33 +691,33 @@ export function DiscoveryScreen() {
     );
   }
 
-  // Optimized particles for discovery screen - reduced count for better performance
+  // Enhanced particles for discovery screen - more particles for immersive galaxy effect
   const discoveryParticlesConfig = {
     particles: {
       number: { 
-        value: 50, // Reduced from 150 to 50 for better performance
-        density: { enable: true, value_area: 800 }
+        value: 150, // Increased for richer galaxy effect
+        density: { enable: true, value_area: 600 }
       },
-      color: { value: ['#22d3ee', '#ec4899'] },
+      color: { value: ['#22d3ee', '#ec4899', '#a855f7'] }, // Added purple for more variety
       shape: { type: 'circle' },
       opacity: { 
-        value: 0.4, // Reduced opacity
+        value: 0.6, // Increased opacity for better visibility
         random: true 
       },
       size: { 
-        value: 2, // Smaller particles
+        value: 3, // Slightly larger particles
         random: true 
       },
       line_linked: {
         enable: true,
-        distance: 200, // Increased distance to reduce connections
+        distance: 150, // More connections for galaxy effect
         color: '#22d3ee',
-        opacity: 0.15, // Reduced opacity
+        opacity: 0.3, // Increased opacity for better visibility
         width: 1
       },
       move: {
         enable: true,
-        speed: 0.8, // Slower movement
+        speed: 1.5, // Slightly faster for dynamic feel
         direction: 'none',
         random: false,
         out_mode: 'out'
@@ -726,16 +726,16 @@ export function DiscoveryScreen() {
     interactivity: {
       detect_on: 'canvas',
       events: {
-        onhover: { enable: false, mode: 'repulse' }, // Disabled for performance
-        onclick: { enable: false, mode: 'push' }, // Disabled for performance
+        onhover: { enable: true, mode: 'repulse' }, // Enabled for interactive galaxy
+        onclick: { enable: true, mode: 'push' }, // Enabled for interactive galaxy
         resize: true
       },
       modes: {
-        repulse: { distance: 120 },
-        push: { particles_nb: 4 }
+        repulse: { distance: 150 },
+        push: { particles_nb: 6 }
       }
     },
-    retina_detect: false // Disabled for better performance
+    retina_detect: true // Enabled for better quality on retina displays
   };
 
   return (

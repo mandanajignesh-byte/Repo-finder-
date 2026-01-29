@@ -52,12 +52,12 @@ export function SplashScreen() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center p-8 relative overflow-hidden">
+    <div className="fixed inset-0 bg-black flex items-center justify-center p-8 relative overflow-hidden" style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       <ParticlesBackground 
         id="splash-particles" 
         config={splashParticlesConfig}
         className="fixed inset-0"
-        style={{ zIndex: 0 }}
+        style={{ zIndex: 0, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' }}
       />
       <div className="flex flex-col items-center gap-8 w-full max-w-md relative z-10">
         {/* Layered signature card */}
@@ -86,6 +86,13 @@ export function SplashScreen() {
         
         {/* App branding */}
         <div className="text-center">
+          <div className="mb-4 flex justify-center">
+            <img 
+              src="/logo.png" 
+              alt="RepoVerse Logo" 
+              className="h-16 w-16 md:h-20 md:w-20 object-contain"
+            />
+          </div>
           <h1 className="text-2xl font-bold mb-2 text-white">
             <TypedText
               strings={['RepoVerse']}
