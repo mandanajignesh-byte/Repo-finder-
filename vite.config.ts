@@ -21,4 +21,21 @@ export default defineConfig({
     port: 5173, // Default Vite port
     strictPort: false, // Allow other ports if 5173 is taken
   },
+  build: {
+    // Optimize build for performance
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom'],
+          'motion-vendor': ['motion/react'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+        },
+      },
+    },
+    // Enable minification
+    minify: 'esbuild',
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
+  },
 })

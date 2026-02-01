@@ -256,29 +256,60 @@ export function DiscoveryScreen() {
     }
   }, [preferences]);
 
-  // Load saved and liked repos from Supabase on mount
+  // Load saved and liked repos from Supabase on mount (deferred for performance)
   useEffect(() => {
     const loadRepos = async () => {
-      try {
-        const { supabaseService } = await import('@/services/supabase.service');
-        const userId = await supabaseService.getOrCreateUserId();
-        
-        // Load saved repos
-        const saved = await supabaseService.getSavedRepositories(userId);
-        if (saved.length > 0) {
-          setSavedRepos(saved);
-        }
-        
-        // Load liked repos
-        const liked = await supabaseService.getLikedRepositories(userId);
-        if (liked.length > 0) {
-          setLikedRepos(liked);
-        }
-      } catch (error) {
-        console.error('Error loading repos from Supabase:', error);
-        // Fallback to localStorage
-        interactionService.getSavedRepos();
-        interactionService.getLikedRepos();
+      // Defer loading to avoid blocking initial render
+      if (window.requestIdleCallback) {
+        window.requestIdleCallback(async () => {
+          try {
+            const { supabaseService } = await import('@/services/supabase.service');
+            const userId = await supabaseService.getOrCreateUserId();
+            
+            // Load saved and liked repos in parallel
+            const [saved, liked] = await Promise.all([
+              supabaseService.getSavedRepositories(userId),
+              supabaseService.getLikedRepositories(userId),
+            ]);
+            
+            if (saved.length > 0) {
+              setSavedRepos(saved);
+            }
+            if (liked.length > 0) {
+              setLikedRepos(liked);
+            }
+          } catch (error) {
+            console.error('Error loading repos from Supabase:', error);
+            // Fallback to localStorage
+            interactionService.getSavedRepos();
+            interactionService.getLikedRepos();
+          }
+        }, { timeout: 3000 });
+      } else {
+        setTimeout(async () => {
+          try {
+            const { supabaseService } = await import('@/services/supabase.service');
+            const userId = await supabaseService.getOrCreateUserId();
+            
+            // Load saved and liked repos in parallel
+            const [saved, liked] = await Promise.all([
+              supabaseService.getSavedRepositories(userId),
+              supabaseService.getLikedRepositories(userId),
+            ]);
+            
+            if (saved.length > 0) {
+              setSavedRepos(saved);
+            }
+            if (liked.length > 0) {
+              setLikedRepos(liked);
+            }
+          } catch (error) {
+            console.error('Error loading repos from Supabase:', error);
+            // Fallback to localStorage
+            interactionService.getSavedRepos();
+            interactionService.getLikedRepos();
+          }
+        }, 500);
       }
     };
     
@@ -289,9 +320,19 @@ export function DiscoveryScreen() {
   const prevPreferencesRef = useRef<string>('');
 
   // Load repos when preferences are loaded and onboarding is complete
+  // Use requestIdleCallback for non-critical loading to avoid blocking UI
   useEffect(() => {
     if (loaded && preferences.onboardingCompleted && cards.length === 0 && !loading) {
-      loadPersonalizedRepos();
+      // Use requestIdleCallback if available, otherwise setTimeout
+      if (window.requestIdleCallback) {
+        window.requestIdleCallback(() => {
+          loadPersonalizedRepos();
+        }, { timeout: 2000 });
+      } else {
+        setTimeout(() => {
+          loadPersonalizedRepos();
+        }, 100);
+      }
     }
   }, [loaded, preferences.onboardingCompleted, cards.length, loading, loadPersonalizedRepos]);
 
@@ -691,12 +732,12 @@ export function DiscoveryScreen() {
     );
   }
 
-  // Enhanced particles for discovery screen - more particles for immersive galaxy effect
+  // Optimized particles for discovery screen (reduced from 150 to 80 for performance)
   const discoveryParticlesConfig = {
     particles: {
       number: { 
-        value: 150, // Increased for richer galaxy effect
-        density: { enable: true, value_area: 600 }
+        value: 80,
+        density: { enable: true, value_area: 800 }
       },
       color: { value: ['#22d3ee', '#ec4899', '#a855f7'] }, // Added purple for more variety
       shape: { type: 'circle' },
@@ -710,14 +751,14 @@ export function DiscoveryScreen() {
       },
       line_linked: {
         enable: true,
-        distance: 150, // More connections for galaxy effect
+        distance: 120, // Reduced for better performance
         color: '#22d3ee',
-        opacity: 0.3, // Increased opacity for better visibility
+        opacity: 0.25, // Slightly reduced for performance
         width: 1
       },
       move: {
         enable: true,
-        speed: 1.5, // Slightly faster for dynamic feel
+        speed: 1.2, // Slightly reduced for better performance
         direction: 'none',
         random: false,
         out_mode: 'out'
@@ -726,8 +767,8 @@ export function DiscoveryScreen() {
     interactivity: {
       detect_on: 'canvas',
       events: {
-        onhover: { enable: true, mode: 'repulse' }, // Enabled for interactive galaxy
-        onclick: { enable: true, mode: 'push' }, // Enabled for interactive galaxy
+        onhover: { enable: false, mode: 'repulse' }, // Disabled for better performance
+        onclick: { enable: false, mode: 'push' }, // Disabled for better performance
         resize: true
       },
       modes: {

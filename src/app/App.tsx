@@ -1,24 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Analytics } from '@vercel/analytics/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
 import { DiscoveryScreen } from '@/app/components/DiscoveryScreen';
-import { TrendingScreen } from '@/app/components/TrendingScreen';
-import { AgentScreen } from '@/app/components/AgentScreen';
-import { ProfileScreen } from '@/app/components/ProfileScreen';
-import { SupportScreen } from '@/app/components/SupportScreen';
 import { BottomNavigation } from '@/app/components/BottomNavigation';
 import { SwipeHintPopup } from '@/app/components/SwipeHintPopup';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load heavy components for code splitting
+const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
+const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
+const ProfileScreen = lazy(() => import('@/app/components/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
+const SupportScreen = lazy(() => import('@/app/components/SupportScreen').then(m => ({ default: m.SupportScreen })));
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="h-full bg-black flex items-center justify-center">
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+      <p className="text-gray-400 text-sm">Loading...</p>
+    </div>
+  </div>
+);
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<'discover' | 'trending' | 'agent' | 'profile' | 'support'>('discover');
 
   useEffect(() => {
-    // Show splash screen for 2.5 seconds
+    // Show splash screen for 1 second (reduced from 2.5s for faster loading)
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2500);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -63,7 +76,9 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="h-full w-full"
               >
-                <TrendingScreen />
+                <Suspense fallback={<LoadingFallback />}>
+                  <TrendingScreen />
+                </Suspense>
               </motion.div>
             )}
             {activeTab === 'agent' && (
@@ -75,7 +90,9 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="h-full w-full"
               >
-                <AgentScreen />
+                <Suspense fallback={<LoadingFallback />}>
+                  <AgentScreen />
+                </Suspense>
               </motion.div>
             )}
             {activeTab === 'profile' && (
@@ -87,7 +104,9 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="h-full w-full"
               >
-                <ProfileScreen onClose={() => setActiveTab('discover')} />
+                <Suspense fallback={<LoadingFallback />}>
+                  <ProfileScreen onClose={() => setActiveTab('discover')} />
+                </Suspense>
               </motion.div>
             )}
             {activeTab === 'support' && (
@@ -99,7 +118,9 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="h-full w-full"
               >
-                <SupportScreen />
+                <Suspense fallback={<LoadingFallback />}>
+                  <SupportScreen />
+                </Suspense>
               </motion.div>
             )}
           </AnimatePresence>

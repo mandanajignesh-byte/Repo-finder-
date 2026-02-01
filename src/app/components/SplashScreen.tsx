@@ -4,12 +4,12 @@ import { ParticlesBackground } from './ParticlesBackground';
 import { TypedText } from './TypedText';
 
 export function SplashScreen() {
-  // More prominent particles for splash screen
+  // Optimized particles for splash screen (reduced from 200 to 100 for performance)
   const splashParticlesConfig = {
     particles: {
       number: { 
-        value: 200,
-        density: { enable: true, value_area: 600 }
+        value: 100,
+        density: { enable: true, value_area: 800 }
       },
       color: { value: ['#22d3ee', '#ec4899'] }, // Cyan and pink
       shape: { type: 'circle' },
