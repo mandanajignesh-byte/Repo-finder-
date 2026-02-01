@@ -401,45 +401,45 @@ class SupabaseService {
    */
   async getAllSeenRepoIds(userId: string): Promise<string[]> {
     try {
-      // Get all interactions (save, like, skip, view)
-      const { data: interactions, error: interactionsError } = await supabase
-        .from(TABLES.user_interactions)
-        .select('repo_id')
-        .eq('user_id', userId)
-        .in('action', ['save', 'like', 'skip', 'view']);
+      // OPTIMIZATION: Run all queries in parallel instead of sequentially for 3x faster loading
+      const [interactionsResult, savedResult, likedResult] = await Promise.all([
+        supabase
+          .from(TABLES.user_interactions)
+          .select('repo_id')
+          .eq('user_id', userId)
+          .in('action', ['save', 'like', 'skip', 'view']),
+        supabase
+          .from(TABLES.saved_repos)
+          .select('repo_id')
+          .eq('user_id', userId),
+        supabase
+          .from(TABLES.liked_repos)
+          .select('repo_id')
+          .eq('user_id', userId),
+      ]);
 
-      if (interactionsError) {
-        console.error('Error getting seen repo IDs from interactions:', interactionsError);
+      // Log errors if any (but don't block)
+      if (interactionsResult.error) {
+        console.error('Error getting seen repo IDs from interactions:', interactionsResult.error);
       }
-
-      // Get saved repos
-      const { data: saved, error: savedError } = await supabase
-        .from(TABLES.saved_repos)
-        .select('repo_id')
-        .eq('user_id', userId);
-
-      if (savedError) {
-        console.error('Error getting seen repo IDs from saved:', savedError);
+      if (savedResult.error) {
+        console.error('Error getting seen repo IDs from saved:', savedResult.error);
       }
-
-      // Get liked repos
-      const { data: liked, error: likedError } = await supabase
-        .from(TABLES.liked_repos)
-        .select('repo_id')
-        .eq('user_id', userId);
-
-      if (likedError) {
-        console.error('Error getting seen repo IDs from liked:', likedError);
+      if (likedResult.error) {
+        console.error('Error getting seen repo IDs from liked:', likedResult.error);
       }
 
       // Combine all repo IDs and deduplicate
       // NOTE: This is filtered by user_id, so each user has their own exclusion list
       const allIds = new Set<string>();
-      (interactions || []).forEach((row: any) => allIds.add(row.repo_id));
-      (saved || []).forEach((row: any) => allIds.add(row.repo_id));
-      (liked || []).forEach((row: any) => allIds.add(row.repo_id));
+      (interactionsResult.data || []).forEach((row: any) => allIds.add(row.repo_id));
+      (savedResult.data || []).forEach((row: any) => allIds.add(row.repo_id));
+      (likedResult.data || []).forEach((row: any) => allIds.add(row.repo_id));
 
-      console.log(`📊 User ${userId} has seen ${allIds.size} repos (user-specific exclusion list)`);
+      // Only log if there are seen repos (reduces console noise)
+      if (allIds.size > 0) {
+        console.log(`📊 User ${userId} has seen ${allIds.size} repos (user-specific exclusion list)`);
+      }
       return Array.from(allIds);
     } catch (error) {
       console.error('Error getting all seen repo IDs:', error);

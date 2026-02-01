@@ -320,19 +320,11 @@ export function DiscoveryScreen() {
   const prevPreferencesRef = useRef<string>('');
 
   // Load repos when preferences are loaded and onboarding is complete
-  // Use requestIdleCallback for non-critical loading to avoid blocking UI
+  // OPTIMIZATION: Load immediately instead of deferring for faster initial load
   useEffect(() => {
     if (loaded && preferences.onboardingCompleted && cards.length === 0 && !loading) {
-      // Use requestIdleCallback if available, otherwise setTimeout
-      if (window.requestIdleCallback) {
-        window.requestIdleCallback(() => {
-          loadPersonalizedRepos();
-        }, { timeout: 2000 });
-      } else {
-        setTimeout(() => {
-          loadPersonalizedRepos();
-        }, 100);
-      }
+      // Load immediately for faster recommendations
+      loadPersonalizedRepos();
     }
   }, [loaded, preferences.onboardingCompleted, cards.length, loading, loadPersonalizedRepos]);
 

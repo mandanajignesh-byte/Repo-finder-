@@ -62,13 +62,15 @@ class ClusterService {
     try {
       const excluded = new Set(excludeIds);
 
+      // OPTIMIZATION: Reduce multiplier from 3x to 2x for faster queries
+      // Still get enough repos for filtering and shuffling
       const { data, error } = await supabase
         .from('repo_clusters')
         .select('repo_data, tags, quality_score, rotation_priority')
         .eq('cluster_name', clusterName)
         .order('quality_score', { ascending: false })
         .order('rotation_priority', { ascending: false })
-        .limit(limit * 3); // Get more to filter excluded and shuffle
+        .limit(limit * 2); // REDUCED: Get 2x instead of 3x for faster queries
 
       if (error) {
         console.error('Error getting cluster repos:', error);
@@ -119,12 +121,13 @@ class ClusterService {
       const normalizedTags = tags.map(t => t.toLowerCase().trim());
       
       // Search for repos that have ANY of the matching tags
+      // OPTIMIZATION: Reduce multiplier from 4x to 2.5x for faster queries
       const { data, error } = await supabase
         .from('repo_clusters')
         .select('repo_data, tags, quality_score, cluster_name')
         .overlaps('tags', normalizedTags) // PostgreSQL array overlap operator
         .order('quality_score', { ascending: false })
-        .limit(limit * 4); // Get more to filter, deduplicate, and shuffle
+        .limit(Math.ceil(limit * 2.5)); // REDUCED: Get 2.5x instead of 4x for faster queries
       
       if (error) {
         console.error('❌ Error querying repo_clusters:', error);

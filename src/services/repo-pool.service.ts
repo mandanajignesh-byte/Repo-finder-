@@ -13,7 +13,7 @@ import { clusterService } from './cluster.service';
 import { repoQualityService } from './repo-quality.service';
 import { supabase } from '@/lib/supabase';
 
-const POOL_SIZE = 150; // Pre-fetch 150 repos to have a good pool
+const POOL_SIZE = 100; // REDUCED: Pre-fetch 100 repos (was 150) for faster initial loading
 const POOL_CACHE_KEY = 'github_repo_app_repo_pool';
 const POOL_CACHE_TIMESTAMP_KEY = 'github_repo_app_repo_pool_timestamp';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -41,12 +41,13 @@ class RepoPoolService {
       
       // OPTIMIZATION: Get seen repo IDs in parallel with primary cluster fetch
       // This was a sequential bottleneck - now runs in parallel!
+      // REDUCED LIMIT: Fetch fewer repos initially for faster loading (100 instead of 200)
       const primaryCluster = preferences.primaryCluster;
       const [allSeenRepoIds, primaryRepos] = await Promise.all([
         supabaseService.getAllSeenRepoIds(userId),
         primaryCluster ? clusterService.getBestOfCluster(
           primaryCluster,
-          200, // Get more to filter by tags
+          100, // REDUCED: Get 100 instead of 200 for faster initial load
           [], // Will filter with allSeenRepoIds after we get it
           userId
         ) : Promise.resolve([]),
@@ -102,9 +103,10 @@ class RepoPoolService {
         const uniqueTags = this.buildComprehensiveTags(preferences);
         
         if (uniqueTags.length > 0) {
+          // REDUCED LIMIT: Fetch 150 instead of 300 for faster loading
           const tagRepos = await clusterService.getReposByTags(
             uniqueTags,
-            300,
+            150,
             [...allSeenRepoIds, ...clusterRepos.map(r => r.id)],
             userId
           );
@@ -124,9 +126,10 @@ class RepoPoolService {
         const detectedPrimary = clusterService.detectPrimaryCluster(preferences);
         console.log(`⚠️ Only ${clusterRepos.length} repos, trying detected primary cluster: ${detectedPrimary}`);
         
+        // REDUCED LIMIT: Fetch 100 instead of 200 for faster loading
         const fallbackRepos = await clusterService.getBestOfCluster(
           detectedPrimary,
-          200,
+          100,
           [...allSeenRepoIds, ...clusterRepos.map(r => r.id)],
           userId
         );
@@ -396,10 +399,24 @@ class RepoPoolService {
    * - Repos viewed by User A are excluded only for User A
    * - The same repos can still be recommended to User B
    * - Each user has their own exclusion list based on their interactions
+   * 
+   * OPTIMIZATION: Check cache first to avoid rebuilding pool unnecessarily
    */
   async getRecommendations(userId: string, preferences: UserPreferences, count = 20, additionalExcludeIds: string[] = []): Promise<Repository[]> {
+    // OPTIMIZATION: Check if pool matches current preferences before rebuilding
+    const preferencesHash = this.hashPreferences(preferences);
+    const cachedPool = this.getCachedPool(preferences);
+    
     if (!this.pool || this.pool.length === 0 || this.currentPreferences !== preferences) {
-      await this.buildPool(preferences); // Ensure pool is loaded and up-to-date
+      // Only rebuild if cache doesn't match or is expired
+      if (!cachedPool || cachedPool.length === 0) {
+        await this.buildPool(preferences); // Ensure pool is loaded and up-to-date
+      } else {
+        // Use cached pool for instant loading
+        this.pool = cachedPool;
+        this.currentPreferences = preferences;
+        console.log(`✅ Using cached pool: ${cachedPool.length} repos`);
+      }
     }
 
     if (this.pool.length === 0) {
@@ -411,12 +428,17 @@ class RepoPoolService {
     const allSeenRepoIds = await supabaseService.getAllSeenRepoIds(userId);
     const seenSet = new Set([...allSeenRepoIds, ...additionalExcludeIds]);
     
-    console.log(`🔍 Filtering pool for user ${userId}: ${this.pool.length} total repos, ${seenSet.size} excluded (user-specific)`);
+    // Only log if significant number of excluded repos
+    if (seenSet.size > 0) {
+      console.log(`🔍 Filtering pool for user ${userId}: ${this.pool.length} total repos, ${seenSet.size} excluded (user-specific)`);
+    }
 
     // Filter out already seen repos and ensure valid repos
     let availableRepos = this.pool.filter(repo => repo && repo.id && !seenSet.has(repo.id));
     
-    console.log(`✅ ${availableRepos.length} repos available for user ${userId} after user-specific filtering`);
+    if (availableRepos.length > 0) {
+      console.log(`✅ ${availableRepos.length} repos available for user ${userId} after user-specific filtering`);
+    }
 
     // Deduplicate by ID (in case pool has duplicates)
     const uniqueRepos = Array.from(
