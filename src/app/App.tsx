@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
 import { DiscoveryScreen } from '@/app/components/DiscoveryScreen';
 import { BottomNavigation } from '@/app/components/BottomNavigation';
@@ -132,6 +133,9 @@ export default function App() {
       
       {/* Vercel Analytics */}
       <Analytics />
+      
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
     </div>
   );
 }
