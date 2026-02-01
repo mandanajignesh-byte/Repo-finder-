@@ -62,7 +62,8 @@ class ClusterService {
     try {
       const excluded = new Set(excludeIds);
 
-      // OPTIMIZATION: Reduce multiplier from 3x to 2x for faster queries
+      // CRITICAL OPTIMIZATION: Reduce multiplier from 2x to 1.3x to minimize data transfer
+      // This reduces query size from ~499 kB to ~325 kB per query
       // Still get enough repos for filtering and shuffling
       const { data, error } = await supabase
         .from('repo_clusters')
@@ -70,7 +71,7 @@ class ClusterService {
         .eq('cluster_name', clusterName)
         .order('quality_score', { ascending: false })
         .order('rotation_priority', { ascending: false })
-        .limit(limit * 2); // REDUCED: Get 2x instead of 3x for faster queries
+        .limit(Math.ceil(limit * 1.3)); // REDUCED: Get 1.3x instead of 2x (was 3x) - 35% less data
 
       if (error) {
         console.error('Error getting cluster repos:', error);
@@ -121,13 +122,13 @@ class ClusterService {
       const normalizedTags = tags.map(t => t.toLowerCase().trim());
       
       // Search for repos that have ANY of the matching tags
-      // OPTIMIZATION: Reduce multiplier from 4x to 2.5x for faster queries
+      // CRITICAL OPTIMIZATION: Reduce multiplier from 2.5x to 1.5x to minimize data transfer
       const { data, error } = await supabase
         .from('repo_clusters')
         .select('repo_data, tags, quality_score, cluster_name')
         .overlaps('tags', normalizedTags) // PostgreSQL array overlap operator
         .order('quality_score', { ascending: false })
-        .limit(Math.ceil(limit * 2.5)); // REDUCED: Get 2.5x instead of 4x for faster queries
+        .limit(Math.ceil(limit * 1.5)); // REDUCED: Get 1.5x instead of 2.5x (was 4x) - 40% less data
       
       if (error) {
         console.error('❌ Error querying repo_clusters:', error);

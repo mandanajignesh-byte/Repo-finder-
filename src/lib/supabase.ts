@@ -43,5 +43,10 @@ export const supabase = createClient(
       persistSession: false, // We'll handle sessions manually
       autoRefreshToken: false,
     },
+    global: {
+      headers: {
+        'Accept': 'application/json', // Fix potential 406 errors
+      },
+    },
   }
 );

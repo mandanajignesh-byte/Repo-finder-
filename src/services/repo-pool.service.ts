@@ -13,10 +13,14 @@ import { clusterService } from './cluster.service';
 import { repoQualityService } from './repo-quality.service';
 import { supabase } from '@/lib/supabase';
 
-const POOL_SIZE = 100; // REDUCED: Pre-fetch 100 repos (was 150) for faster initial loading
+const POOL_SIZE = 60; // CRITICAL: Reduced to 60 repos (was 100, originally 150) for 40% faster initial loading
 const POOL_CACHE_KEY = 'github_repo_app_repo_pool';
 const POOL_CACHE_TIMESTAMP_KEY = 'github_repo_app_repo_pool_timestamp';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+// CRITICAL: In-memory cache to avoid redundant Supabase queries during same session
+const inMemoryCache = new Map<string, { data: Repository[]; timestamp: number }>();
+const IN_MEMORY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface RepoPool {
   repos: Repository[];
@@ -33,11 +37,23 @@ class RepoPoolService {
    * HYBRID APPROACH:
    * 1. First-time users: Use pre-curated clusters (0 API calls)
    * 2. Engaged users: Mix of pre-curated + dynamic (minimal API calls)
+   * 
+   * CRITICAL OPTIMIZATION: Check in-memory cache first to avoid redundant queries
    */
   async buildPool(preferences: UserPreferences): Promise<Repository[]> {
     try {
       const userId = await supabaseService.getOrCreateUserId();
       const preferencesHash = this.hashPreferences(preferences);
+      
+      // CRITICAL: Check in-memory cache first (5-minute TTL)
+      const cacheKey = `${userId}_${preferencesHash}`;
+      const cached = inMemoryCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < IN_MEMORY_CACHE_TTL) {
+        console.log(`✅ Using in-memory cached pool: ${cached.data.length} repos`);
+        this.pool = cached.data;
+        this.currentPreferences = preferences;
+        return cached.data;
+      }
       
       // OPTIMIZATION: Get seen repo IDs in parallel with primary cluster fetch
       // This was a sequential bottleneck - now runs in parallel!
@@ -47,7 +63,7 @@ class RepoPoolService {
         supabaseService.getAllSeenRepoIds(userId),
         primaryCluster ? clusterService.getBestOfCluster(
           primaryCluster,
-          100, // REDUCED: Get 100 instead of 200 for faster initial load
+          60, // CRITICAL: Reduced to 60 (was 100, originally 200) for 40% faster loading
           [], // Will filter with allSeenRepoIds after we get it
           userId
         ) : Promise.resolve([]),
@@ -98,15 +114,16 @@ class RepoPoolService {
       }
       
       // PRIORITY 3: If no primary cluster, use tag-based search
-      if (clusterRepos.length < 50) {
+      // CRITICAL: Reduced threshold from 50 to 30 to avoid unnecessary queries
+      if (clusterRepos.length < 30) {
         console.log('🔍 Building comprehensive tags for tag-based search...');
         const uniqueTags = this.buildComprehensiveTags(preferences);
         
         if (uniqueTags.length > 0) {
-          // REDUCED LIMIT: Fetch 150 instead of 300 for faster loading
+          // CRITICAL: Reduced to 80 (was 150, originally 300) for 47% faster loading
           const tagRepos = await clusterService.getReposByTags(
             uniqueTags,
-            150,
+            80,
             [...allSeenRepoIds, ...clusterRepos.map(r => r.id)],
             userId
           );
@@ -122,14 +139,15 @@ class RepoPoolService {
       }
       
       // PRIORITY 4: Fallback to detected primary cluster (for backward compatibility)
-      if (clusterRepos.length < 50) {
+      // CRITICAL: Reduced threshold from 50 to 30 to avoid unnecessary queries
+      if (clusterRepos.length < 30) {
         const detectedPrimary = clusterService.detectPrimaryCluster(preferences);
         console.log(`⚠️ Only ${clusterRepos.length} repos, trying detected primary cluster: ${detectedPrimary}`);
         
-        // REDUCED LIMIT: Fetch 100 instead of 200 for faster loading
+        // CRITICAL: Reduced to 60 (was 100, originally 200) for 40% faster loading
         const fallbackRepos = await clusterService.getBestOfCluster(
           detectedPrimary,
-          100,
+          60,
           [...allSeenRepoIds, ...clusterRepos.map(r => r.id)],
           userId
         );
@@ -155,6 +173,10 @@ class RepoPoolService {
         );
         this.pool = uniqueRepos.slice(0, POOL_SIZE);
         this.currentPreferences = preferences;
+        
+        // CRITICAL: Cache in memory for 5 minutes to avoid redundant queries
+        inMemoryCache.set(cacheKey, { data: this.pool, timestamp: Date.now() });
+        
         this.cachePool(this.pool, preferences);
         await this.savePoolToSupabase(this.pool, preferences, userId, preferencesHash);
         return this.pool;
@@ -193,6 +215,10 @@ class RepoPoolService {
           const shuffled = this.shuffleReposForUser(fallbackRepos, userId);
           this.pool = shuffled.slice(0, POOL_SIZE);
           this.currentPreferences = preferences;
+          
+          // CRITICAL: Cache in memory for 5 minutes to avoid redundant queries
+          inMemoryCache.set(cacheKey, { data: this.pool, timestamp: Date.now() });
+          
           this.cachePool(this.pool, preferences);
           await this.savePoolToSupabase(this.pool, preferences, userId, preferencesHash);
           console.log(`✅ Using ${fallbackRepos.length} repos from fallback cluster`);

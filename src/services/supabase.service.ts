@@ -133,6 +133,7 @@ class SupabaseService {
    */
   async getUserPreferences(userId: string): Promise<UserPreferences | null> {
     try {
+      // OPTIMIZATION: Add Accept header to prevent 406 errors
       const { data, error } = await supabase
         .from(TABLES.user_preferences)
         .select('*')
