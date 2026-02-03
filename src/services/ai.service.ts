@@ -1,11 +1,13 @@
 /**
  * AI Agent Service
  * Handles AI-powered repository recommendations
+ * Now uses enhanced agent with tools and reasoning
  */
 
 import { config } from '@/lib/config';
 import { Recommendation, Repository, UserPreferences } from '@/lib/types';
 import { githubService } from './github.service';
+import { enhancedAIAgentService } from './enhanced-ai-agent.service';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -26,13 +28,25 @@ class AIService {
 
   /**
    * Get recommendations based on user query
+   * Uses enhanced AI agent with tools and reasoning
    */
   async getRecommendations(
     userQuery: string,
     preferences?: UserPreferences
   ): Promise<Recommendation[]> {
+    // Use enhanced AI agent if configured
+    if (enhancedAIAgentService.isConfigured()) {
+      try {
+        const response = await enhancedAIAgentService.getRecommendations(userQuery, preferences);
+        return response.recommendations;
+      } catch (error) {
+        console.error('Error with enhanced AI agent, falling back:', error);
+        // Fall through to legacy implementation
+      }
+    }
+
+    // Legacy implementation (fallback)
     if (!this.isConfigured()) {
-      // Fallback to rule-based recommendations
       return this.getFallbackRecommendations(userQuery, preferences);
     }
 

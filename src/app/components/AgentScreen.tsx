@@ -3,6 +3,7 @@ import { Send, Loader2, AlertCircle } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { useTypedPlaceholder } from './TypedPlaceholder';
 import { aiService } from '@/services/ai.service';
+import { enhancedAIAgentService } from '@/services/enhanced-ai-agent.service';
 import { creditService } from '@/services/credit.service';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { Recommendation } from '@/lib/types';
@@ -15,12 +16,15 @@ interface Message {
   recommendations?: Recommendation[];
   loading?: boolean;
   error?: string;
+  reasoning?: string;
+  toolsUsed?: string[];
+  confidence?: number;
 }
 
 const initialMessages: Message[] = [
   {
     id: '1',
-    text: "Hi! I'm your repo discovery agent. We're currently working on making me better than all LLMs with real-time GitHub data, personalized recommendations, and context-aware suggestions.",
+    text: "Hi! I'm your RepoVerse AI agent - your intelligent navigator through the GitHub universe. I use advanced tools, reasoning, and your personal preferences to find the perfect repositories for you. Ask me anything about finding repos!",
     sender: 'agent',
   },
 ];
@@ -101,13 +105,30 @@ export function AgentScreen() {
       creditService.useCredits(1);
       setCredits(creditService.getBalance());
 
-      // Get AI recommendations
-      const recommendations = await aiService.getRecommendations(text, preferences);
-
-      // Remove loading message and add response
-      setMessages((prev) => {
-        const withoutLoading = prev.filter(m => !m.loading);
-        const agentResponse: Message = {
+      // Use enhanced AI agent if available
+      let agentResponse: Message;
+      
+      if (enhancedAIAgentService.isConfigured()) {
+        const response = await enhancedAIAgentService.getRecommendations(text, preferences);
+        agentResponse = {
+          id: (Date.now() + 2).toString(),
+          text: response.text,
+          sender: 'agent',
+          recommendations: response.recommendations,
+          reasoning: response.reasoning,
+          toolsUsed: response.tools_used,
+          confidence: response.confidence,
+          quickReplies: [
+            'Show more',
+            'Explain reasoning',
+            'Find alternatives',
+            'Start over',
+          ],
+        };
+      } else {
+        // Fallback to basic AI service
+        const recommendations = await aiService.getRecommendations(text, preferences);
+        agentResponse = {
           id: (Date.now() + 2).toString(),
           text: recommendations.length > 0
             ? "Here are my top recommendations based on your needs:"
@@ -120,6 +141,11 @@ export function AgentScreen() {
             'Start over',
           ],
         };
+      }
+
+      // Remove loading message and add response
+      setMessages((prev) => {
+        const withoutLoading = prev.filter(m => !m.loading);
         return [...withoutLoading, agentResponse];
       });
     } catch (error) {
@@ -138,6 +164,19 @@ export function AgentScreen() {
   };
 
   const handleQuickReply = (reply: string) => {
+    if (reply === 'Explain reasoning') {
+      // Show reasoning from last agent message
+      const lastAgentMessage = [...messages].reverse().find(m => m.sender === 'agent' && m.reasoning);
+      if (lastAgentMessage) {
+        const reasoningMessage: Message = {
+          id: Date.now().toString(),
+          text: `My reasoning process:\n\n${lastAgentMessage.reasoning}\n\nTools used: ${lastAgentMessage.toolsUsed?.join(', ') || 'N/A'}\nConfidence: ${((lastAgentMessage.confidence || 0) * 100).toFixed(0)}%`,
+          sender: 'agent',
+        };
+        setMessages((prev) => [...prev, reasoningMessage]);
+        return;
+      }
+    }
     handleSend(reply);
   };
 
@@ -162,7 +201,7 @@ export function AgentScreen() {
         </div>
       </div>
 
-      {/* Work in Progress Banner */}
+      {/* Enhanced Agent Features Banner */}
       <div className="px-4 md:px-6 pt-4 max-w-4xl mx-auto w-full">
         <div className="bg-gradient-to-r from-cyan-900/30 to-pink-900/30 border-2 border-cyan-700/50 rounded-[20px] p-4 md:p-6 relative overflow-hidden">
           {/* Animated background effect */}
@@ -171,22 +210,23 @@ export function AgentScreen() {
           <div className="relative z-10">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-pink-500 flex items-center justify-center">
-                <Loader2 className="w-5 h-5 text-white animate-spin" />
+                <span className="text-white text-xl">🤖</span>
               </div>
               <div className="flex-1">
                 <h3 className="text-lg text-white font-bold mb-2" style={{ fontWeight: 700 }}>
-                  We're Building Something Special
+                  Enhanced AI Agent - Powered by Tools & Reasoning
                 </h3>
                 <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-                  We're working hard to make our AI agent better than all LLMs. Our agent will provide 
-                  <span className="text-cyan-400 font-semibold"> real-time GitHub data</span>, 
+                  Our AI agent uses <span className="text-cyan-400 font-semibold">advanced tool orchestration</span>, 
                   <span className="text-cyan-400 font-semibold"> personalized recommendations</span>, and 
-                  <span className="text-cyan-400 font-semibold"> context-aware suggestions</span> that 
-                  understand your project needs better than generic AI assistants.
+                  <span className="text-cyan-400 font-semibold"> deep reasoning</span> to find the perfect repos. 
+                  It understands your tech stack, experience level, and goals to provide better-than-LLM results.
                 </p>
-                <p className="text-gray-400 text-xs md:text-sm mt-3 italic">
-                  Stay tuned for updates! 🚀
-                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="px-2 py-1 bg-cyan-900/40 text-cyan-300 text-xs rounded-full">Tool-based</span>
+                  <span className="px-2 py-1 bg-pink-900/40 text-pink-300 text-xs rounded-full">Personalized</span>
+                  <span className="px-2 py-1 bg-purple-900/40 text-purple-300 text-xs rounded-full">Reasoning</span>
+                </div>
               </div>
             </div>
           </div>
@@ -244,11 +284,18 @@ export function AgentScreen() {
                       </div>
                       <div className="flex-1">
                         <h3 className="text-lg text-white font-mono" style={{ fontWeight: 700 }}>{rec.name}</h3>
-                        {rec.stars && (
-                          <p className="text-gray-400 text-xs mt-1">
-                            ⭐ {rec.stars.toLocaleString()} stars
-                          </p>
-                        )}
+                        <div className="flex items-center gap-3 mt-1">
+                          {rec.stars && (
+                            <p className="text-gray-400 text-xs">
+                              ⭐ {rec.stars.toLocaleString()} stars
+                            </p>
+                          )}
+                          {rec.fitScore !== undefined && (
+                            <p className="text-cyan-400 text-xs font-semibold">
+                              Fit: {rec.fitScore}%
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <p className="text-gray-300 text-sm mb-3">{rec.description}</p>
@@ -269,6 +316,18 @@ export function AgentScreen() {
                     )}
                   </SignatureCard>
                 ))}
+              </div>
+            )}
+
+            {/* Reasoning and Tools Used (if available) */}
+            {(message.toolsUsed || message.confidence !== undefined) && (
+              <div className="mt-3 text-xs text-gray-400 space-y-1">
+                {message.toolsUsed && message.toolsUsed.length > 0 && (
+                  <p>🔧 Tools used: {message.toolsUsed.join(', ')}</p>
+                )}
+                {message.confidence !== undefined && (
+                  <p>📊 Confidence: {((message.confidence * 100).toFixed(0))}%</p>
+                )}
               </div>
             )}
 
@@ -300,20 +359,21 @@ export function AgentScreen() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
-            placeholder="Coming soon..."
-            disabled
-            className="flex-1 px-4 py-3 bg-gray-800/50 text-gray-500 placeholder-gray-600 rounded-full border border-gray-700 cursor-not-allowed"
+            placeholder="Ask me anything about finding repos..."
+            className="flex-1 px-4 py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
           />
           <button
             onClick={() => handleSend(inputValue)}
-            disabled
-            className="w-12 h-12 bg-gray-700 text-gray-500 rounded-full flex items-center justify-center cursor-not-allowed opacity-50"
+            disabled={!inputValue.trim()}
+            className="w-12 h-12 bg-gradient-to-br from-cyan-600 to-pink-600 text-white rounded-full flex items-center justify-center hover:from-cyan-500 hover:to-pink-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </button>
         </div>
         <p className="text-center text-gray-500 text-xs mt-2 max-w-4xl mx-auto">
-          Agent functionality is under development
+          {enhancedAIAgentService.isConfigured() 
+            ? "Enhanced AI agent ready - Ask me anything!" 
+            : "Configure OpenAI API key in .env to enable enhanced AI agent"}
         </p>
       </div>
     </div>
