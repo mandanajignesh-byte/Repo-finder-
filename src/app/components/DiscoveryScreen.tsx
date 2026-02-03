@@ -114,10 +114,16 @@ export function DiscoveryScreen() {
           const validRecommended = recommended.filter(r => r && r.id);
           const validClusterFallback = clusterFallback.filter(r => r && r.id);
           
+          // Filter out overly popular repos (>30k stars) unless user wants high popularity
+          const MAX_STARS = 30000;
+          const filteredClusterFallback = preferences.popularityWeight === 'high' 
+            ? validClusterFallback 
+            : validClusterFallback.filter(r => r.stars <= MAX_STARS);
+          
           const existingIds = new Set([...excludeIds, ...validRecommended.map(r => r.id)]);
-          const additional = validClusterFallback.filter(r => !existingIds.has(r.id));
+          const additional = filteredClusterFallback.filter(r => !existingIds.has(r.id));
           recommended = [...validRecommended, ...additional].slice(0, 20);
-          console.log(`Added ${additional.length} repos from ${primaryCluster} cluster`);
+          console.log(`Added ${additional.length} repos from ${primaryCluster} cluster (filtered ${validClusterFallback.length - filteredClusterFallback.length} overly popular)`);
         } else {
           // Last resort: hybrid recommendations
           const hybrid = await enhancedRecommendationService.getHybridRecommendations(
@@ -131,8 +137,14 @@ export function DiscoveryScreen() {
           const validRecommended = recommended.filter(r => r && r.id);
           const validHybrid = hybrid.filter(r => r && r.id);
           
+          // Filter out overly popular repos (>30k stars) unless user wants high popularity
+          const MAX_STARS = 30000;
+          const filteredHybrid = preferences.popularityWeight === 'high'
+            ? validHybrid
+            : validHybrid.filter(r => r.stars <= MAX_STARS);
+          
           const existingIds = new Set([...excludeIds, ...validRecommended.map(r => r.id)]);
-          const additional = validHybrid.filter(r => !existingIds.has(r.id));
+          const additional = filteredHybrid.filter(r => !existingIds.has(r.id));
           recommended = [...validRecommended, ...additional].slice(0, 20);
         }
       }
@@ -180,21 +192,27 @@ export function DiscoveryScreen() {
             actualUserId
           );
           if (fallbackRepos.length > 0) {
+            // Filter out overly popular repos (>30k stars) unless user wants high popularity
+            const MAX_STARS = 30000;
+            const filteredFallbackRepos = preferences.popularityWeight === 'high'
+              ? fallbackRepos
+              : fallbackRepos.filter(r => r && r.id && r.stars <= MAX_STARS);
+            
             // OPTIMIZATION: Show repos immediately, track in background
             if (append) {
               // Deduplicate when appending
               setCards(prev => {
                 const existingIds = new Set(prev.map(c => c.id));
-                const newRepos = fallbackRepos.filter(r => r && r.id && !existingIds.has(r.id));
+                const newRepos = filteredFallbackRepos.filter(r => r && r.id && !existingIds.has(r.id));
                 return [...prev, ...newRepos];
               });
             } else {
-              setCards(fallbackRepos);
+              setCards(filteredFallbackRepos);
             }
             
             // Track views in background (non-blocking)
             Promise.all(
-              fallbackRepos
+              filteredFallbackRepos
                 .filter(repo => repo && repo.id)
                 .map((repo, index) =>
                   interactionService.trackInteraction(repo, 'view', {
@@ -216,7 +234,14 @@ export function DiscoveryScreen() {
           perPage: 20,
           usePagination: false,
         });
-        const reposWithScores = trending.map(repo => ({
+        
+        // Filter out overly popular repos (>30k stars) unless user wants high popularity
+        const MAX_STARS = 30000;
+        const filteredTrending = preferences.popularityWeight === 'high'
+          ? trending
+          : trending.filter(r => r.stars <= MAX_STARS);
+        
+        const reposWithScores = filteredTrending.map(repo => ({
           ...repo,
           fitScore: 85,
         }));
@@ -236,7 +261,14 @@ export function DiscoveryScreen() {
           perPage: 20,
           usePagination: false,
         });
-        const reposWithScores = trending.map(repo => ({
+        
+        // Filter out overly popular repos (>30k stars) unless user wants high popularity
+        const MAX_STARS = 30000;
+        const filteredTrending = preferences.popularityWeight === 'high'
+          ? trending
+          : trending.filter(r => r.stars <= MAX_STARS);
+        
+        const reposWithScores = filteredTrending.map(repo => ({
           ...repo,
           fitScore: 85,
         }));

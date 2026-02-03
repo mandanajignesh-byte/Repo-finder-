@@ -6,6 +6,23 @@
 import { supabase } from '@/lib/supabase';
 import { UserPreferences, Repository, UserInteraction } from '@/lib/types';
 
+// Runtime flag: if Supabase user_preferences schema is incompatible (e.g. missing columns),
+// we disable Supabase-backed preferences for the rest of the session to avoid repeated
+// failing network calls and console noise.
+let preferencesSupabaseEnabled = true;
+
+// Helper to check if an error is due to a schema mismatch on user_preferences
+const isPreferencesSchemaError = (error: any): boolean => {
+  if (!error) return false;
+  const message = typeof error.message === 'string' ? error.message : '';
+  // PGRST204 = "Missing column" style errors from PostgREST
+  return (
+    error.code === 'PGRST204' ||
+    message.includes("Could not find the 'interests' column") ||
+    message.includes('in the schema cache')
+  );
+};
+
 // Database table names
 const TABLES = {
   users: 'users',
@@ -95,6 +112,11 @@ class SupabaseService {
    * Save user preferences
    */
   async saveUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
+    // If we previously detected a schema problem, skip Supabase entirely
+    if (!preferencesSupabaseEnabled) {
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from(TABLES.user_preferences)
@@ -119,6 +141,15 @@ class SupabaseService {
         });
 
       if (error) {
+        // If schema is incompatible, disable Supabase preferences for this session
+        if (isPreferencesSchemaError(error)) {
+          preferencesSupabaseEnabled = false;
+          console.warn(
+            '[Supabase] Disabling user_preferences sync for this session due to schema mismatch. Falling back to local storage only.',
+          );
+          return;
+        }
+
         console.error('Error saving preferences:', error);
         throw error;
       }
@@ -132,6 +163,11 @@ class SupabaseService {
    * Get user preferences
    */
   async getUserPreferences(userId: string): Promise<UserPreferences | null> {
+    // If we already know Supabase schema is incompatible, skip the request
+    if (!preferencesSupabaseEnabled) {
+      return null;
+    }
+
     try {
       // OPTIMIZATION: Add Accept header to prevent 406 errors
       const { data, error } = await supabase
@@ -145,6 +181,13 @@ class SupabaseService {
           return null;
         }
         console.error('Error getting preferences:', error);
+        // Disable future Supabase preference calls on schema mismatch
+        if (isPreferencesSchemaError(error)) {
+          preferencesSupabaseEnabled = false;
+          console.warn(
+            '[Supabase] Disabling user_preferences sync for this session due to schema mismatch. Falling back to local storage only.',
+          );
+        }
         return null;
       }
 

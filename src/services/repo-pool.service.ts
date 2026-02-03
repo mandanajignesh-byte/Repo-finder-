@@ -359,14 +359,15 @@ class RepoPoolService {
                     preferences.popularityWeight === 'medium' ? 50 : 10;
     searchQuery += ` stars:>${minStars} stars:<50000`;
     
-    // Fetch repos with pagination to get a large pool
+    // Fetch repos with a SINGLE lightweight request (no pagination) to keep
+    // GitHub API traffic and latency low. We only need the top slice because
+    // we further filter and score them anyway.
     try {
       const repos = await githubService.searchRepos(searchQuery, {
         sort: 'stars',
         order: 'desc',
-        perPage: 100,
-        usePagination: true, // Enable pagination to get more repos
-        maxPages: 3, // Get up to 300 repos (3 pages * 100)
+        perPage: 50,          // Reduced page size for faster responses
+        usePagination: false, // Single request instead of multiple pages
       });
       
       // Apply quality validation - only keep high-quality repos
@@ -466,9 +467,33 @@ class RepoPoolService {
       console.log(`✅ ${availableRepos.length} repos available for user ${userId} after user-specific filtering`);
     }
 
+    // CRITICAL: Filter out overly popular repos (>30k stars) unless user explicitly wants them
+    // This prevents mega-popular repos like JuliaLang/julia (48k stars) from appearing in regular recommendations
+    const MAX_STARS_FOR_REGULAR_RECOMMENDATIONS = 30000;
+    const filteredByStars = availableRepos.filter(repo => {
+      // Allow if user explicitly wants high popularity
+      if (preferences.popularityWeight === 'high') {
+        return true; // User wants popular repos, so allow all
+      }
+      
+      // Filter out repos with >30k stars for regular recommendations
+      // These are too mainstream and not personalized
+      if (repo.stars > MAX_STARS_FOR_REGULAR_RECOMMENDATIONS) {
+        console.log(`🚫 Filtered out overly popular repo: ${repo.fullName} (${repo.stars} stars)`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    if (filteredByStars.length < availableRepos.length) {
+      const filteredCount = availableRepos.length - filteredByStars.length;
+      console.log(`📊 Filtered out ${filteredCount} overly popular repos (>${MAX_STARS_FOR_REGULAR_RECOMMENDATIONS} stars)`);
+    }
+
     // Deduplicate by ID (in case pool has duplicates)
     const uniqueRepos = Array.from(
-      new Map(availableRepos.map(r => [r.id, r])).values()
+      new Map(filteredByStars.map(r => [r.id, r])).values()
     );
 
     // Score available repos based on current preferences
