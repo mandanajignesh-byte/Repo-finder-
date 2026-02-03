@@ -32,6 +32,14 @@ const TABLES = {
   user_interactions: 'user_interactions',
 } as const;
 
+// In-memory cache for seen repo IDs (5 minute TTL)
+const seenRepoIdsCache = new Map<string, { ids: string[]; timestamp: number }>();
+const SEEN_REPO_IDS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// In-memory cache for saved/liked repos (2 minute TTL)
+const savedLikedCache = new Map<string, { saved: Repository[]; liked: Repository[]; timestamp: number }>();
+const SAVED_LIKED_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
 class SupabaseService {
   /**
    * Get or create user ID
@@ -240,6 +248,10 @@ class SupabaseService {
         if (error.code !== '23505') {
           console.error('Error saving repo:', error);
         }
+      } else {
+        // Invalidate caches after save
+        this.invalidateSeenRepoIdsCache(userId);
+        savedLikedCache.delete(userId);
       }
     } catch (error) {
       console.error('Error in saveRepository:', error);
@@ -248,9 +260,16 @@ class SupabaseService {
 
   /**
    * Get saved repositories
+   * CRITICAL OPTIMIZATION: Uses in-memory cache (2 min TTL) to prevent redundant calls
    */
   async getSavedRepositories(userId: string): Promise<Repository[]> {
     try {
+      // Check cache first
+      const cached = savedLikedCache.get(userId);
+      if (cached && Date.now() - cached.timestamp < SAVED_LIKED_CACHE_TTL) {
+        return cached.saved;
+      }
+
       const { data, error } = await supabase
         .from(TABLES.saved_repos)
         .select('*')
@@ -262,7 +281,7 @@ class SupabaseService {
         return [];
       }
 
-      return (data || []).map((row) => ({
+      const repos = (data || []).map((row) => ({
         id: row.repo_id,
         name: row.repo_name,
         fullName: row.repo_full_name,
@@ -279,6 +298,12 @@ class SupabaseService {
           avatarUrl: '',
         },
       }));
+
+      // Update cache
+      const existingCache = savedLikedCache.get(userId) || { saved: [], liked: [], timestamp: 0 };
+      savedLikedCache.set(userId, { ...existingCache, saved: repos, timestamp: Date.now() });
+
+      return repos;
     } catch (error) {
       console.error('Error in getSavedRepositories:', error);
       return [];
@@ -333,6 +358,10 @@ class SupabaseService {
         if (error.code !== '23505') {
           console.error('Error liking repo:', error);
         }
+      } else {
+        // Invalidate caches after like
+        this.invalidateSeenRepoIdsCache(userId);
+        savedLikedCache.delete(userId);
       }
     } catch (error) {
       console.error('Error in likeRepository:', error);
@@ -341,9 +370,16 @@ class SupabaseService {
 
   /**
    * Get liked repositories
+   * CRITICAL OPTIMIZATION: Uses in-memory cache (2 min TTL) to prevent redundant calls
    */
   async getLikedRepositories(userId: string): Promise<Repository[]> {
     try {
+      // Check cache first
+      const cached = savedLikedCache.get(userId);
+      if (cached && Date.now() - cached.timestamp < SAVED_LIKED_CACHE_TTL) {
+        return cached.liked;
+      }
+
       const { data, error } = await supabase
         .from(TABLES.liked_repos)
         .select('*')
@@ -355,7 +391,7 @@ class SupabaseService {
         return [];
       }
 
-      return (data || []).map((row) => ({
+      const repos = (data || []).map((row) => ({
         id: row.repo_id,
         name: row.repo_name,
         fullName: row.repo_full_name,
@@ -372,6 +408,12 @@ class SupabaseService {
           avatarUrl: '',
         },
       }));
+
+      // Update cache
+      const existingCache = savedLikedCache.get(userId) || { saved: [], liked: [], timestamp: 0 };
+      savedLikedCache.set(userId, { ...existingCache, liked: repos, timestamp: Date.now() });
+
+      return repos;
     } catch (error) {
       console.error('Error in getLikedRepositories:', error);
       return [];
@@ -397,6 +439,11 @@ class SupabaseService {
 
       if (error) {
         console.error('Error tracking interaction:', error);
+      } else {
+        // Invalidate seen repo IDs cache after interaction (for view/skip actions)
+        if (interaction.action === 'view' || interaction.action === 'skip') {
+          this.invalidateSeenRepoIdsCache(userId);
+        }
       }
     } catch (error) {
       console.error('Error in trackInteraction:', error);
@@ -442,9 +489,17 @@ class SupabaseService {
    * IMPORTANT: This is USER-SPECIFIC - repos viewed by one user
    * can still be recommended to other users. Each user has their
    * own exclusion list.
+   * 
+   * CRITICAL OPTIMIZATION: Uses in-memory cache (5 min TTL) to prevent redundant Supabase calls
    */
   async getAllSeenRepoIds(userId: string): Promise<string[]> {
     try {
+      // Check cache first
+      const cached = seenRepoIdsCache.get(userId);
+      if (cached && Date.now() - cached.timestamp < SEEN_REPO_IDS_CACHE_TTL) {
+        return cached.ids;
+      }
+
       // OPTIMIZATION: Run all queries in parallel instead of sequentially for 3x faster loading
       const [interactionsResult, savedResult, likedResult] = await Promise.all([
         supabase
@@ -480,15 +535,27 @@ class SupabaseService {
       (savedResult.data || []).forEach((row: any) => allIds.add(row.repo_id));
       (likedResult.data || []).forEach((row: any) => allIds.add(row.repo_id));
 
+      const idsArray = Array.from(allIds);
+      
+      // Cache the result
+      seenRepoIdsCache.set(userId, { ids: idsArray, timestamp: Date.now() });
+
       // Only log if there are seen repos (reduces console noise)
       if (allIds.size > 0) {
-        console.log(`📊 User ${userId} has seen ${allIds.size} repos (user-specific exclusion list)`);
+        console.log(`📊 User ${userId} has seen ${allIds.size} repos (cached for 5 min)`);
       }
-      return Array.from(allIds);
+      return idsArray;
     } catch (error) {
       console.error('Error getting all seen repo IDs:', error);
       return [];
     }
+  }
+
+  /**
+   * Invalidate cache for seen repo IDs (call after user interactions)
+   */
+  invalidateSeenRepoIdsCache(userId: string): void {
+    seenRepoIdsCache.delete(userId);
   }
 
   /**

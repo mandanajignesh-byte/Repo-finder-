@@ -62,16 +62,16 @@ class ClusterService {
     try {
       const excluded = new Set(excludeIds);
 
-      // CRITICAL OPTIMIZATION: Reduce multiplier from 2x to 1.3x to minimize data transfer
-      // This reduces query size from ~499 kB to ~325 kB per query
-      // Still get enough repos for filtering and shuffling
+      // CRITICAL OPTIMIZATION: Further reduce multiplier and limit data fetched
+      // Reduced from 1.3x to 1.2x to minimize data transfer (target: <50 kB per query)
+      // Only fetch essential fields to reduce payload size
       const { data, error } = await supabase
         .from('repo_clusters')
         .select('repo_data, tags, quality_score, rotation_priority')
         .eq('cluster_name', clusterName)
         .order('quality_score', { ascending: false })
         .order('rotation_priority', { ascending: false })
-        .limit(Math.ceil(limit * 1.3)); // REDUCED: Get 1.3x instead of 2x (was 3x) - 35% less data
+        .limit(Math.ceil(limit * 1.2)); // REDUCED: Get 1.2x instead of 1.3x - 8% less data, faster queries
 
       if (error) {
         console.error('Error getting cluster repos:', error);
@@ -122,13 +122,14 @@ class ClusterService {
       const normalizedTags = tags.map(t => t.toLowerCase().trim());
       
       // Search for repos that have ANY of the matching tags
-      // CRITICAL OPTIMIZATION: Reduce multiplier from 2.5x to 1.5x to minimize data transfer
+      // CRITICAL OPTIMIZATION: Further reduce multiplier to minimize data transfer
+      // Reduced from 1.5x to 1.3x to target <50 kB per query
       const { data, error } = await supabase
         .from('repo_clusters')
         .select('repo_data, tags, quality_score, cluster_name')
         .overlaps('tags', normalizedTags) // PostgreSQL array overlap operator
         .order('quality_score', { ascending: false })
-        .limit(Math.ceil(limit * 1.5)); // REDUCED: Get 1.5x instead of 2.5x (was 4x) - 40% less data
+        .limit(Math.ceil(limit * 1.3)); // REDUCED: Get 1.3x instead of 1.5x - 13% less data, faster queries
       
       if (error) {
         console.error('❌ Error querying repo_clusters:', error);
