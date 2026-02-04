@@ -1,7 +1,8 @@
-import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark } from 'lucide-react';
+import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2 } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
 import { useRef, useEffect, useState, memo } from 'react';
+import { shareService } from '@/services/share.service';
 
 interface RepoCardProps {
   repo: Repository;
@@ -300,21 +301,37 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             )}
           </div>
           
-          {/* GitHub link */}
-          {repo.url && (
-            <a
-              href={repo.url}
-              target="_blank"
-              rel="noopener noreferrer"
+          {/* GitHub link and Share button */}
+          <div className="flex items-center gap-4">
+            {repo.url && (
+              <a
+                href={repo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+                style={{ color: '#0A84FF' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#4DA3FF')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#0A84FF')}
+              >
+                <ExternalLink className="w-4 h-4" />
+                View on GitHub
+              </a>
+            )}
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                await shareService.shareRepository(repo);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
               style={{ color: '#0A84FF' }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#4DA3FF')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#0A84FF')}
             >
-              <ExternalLink className="w-4 h-4" />
-              View on GitHub
-            </a>
-          )}
+              <Share2 className="w-4 h-4" />
+              Share
+            </button>
+          </div>
           
           {/* Save button - integrated in card */}
           {onSave && (

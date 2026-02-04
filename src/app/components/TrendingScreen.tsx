@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Star, Loader2 } from 'lucide-react';
+import { Star, Loader2, Share2 } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { TrendingRepo } from '@/lib/types';
 import { githubService } from '@/services/github.service';
 import { categoryService, RepoCategory } from '@/services/category.service';
+import { shareService } from '@/services/share.service';
 
 export function TrendingScreen() {
   const [timeRange, setTimeRange] = useState<'today' | 'week'>('today');
@@ -275,11 +276,26 @@ export function TrendingScreen() {
                               ))}
                             </div>
                             
-                            <div className="flex items-center gap-1 text-gray-300">
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                              <span className="text-sm font-medium">
-                                {(repo.stars / 1000).toFixed(1)}k
-                              </span>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1 text-gray-300">
+                                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                <span className="text-sm font-medium">
+                                  {(repo.stars / 1000).toFixed(1)}k
+                                </span>
+                              </div>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await shareService.shareRepository(repo);
+                                }}
+                                className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+                                style={{ color: '#8E8E93' }}
+                                onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
+                                onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
+                              >
+                                <Share2 className="w-4 h-4" />
+                                <span className="text-xs">Share</span>
+                              </button>
                             </div>
                           </div>
                         </div>

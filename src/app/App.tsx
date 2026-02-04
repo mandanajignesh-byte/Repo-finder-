@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
@@ -22,9 +23,9 @@ const LoadingFallback = () => (
   </div>
 );
 
-export default function App() {
+function AppContent() {
+  const location = useLocation();
   const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState<'discover' | 'trending' | 'agent' | 'profile' | 'support'>('discover');
 
   useEffect(() => {
     // Show splash screen for 1 second (reduced from 2.5s for faster loading)
@@ -35,6 +36,16 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Determine active tab from pathname
+  const getActiveTab = (): 'discover' | 'trending' | 'agent' | 'profile' | 'support' => {
+    const path = location.pathname;
+    if (path === '/trending') return 'trending';
+    if (path === '/agent') return 'agent';
+    if (path === '/profile') return 'profile';
+    if (path === '/support') return 'support';
+    return 'discover';
+  };
+
   if (showSplash) {
     return <SplashScreen />;
   }
@@ -44,31 +55,47 @@ export default function App() {
       {/* Main content area */}
       <div className="flex-1 overflow-hidden flex">
         {/* Sidebar navigation (desktop) */}
-        <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <BottomNavigation activeTab={getActiveTab()} />
         
         {/* Content area */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'discover' && <DiscoveryScreen />}
-          {activeTab === 'trending' && (
-            <Suspense fallback={<LoadingFallback />}>
-              <TrendingScreen />
-            </Suspense>
-          )}
-          {activeTab === 'agent' && (
-            <Suspense fallback={<LoadingFallback />}>
-              <AgentScreen />
-            </Suspense>
-          )}
-          {activeTab === 'profile' && (
-            <Suspense fallback={<LoadingFallback />}>
-              <ProfileScreen onClose={() => setActiveTab('discover')} />
-            </Suspense>
-          )}
-          {activeTab === 'support' && (
-            <Suspense fallback={<LoadingFallback />}>
-              <SupportScreen />
-            </Suspense>
-          )}
+          <Routes>
+            <Route path="/" element={<Navigate to="/discover" replace />} />
+            <Route path="/discover" element={<DiscoveryScreen />} />
+            <Route 
+              path="/trending" 
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <TrendingScreen />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/agent" 
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <AgentScreen />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <ProfileScreen onClose={() => window.history.back()} />
+                </Suspense>
+              } 
+            />
+            <Route 
+              path="/support" 
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <SupportScreen />
+                </Suspense>
+              } 
+            />
+            <Route path="*" element={<Navigate to="/discover" replace />} />
+          </Routes>
         </div>
       </div>
 
@@ -78,5 +105,13 @@ export default function App() {
       {/* Vercel Speed Insights */}
       <SpeedInsights />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }

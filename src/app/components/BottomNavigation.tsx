@@ -1,17 +1,19 @@
+import { Link, useLocation } from 'react-router-dom';
 import { Compass, TrendingUp, Bot, User, Heart } from 'lucide-react';
 
 interface BottomNavigationProps {
   activeTab: 'discover' | 'trending' | 'agent' | 'profile' | 'support';
-  onTabChange: (tab: 'discover' | 'trending' | 'agent' | 'profile' | 'support') => void;
 }
 
-export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
+export function BottomNavigation({ activeTab }: BottomNavigationProps) {
+  const location = useLocation();
+  
   const navItems = [
-    { id: 'discover' as const, icon: Compass, label: 'Explore' },
-    { id: 'trending' as const, icon: TrendingUp, label: 'Trending' },
-    { id: 'agent' as const, icon: Bot, label: 'Agent' },
-    { id: 'profile' as const, icon: User, label: 'Profile' },
-    { id: 'support' as const, icon: Heart, label: 'Buy Me a Coffee' },
+    { id: 'discover' as const, icon: Compass, label: 'Explore', path: '/discover' },
+    { id: 'trending' as const, icon: TrendingUp, label: 'Trending', path: '/trending' },
+    { id: 'agent' as const, icon: Bot, label: 'Agent', path: '/agent' },
+    { id: 'profile' as const, icon: User, label: 'Profile', path: '/profile' },
+    { id: 'support' as const, icon: Heart, label: 'Buy Me a Coffee', path: '/support' },
   ];
 
   return (
@@ -32,11 +34,11 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
         <nav className="flex-1 space-y-2 px-4">
           {navItems.map((item, i) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = location.pathname === item.path || (item.path === '/discover' && location.pathname === '/');
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                to={item.path}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors relative ${
                   isActive
                     ? 'bg-gray-100 text-gray-900'
@@ -48,7 +50,7 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
                   strokeWidth={isActive ? 2.5 : 2}
                 />
                 <span className="font-medium relative z-10">{item.label}</span>
-              </button>
+              </Link>
             );
           })}
         </nav>
@@ -59,11 +61,11 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
         <div className="flex justify-around items-center">
           {navItems.map((item, i) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = location.pathname === item.path || (item.path === '/discover' && location.pathname === '/');
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                to={item.path}
                 className={`flex flex-col items-center gap-1 transition-colors relative ${
                   isActive ? 'text-white' : 'text-gray-500'
                 }`}
@@ -72,7 +74,7 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
                   <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
                 </div>
                 <span className="text-xs font-medium">{item.label}</span>
-              </button>
+              </Link>
             );
           })}
         </div>
