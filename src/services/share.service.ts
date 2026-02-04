@@ -72,6 +72,55 @@ class ShareService {
       return false;
     }
   }
+
+  /**
+   * Generate a shareable link that redirects to our platform
+   */
+  generatePlatformShareLink(repo: Repository): string {
+    const repoPath = repo.fullName || repo.name;
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/r/${repoPath}`;
+  }
+
+  /**
+   * Share a repository with platform link (redirects to our platform)
+   */
+  async shareRepositoryWithPlatformLink(repo: Repository): Promise<boolean> {
+    const platformLink = this.generatePlatformShareLink(repo);
+    const shareText = `Check out ${repo.fullName || repo.name} on RepoVerse!`;
+    
+    // Try Web Share API first (mobile-friendly)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${repo.fullName || repo.name} - ${repo.description || 'GitHub Repository'}`,
+          text: shareText,
+          url: platformLink,
+        });
+        return true;
+      } catch (error) {
+        // User cancelled or error occurred, fall back to clipboard
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      }
+    }
+    
+    // Fallback: Copy platform link to clipboard
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n\n${platformLink}`);
+      
+      // Show toast notification (if available)
+      if (typeof window !== 'undefined' && (window as any).toast) {
+        (window as any).toast.success('Repository link copied to clipboard!');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      return false;
+    }
+  }
 }
 
 export const shareService = new ShareService();

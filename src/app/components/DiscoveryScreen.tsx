@@ -60,6 +60,22 @@ export function DiscoveryScreen() {
     }
   }, [loaded, preferences, updatePreferences]);
 
+  // Check if there's a shared repo from URL redirect
+  useEffect(() => {
+    const sharedRepoData = sessionStorage.getItem('sharedRepo');
+    if (sharedRepoData) {
+      try {
+        const repo = JSON.parse(sharedRepoData) as Repository;
+        // Add repo to cards at the beginning
+        setCards(prev => [repo, ...prev]);
+        sessionStorage.removeItem('sharedRepo'); // Clean up
+      } catch (err) {
+        console.error('Error parsing shared repo:', err);
+        sessionStorage.removeItem('sharedRepo'); // Clean up on error
+      }
+    }
+  }, []);
+
   const loadPersonalizedRepos = useCallback(async (append = false) => {
     try {
       setIsLoadingMore(true);

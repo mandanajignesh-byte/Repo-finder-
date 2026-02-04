@@ -5,6 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
 import { DiscoveryScreen } from '@/app/components/DiscoveryScreen';
 import { BottomNavigation } from '@/app/components/BottomNavigation';
+import { RepositoryRedirect } from '@/app/components/RepositoryRedirect';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load heavy components for code splitting
@@ -39,6 +40,8 @@ function AppContent() {
   // Determine active tab from pathname
   const getActiveTab = (): 'discover' | 'trending' | 'agent' | 'profile' | 'support' => {
     const path = location.pathname;
+    // Exclude /r/ routes from affecting active tab
+    if (path.startsWith('/r/')) return 'discover';
     if (path === '/trending') return 'trending';
     if (path === '/agent') return 'agent';
     if (path === '/profile') return 'profile';
@@ -62,6 +65,7 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Navigate to="/discover" replace />} />
             <Route path="/discover" element={<DiscoveryScreen />} />
+            <Route path="/r/:owner/:repo" element={<RepositoryRedirect />} />
             <Route 
               path="/trending" 
               element={

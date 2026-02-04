@@ -286,7 +286,7 @@ export function TrendingScreen() {
                               <button
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  await shareService.shareRepository(repo);
+                                  await shareService.shareRepositoryWithPlatformLink(repo);
                                 }}
                                 className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
                                 style={{ color: '#8E8E93' }}

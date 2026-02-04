@@ -320,7 +320,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             <button
               onClick={async (e) => {
                 e.stopPropagation();
-                await shareService.shareRepository(repo);
+                await shareService.shareRepositoryWithPlatformLink(repo);
               }}
               onPointerDown={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
