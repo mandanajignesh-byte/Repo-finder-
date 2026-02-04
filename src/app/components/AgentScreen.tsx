@@ -307,47 +307,22 @@ export function AgentScreen() {
         </div>
       </div>
 
-      {/* Agent description banner */}
-      <div className="px-4 md:px-6 pt-4 max-w-4xl mx-auto w-full">
-        <div className="bg-gray-900 border border-gray-700 rounded-[20px] p-4 md:p-6 relative overflow-hidden">
-          <div className="relative">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                <span className="text-white text-xl">🤖</span>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg text-white font-bold mb-2" style={{ fontWeight: 700 }}>
-                  Enhanced AI Agent - Powered by Tools & Reasoning
-                </h3>
-                <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-                  Our AI agent uses advanced tool orchestration, personalized recommendations, and deep reasoning to find the perfect repos. 
-                  It understands your tech stack, experience level, and goals to provide better-than-LLM results.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="px-2 py-1 bg-gray-800 text-gray-100 text-xs rounded-full">Tool-based</span>
-                  <span className="px-2 py-1 bg-gray-800 text-gray-100 text-xs rounded-full">Personalized</span>
-                  <span className="px-2 py-1 bg-gray-800 text-gray-100 text-xs rounded-full">Reasoning</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 max-w-4xl mx-auto w-full">
         {messages.map((message) => (
           <div key={message.id}>
             {message.loading ? (
               <div className="flex justify-start">
-                <div className="bg-gray-700 text-gray-200 rounded-[20px] px-4 py-3 flex items-center gap-2">
+                <div className="rounded-[20px] px-4 py-3 flex items-center gap-2"
+                  style={{ backgroundColor: '#1C1C1E', color: '#F5F5F7' }}>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <p>{message.text}</p>
                 </div>
               </div>
             ) : message.error ? (
               <div className="flex justify-start">
-                <div className="bg-gray-800 border border-gray-600 text-gray-200 rounded-[20px] px-4 py-3 flex items-center gap-2">
+                <div className="rounded-[20px] px-4 py-3 flex items-center gap-2"
+                  style={{ backgroundColor: '#1C1C1E', color: '#F5F5F7', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <AlertCircle className="w-4 h-4" />
                   <p>{message.text}</p>
                 </div>

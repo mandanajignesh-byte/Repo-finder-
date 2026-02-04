@@ -94,21 +94,25 @@ export function TrendingScreen() {
             <div className="flex gap-2">
               <button
                 onClick={() => setTimeRange('today')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  timeRange === 'today'
-                    ? 'bg-white text-gray-900'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: timeRange === 'today' ? '#FFFFFF' : '#1C1C1E',
+                  color: timeRange === 'today' ? '#0F0F12' : '#F5F5F7',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
               >
                 Today
               </button>
               <button
                 onClick={() => setTimeRange('week')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  timeRange === 'week'
-                    ? 'bg-white text-gray-900'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: timeRange === 'week' ? '#FFFFFF' : '#1C1C1E',
+                  color: timeRange === 'week' ? '#0F0F12' : '#F5F57F',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
               >
                 This Week
               </button>
@@ -119,11 +123,13 @@ export function TrendingScreen() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowUnknownGems(!showUnknownGems)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-                showUnknownGems
-                  ? 'bg-white text-gray-900 shadow-lg'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
-              }`}
+              className="px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2"
+              style={{
+                backgroundColor: showUnknownGems ? '#FFFFFF' : '#1C1C1E',
+                color: showUnknownGems ? '#0F0F12' : '#F5F5F7',
+                borderRadius: '999px',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
             >
               <span>{showUnknownGems ? 'Unknown Gems' : 'All Trending'}</span>
             </button>
@@ -162,11 +168,13 @@ export function TrendingScreen() {
               {/* All categories button */}
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  selectedCategory === 'all'
-                    ? 'bg-white text-gray-900 shadow-lg'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
-                }`}
+                className="px-4 py-2.5 rounded-full text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: selectedCategory === 'all' ? '#FFFFFF' : '#1C1C1E',
+                  color: selectedCategory === 'all' ? '#0F0F12' : '#F5F5F7',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
               >
                 All
               </button>
@@ -180,16 +188,16 @@ export function TrendingScreen() {
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-                      selectedCategory === category
-                        ? 'bg-white text-gray-900 shadow-lg'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
-                    }`}
+                    className="px-4 py-2.5 rounded-full text-sm.font-medium transition-all flex items-center gap-2"
+                    style={{
+                      backgroundColor: selectedCategory === category ? '#FFFFFF' : '#1C1C1E',
+                      color: selectedCategory === category ? '#0F0F12' : '#F5F5F7',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
                   >
                     <span>{categoryService.getCategoryName(category)}</span>
-                    <span className={`text-xs ${
-                      selectedCategory === category ? 'text-white/80' : 'text-gray-400'
-                    }`}>
+                    <span className="text-xs text-gray-400">
                       ({repos.length})
                     </span>
                   </button>

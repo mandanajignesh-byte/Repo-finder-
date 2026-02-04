@@ -280,12 +280,22 @@ Based on this query, decide which tools to use and in what order. Return a JSON 
   ): Promise<AgentResponse> {
     const systemPrompt = this.buildSynthesisPrompt(preferences);
     
-    // Format tool results for AI
+    // Format tool results for AI (defensively handle partial/undefined repo rows)
     const toolResultsText = toolResults.map((tr, idx) => {
-      const repos = Array.isArray(tr.result) ? tr.result : tr.result?.repos || [];
-      const repoList = repos.slice(0, 10).map((repo: Repository, i: number) => 
-        `${i + 1}. ${repo.fullName} (${repo.stars} stars, fit: ${repo.fitScore || 'N/A'}) - ${repo.description}`
-      ).join('\n');
+      const rawRepos: any[] = Array.isArray(tr.result) ? tr.result : tr.result?.repos || [];
+      const repos = (rawRepos as (Repository | null | undefined)[])
+        .filter((r): r is Repository => !!r);
+
+      const repoList = repos
+        .slice(0, 10)
+        .map((repo: Repository, i: number) => {
+          const name = repo.fullName || repo.name || 'Unknown repository';
+          const stars = typeof repo.stars === 'number' ? repo.stars : 0;
+          const fit = typeof repo.fitScore === 'number' ? repo.fitScore : 'N/A';
+          const desc = repo.description || '';
+          return `${i + 1}. ${name} (${stars} stars, fit: ${fit}) - ${desc}`;
+        })
+        .join('\n');
 
       return `Tool ${idx + 1}: ${tr.tool}
 Reasoning: ${tr.reasoning || 'N/A'}
@@ -355,9 +365,9 @@ Return JSON:
       const allRepos: Repository[] = [];
       for (const tr of toolResults) {
         if (Array.isArray(tr.result)) {
-          allRepos.push(...tr.result);
+          allRepos.push(...(tr.result as (Repository | null | undefined)[]).filter((r): r is Repository => !!r));
         } else if (tr.result?.repos) {
-          allRepos.push(...tr.result.repos);
+          allRepos.push(...(tr.result.repos as (Repository | null | undefined)[]).filter((r): r is Repository => !!r));
         }
       }
 

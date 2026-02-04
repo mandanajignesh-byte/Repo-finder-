@@ -199,38 +199,49 @@ export class ToolExecutor {
    */
   private async searchReposByNeed(args: any): Promise<ToolResult> {
     const { goal, tech_stack, difficulty, limit = 10 } = args;
-    
-    // Build preferences from arguments
-    const searchPreferences: UserPreferences = {
-      ...this.preferences,
-      techStack: tech_stack || this.preferences.techStack || [],
-      experienceLevel: difficulty || this.preferences.experienceLevel || 'intermediate',
-      goals: goal ? [goal] : this.preferences.goals || [],
-    };
 
-    // Use repo pool service for intelligent search
-    const repos = await repoPoolService.getRecommendations(
-      this.userId,
-      searchPreferences,
-      limit
-    );
+    // Build a GitHub search query directly from the user's goal and tech stack.
+    // This intentionally bypasses Supabase/cluster data and hits the GitHub Search API.
+    const keywords: string[] = [];
 
-    // If not enough repos, try cluster service
-    if (repos.length < limit) {
-      const primaryCluster = clusterService.detectPrimaryCluster(searchPreferences);
-      const clusterRepos = await clusterService.getBestOfCluster(
-        primaryCluster,
-        limit - repos.length,
-        repos.map(r => r.id),
-        this.userId
-      );
-      repos.push(...clusterRepos);
+    if (goal && typeof goal === 'string') {
+      keywords.push(goal);
     }
+
+    const stack = (tech_stack as string[] | undefined) || this.preferences.techStack || [];
+    if (stack.length > 0) {
+      keywords.push(...stack);
+    }
+
+    // Add a simple popularity filter and avoid mega‑popular repos
+    let searchQuery = keywords.join(' ').trim() || 'stars:>50';
+    searchQuery += ' stars:>20 stars:<50000';
+
+    // Map difficulty to minimum stars (very rough heuristic)
+    const diff = (difficulty || this.preferences.experienceLevel || 'intermediate') as string;
+    if (diff === 'beginner') {
+      searchQuery += ' language:javascript';
+    }
+
+    const repos = await githubService.searchRepos(searchQuery, {
+      sort: 'stars',
+      order: 'desc',
+      perPage: Math.min(limit * 3, 60),
+      usePagination: false,
+    });
+
+    // Optionally score/filter using our enhanced recommendation service for better ordering
+    const scored = repos.map((repo: Repository) => ({
+      ...repo,
+      fitScore: enhancedRecommendationService.calculateContentScore(repo, this.preferences),
+    }));
+
+    const sorted = scored.sort((a, b) => (b.fitScore || 0) - (a.fitScore || 0));
 
     return {
       success: true,
-      data: repos.slice(0, limit),
-      reasoning: `Found ${repos.length} repositories matching: goal="${goal}", tech_stack=${JSON.stringify(tech_stack)}, difficulty=${difficulty}`,
+      data: sorted.slice(0, limit),
+      reasoning: `Searched GitHub for "${searchQuery}" based on goal "${goal}" and tech stack ${JSON.stringify(stack)}; ranked by content fit and stars.`,
     };
   }
 

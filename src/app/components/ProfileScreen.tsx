@@ -134,7 +134,13 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-full transition-all"
+              style={{
+                backgroundColor: '#1C1C1E',
+                color: '#F5F5F7',
+                borderRadius: '999px',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
             >
               <Edit2 className="w-4 h-4" />
               Edit
@@ -143,7 +149,13 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                className="px-4 py-2 rounded-full transition-all"
+                style={{
+                  backgroundColor: '#1C1C1E',
+                  color: '#F5F5F7',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
               >
                 Cancel
               </button>
