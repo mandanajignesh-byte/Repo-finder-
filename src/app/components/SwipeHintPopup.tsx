@@ -41,7 +41,7 @@ export function SwipeHintPopup() {
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gray-800 border-2 border-cyan-400 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl"
+          className="bg-gray-800 border-2 border-gray-600 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl"
         >
           {/* Close button */}
           <button
@@ -59,15 +59,15 @@ export function SwipeHintPopup() {
             
             <div className="space-y-3 text-gray-300">
               <div className="flex items-center gap-3 justify-center">
-                <div className="flex items-center gap-2 bg-pink-500/20 border border-pink-500/50 rounded-lg px-4 py-2">
-                  <span className="text-pink-400 font-bold">← Swipe Left</span>
+                <div className="flex items-center gap-2 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2">
+                  <span className="text-gray-100 font-bold">← Swipe Left</span>
                 </div>
                 <span className="text-sm">if you dislike</span>
               </div>
               
               <div className="flex items-center gap-3 justify-center">
-                <div className="flex items-center gap-2 bg-cyan-500/20 border border-cyan-500/50 rounded-lg px-4 py-2">
-                  <span className="text-cyan-400 font-bold">Swipe Right →</span>
+                <div className="flex items-center gap-2 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2">
+                  <span className="text-gray-100 font-bold">Swipe Right →</span>
                 </div>
                 <span className="text-sm">if you like</span>
               </div>
@@ -81,7 +81,7 @@ export function SwipeHintPopup() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleClose}
-              className="mt-6 w-full px-6 py-3 bg-gradient-to-r from-cyan-700 to-pink-700 text-white rounded-lg font-medium hover:from-cyan-600 hover:to-pink-600 transition-colors shadow-lg"
+              className="mt-6 w-full px-6 py-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-colors shadow-sm"
             >
               Got it!
             </motion.button>

@@ -594,7 +594,7 @@ export function DiscoveryScreen() {
         
         {savedRepos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <SignatureCard className="p-8 text-center">
+              <SignatureCard className="p-8 text-center">
               <Bookmark className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-300">No saved repos yet.</p>
               <p className="text-gray-400 text-sm mt-2">Click the Save button to save repositories!</p>
@@ -608,14 +608,14 @@ export function DiscoveryScreen() {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => handleRemoveSaved(repo.id)}
-                  className="absolute top-2 right-2 opacity-70 hover:opacity-100 active:opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2 rounded-full bg-red-500/20 hover:bg-red-500/40 active:bg-red-500/60 text-red-400 hover:text-red-300 z-10"
+                  className="absolute top-2 right-2 opacity-70 hover:opacity-100 active:opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-200 z-10"
                   title="Remove from saved"
                   aria-label="Remove from saved"
                 >
                   <Trash2 className="w-4 h-4" />
                 </motion.button>
                 <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-700 to-pink-700 text-white font-bold flex items-center justify-center text-xs shadow-md">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white text-gray-900 font-bold flex items-center justify-center text-xs shadow-md">
                     {repo.fitScore || 'N/A'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -640,7 +640,7 @@ export function DiscoveryScreen() {
                         href={repo.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 inline-block text-cyan-400 hover:text-cyan-300 text-sm font-medium"
+                        className="mt-3 inline-block text-gray-100 hover:text-white text-sm font-medium"
                       >
                         View on GitHub →
                       </a>
@@ -683,7 +683,7 @@ export function DiscoveryScreen() {
             {likedRepos.map((repo) => (
               <SignatureCard key={repo.id} className="p-4" showLayers={false}>
                 <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-700 to-pink-700 text-white font-bold flex items-center justify-center text-xs shadow-md">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white text-gray-900 font-bold flex items-center justify-center text-xs shadow-md">
                     {repo.fitScore || 'N/A'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -708,7 +708,7 @@ export function DiscoveryScreen() {
                         href={repo.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 inline-block text-cyan-400 hover:text-cyan-300 text-sm font-medium"
+                        className="mt-3 inline-block text-gray-100 hover:text-white text-sm font-medium"
                       >
                         View on GitHub →
                       </a>
@@ -740,7 +740,7 @@ export function DiscoveryScreen() {
     return (
       <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
         <div className="flex flex-col items-center gap-4 p-4 max-w-md text-center">
-          <p className="text-red-400 mb-2">{error}</p>
+          <p className="text-gray-300 mb-2">{error}</p>
           <p className="text-gray-400 text-sm mb-4">
             Make sure you have a GitHub token in your .env file or check your internet connection.
           </p>

@@ -150,7 +150,7 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-700 to-pink-700 text-white rounded-lg hover:from-cyan-600 hover:to-pink-600 transition-colors disabled:opacity-50 shadow-lg"
+                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 shadow-sm"
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? 'Saving...' : 'Save Changes'}
@@ -160,8 +160,8 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
         </div>
 
         {showSuccess && (
-          <div className="mb-4 p-4 bg-green-500/20 border border-green-500 text-green-400 rounded-lg">
-            ✅ Preferences updated! Recommendations will be optimized.
+          <div className="mb-4 p-4 bg-gray-800 border border-gray-600 text-gray-200 rounded-lg">
+            Preferences updated. Recommendations will be optimized.
           </div>
         )}
 
@@ -202,7 +202,7 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             {isEditing && (
               <button
                 onClick={() => setEditedPrefs({ ...editedPrefs, techStack: [] })}
-                className="text-xs text-gray-400 hover:text-red-400"
+                className="text-xs text-gray-400 hover:text-gray-200"
               >
                 Clear all
               </button>
@@ -268,7 +268,7 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
           ) : (
             <div className="flex flex-wrap gap-2">
               {preferences.techStack?.filter(fw => FRAMEWORKS.includes(fw)).map(fw => (
-                <span key={fw} className="px-3 py-1 bg-cyan-900/30 text-cyan-300 border border-cyan-700 rounded-full text-sm">
+                <span key={fw} className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-sm">
                   {fw}
                 </span>
               ))}

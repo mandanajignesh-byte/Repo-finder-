@@ -4,7 +4,6 @@
  */
 
 import { useState } from 'react';
-import { motion } from 'motion/react';
 import { MessageSquare, Send, CheckCircle } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { supabase } from '@/lib/supabase';
@@ -67,7 +66,7 @@ export function FeedbackSection() {
   return (
     <SignatureCard className="p-6" showLayers={false}>
       <div className="flex items-start gap-4 mb-6">
-        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-pink-600 flex items-center justify-center">
+        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
           <MessageSquare className="w-6 h-6 text-white" />
         </div>
         <div className="flex-1">
@@ -88,16 +87,12 @@ export function FeedbackSection() {
 
       {/* Success Message */}
       {isSubmitted && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg flex items-center gap-2"
-        >
-          <CheckCircle className="w-5 h-5 text-green-400" />
-          <p className="text-green-400 text-sm">
+        <div className="mb-4 p-4 bg-gray-800 border border-gray-600 rounded-lg flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-gray-200" />
+          <p className="text-gray-200 text-sm">
             Thank you! Your feedback has been submitted successfully.
           </p>
-        </motion.div>
+        </div>
       )}
 
       {/* Feedback Textarea */}
@@ -108,7 +103,7 @@ export function FeedbackSection() {
           placeholder="Write your feedback here... Share your thoughts, report issues, suggest improvements, or tell us about your experience using this app."
           disabled={isSubmitting}
           rows={6}
-          className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50 resize-none placeholder-gray-500"
+          className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-50 resize-none placeholder-gray-500"
         />
         <p className="text-gray-500 text-xs mt-2">
           {feedback.length} characters
@@ -116,12 +111,10 @@ export function FeedbackSection() {
       </div>
 
       {/* Submit Button */}
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+      <button
         onClick={handleSubmit}
         disabled={isSubmitting || !feedback.trim()}
-        className="w-full px-6 py-3 bg-gradient-to-r from-cyan-700 to-pink-700 text-white rounded-lg font-medium hover:from-cyan-600 hover:to-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+        className="w-full px-6 py-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
       >
         {isSubmitting ? (
           <>
@@ -134,7 +127,7 @@ export function FeedbackSection() {
             Submit Feedback
           </>
         )}
-      </motion.button>
+      </button>
 
       {/* Privacy Note */}
       <div className="mt-4 p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg">

@@ -227,7 +227,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
           >
             <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-gradient-to-r from-cyan-400 to-pink-400"
+                className="h-full bg-white"
                 initial={{ width: 0 }}
                 animate={{ width: `${(step / totalSteps) * 100}%` }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -260,7 +260,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                   value={preferences.name || ''}
                   onChange={(e) => setPreferences({ ...preferences, name: e.target.value })}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
                   autoFocus
                 />
               </motion.div>
@@ -295,11 +295,11 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                       whileHover={{ scale: 1.05, y: -2 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setPreferences({ ...preferences, primaryCluster: cluster.id })}
-                      className={`p-4 rounded-lg border-2 transition-all text-center ${
-                        preferences.primaryCluster === cluster.id
-                          ? 'border-cyan-400 bg-cyan-400/10 text-white shadow-lg shadow-cyan-400/20'
-                          : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
-                      }`}
+                    className={`p-4 rounded-lg border-2 transition-all text-center ${
+                      preferences.primaryCluster === cluster.id
+                        ? 'border-white bg-white/10 text-white'
+                        : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
+                    }`}
                     >
                       <div className="font-bold text-sm mb-1">{cluster.label}</div>
                       <div className="text-xs text-gray-400">{cluster.description}</div>
@@ -345,7 +345,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                         })}
                         className={`p-4 rounded-lg border-2 transition-all text-center ${
                           preferences.secondaryClusters?.includes(cluster.id)
-                            ? 'border-pink-400 bg-pink-400/10 text-white shadow-lg shadow-pink-400/20'
+                            ? 'border-white bg-white/10 text-white'
                             : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                         }`}
                       >
@@ -388,7 +388,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                       onClick={() => setPreferences({ ...preferences, experienceLevel: level.id as any })}
                       className={`p-6 rounded-lg border-2 transition-all text-left ${
                         preferences.experienceLevel === level.id
-                          ? 'border-cyan-400 bg-cyan-400/10 text-white shadow-lg shadow-cyan-400/20'
+                          ? 'border-white bg-white/10 text-white'
                           : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                       }`}
                     >
@@ -434,7 +434,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                       })}
                       className={`p-5 rounded-lg border-2 transition-all text-left ${
                         preferences.goals?.includes(useCase.id as any)
-                          ? 'border-pink-400 bg-pink-400/10 text-white shadow-lg shadow-pink-400/20'
+                          ? 'border-white bg-white/10 text-white'
                           : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                       }`}
                     >
@@ -663,7 +663,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleNext}
-              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-cyan-400 to-pink-400 text-white rounded-lg font-medium hover:from-cyan-500 hover:to-pink-500 transition-colors shadow-lg"
+              className="flex items-center gap-2 px-6 py-2 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-colors shadow-sm"
             >
               {step === totalSteps ? 'Complete' : 'Next →'}
             </motion.button>

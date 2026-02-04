@@ -347,7 +347,7 @@ export function AgentScreen() {
               </div>
             ) : message.error ? (
               <div className="flex justify-start">
-                <div className="bg-red-900/30 border border-red-700 text-red-300 rounded-[20px] px-4 py-3 flex items-center gap-2">
+                <div className="bg-gray-800 border border-gray-600 text-gray-200 rounded-[20px] px-4 py-3 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
                   <p>{message.text}</p>
                 </div>

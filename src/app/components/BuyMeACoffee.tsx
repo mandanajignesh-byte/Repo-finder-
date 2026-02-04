@@ -4,8 +4,6 @@
  */
 
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Heart } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { paymentService } from '@/services/payment.service';
 
@@ -53,7 +51,7 @@ export function BuyMeACoffee() {
   return (
     <SignatureCard className="p-6" showLayers={false}>
       <div className="flex items-start gap-4 mb-6">
-        <div className="flex-shrink-0 w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center overflow-hidden">
+        <div className="flex-shrink-0 w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center overflow-hidden">
           <img 
             src="/coffee.png" 
             alt="Coffee" 
@@ -77,16 +75,14 @@ export function BuyMeACoffee() {
         <p className="text-gray-400 text-sm mb-3">Quick select:</p>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
           {PRESET_AMOUNTS.map((amount) => (
-            <motion.button
+            <button
               key={amount}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               onClick={() => handlePay(amount)}
               disabled={isProcessing}
-              className="px-4 py-3 bg-gradient-to-r from-cyan-700 to-pink-700 text-white rounded-lg font-medium hover:from-cyan-600 hover:to-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className="px-4 py-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               ${amount}
-            </motion.button>
+            </button>
           ))}
         </div>
       </div>
@@ -111,25 +107,22 @@ export function BuyMeACoffee() {
               }}
               placeholder="Enter your amount"
               disabled={isProcessing}
-              className="w-full pl-8 pr-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
+              className="w-full pl-8 pr-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-50"
             />
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={handleCustomPay}
             disabled={isProcessing || !customAmount}
-            className="px-6 py-3 bg-gradient-to-r from-cyan-700 to-pink-700 text-white rounded-lg font-medium hover:from-cyan-600 hover:to-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center gap-2"
+            className="px-6 py-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-2"
           >
-            <Heart className="w-4 h-4" />
             Pay
-          </motion.button>
+          </button>
         </div>
       </div>
 
       {/* Thank you message */}
-      <div className="mt-4 p-3 bg-cyan-900/20 border border-cyan-700/50 rounded-lg">
-        <p className="text-cyan-300 text-xs text-center">
+      <div className="mt-4 p-3 bg-gray-800 border border-gray-700 rounded-lg">
+        <p className="text-gray-300 text-xs text-center">
           Thank you for your payment! Your feedback on pricing helps shape the future of this project.
         </p>
       </div>

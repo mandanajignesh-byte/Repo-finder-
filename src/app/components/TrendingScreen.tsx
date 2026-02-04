@@ -84,12 +84,6 @@ export function TrendingScreen() {
   return (
     <div 
       className="h-full bg-black overflow-y-auto pb-24 md:pb-0"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(219, 39, 119, 0.05) 0%, transparent 50%)',
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}
     >
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
         <div className="flex flex-col gap-4 mb-6">
@@ -151,7 +145,7 @@ export function TrendingScreen() {
         {/* Error state */}
         {error && !loading && (
           <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-red-400 mb-4">{error}</p>
+            <p className="text-gray-300 mb-4">{error}</p>
             <button
               onClick={loadTrendingRepos}
               className="px-4 py-2 bg-white text-gray-900 rounded-full"
@@ -170,7 +164,7 @@ export function TrendingScreen() {
                 onClick={() => setSelectedCategory('all')}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   selectedCategory === 'all'
-                    ? 'bg-gradient-to-r from-cyan-700 to-pink-700 text-white shadow-lg'
+                    ? 'bg-white text-gray-900 shadow-lg'
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
                 }`}
               >
@@ -188,7 +182,7 @@ export function TrendingScreen() {
                     onClick={() => setSelectedCategory(category)}
                     className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
                       selectedCategory === category
-                        ? 'bg-gradient-to-r from-cyan-700 to-pink-700 text-white shadow-lg'
+                        ? 'bg-white text-gray-900 shadow-lg'
                         : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
                     }`}
                   >
@@ -240,17 +234,17 @@ export function TrendingScreen() {
                     >
                       <div className="flex items-start gap-4">
                         {/* Rank badge */}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-700 to-pink-700 text-white font-bold flex items-center justify-center text-sm shadow-md">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white text-gray-900 font-bold flex items-center justify-center text-sm shadow-md">
                           {index + 1}
                         </div>
                         
                         <div className="flex-1 min-w-0">
                           {/* Repo name and trending badge */}
                           <div className="flex items-center gap-2 mb-1.5">
-                            <h3 className="font-bold text-lg text-white hover:text-cyan-400 transition-colors font-mono">
+                          <h3 className="font-bold text-lg text-white hover:text-gray-200 transition-colors font-mono">
                               {repo.fullName}
                             </h3>
-                            <span className="flex-shrink-0 text-xs text-green-400 font-medium bg-green-400/10 px-2 py-0.5 rounded">
+                            <span className="flex-shrink-0 text-xs text-gray-300 font-medium bg-gray-800 px-2 py-0.5 rounded">
                               {repo.trending}
                             </span>
                           </div>
