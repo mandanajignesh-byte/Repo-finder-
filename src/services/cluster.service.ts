@@ -23,7 +23,7 @@ class ClusterService {
     try {
       const { data, error } = await supabase
         .from('cluster_metadata')
-        .select('*')
+        .select('cluster_name, display_name, description, icon, repo_count')
         .eq('is_active', true)
         .order('display_name');
 

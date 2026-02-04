@@ -66,8 +66,9 @@ class RecommendationService {
       const repos = await githubService.searchRepos(searchQuery, {
         sort: 'stars',
         order: 'desc',
-        perPage: 100, // Use 100 like Python script
-        usePagination: false, // Set to true if you want all pages
+        // PERFORMANCE: 40 results is enough to pick top N; keeps GitHub calls fast.
+        perPage: 40,
+        usePagination: false,
       });
 
       // Calculate fit scores and sort

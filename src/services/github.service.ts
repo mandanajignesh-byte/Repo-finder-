@@ -168,8 +168,10 @@ class GitHubService {
         searchQuery += ` language:${options.language}`;
       }
 
-      const perPage = options?.perPage || 100; // Use 100 like Python script
-      const maxPages = options?.maxPages || 10; // Safety limit
+      // IMPORTANT: Keep per_page modest to avoid slow 3–6s responses on heavy queries.
+      // Default is 30; callers can override but should generally stay <= 50.
+      const perPage = options?.perPage || 30;
+      const maxPages = options?.maxPages || 3; // Hard cap for defensive pagination
       const allRepos: Repository[] = [];
       let page = 1;
 

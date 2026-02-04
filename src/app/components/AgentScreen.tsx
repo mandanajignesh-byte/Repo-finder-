@@ -3,7 +3,11 @@ import { Send, Loader2, AlertCircle } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { useTypedPlaceholder } from './TypedPlaceholder';
 import { aiService } from '@/services/ai.service';
-import { enhancedAIAgentService } from '@/services/enhanced-ai-agent.service';
+import {
+  enhancedAIAgentService,
+  ClarificationQuestion,
+  ClarificationAnswers,
+} from '@/services/enhanced-ai-agent.service';
 import { creditService } from '@/services/credit.service';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { Recommendation } from '@/lib/types';
@@ -19,6 +23,7 @@ interface Message {
   reasoning?: string;
   toolsUsed?: string[];
   confidence?: number;
+  clarificationQuestions?: ClarificationQuestion[];
 }
 
 const initialMessages: Message[] = [
@@ -34,6 +39,10 @@ export function AgentScreen() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [inputValue, setInputValue] = useState('');
   const [credits, setCredits] = useState(creditService.getBalance());
+  const [pendingFeatureDescription, setPendingFeatureDescription] = useState<string | null>(null);
+  const [clarificationSelections, setClarificationSelections] = useState<Record<string, string[]>>(
+    {}
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +75,99 @@ export function AgentScreen() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const toggleClarificationSelection = (questionId: string, optionId: string, multiSelect?: boolean) => {
+    setClarificationSelections((prev) => {
+      const current = prev[questionId] || [];
+      if (multiSelect) {
+        const exists = current.includes(optionId);
+        const next = exists ? current.filter((id) => id !== optionId) : [...current, optionId];
+        return { ...prev, [questionId]: next };
+      }
+      // single-select
+      return { ...prev, [questionId]: [optionId] };
+    });
+  };
+
+  const handleSubmitClarifications = async () => {
+    const lastAgentWithQuestions = [...messages]
+      .reverse()
+      .find((m) => m.sender === 'agent' && m.clarificationQuestions && m.clarificationQuestions.length > 0);
+
+    if (!lastAgentWithQuestions || !pendingFeatureDescription) {
+      return;
+    }
+
+    const answers: ClarificationAnswers = {};
+    for (const q of lastAgentWithQuestions.clarificationQuestions || []) {
+      const selected = clarificationSelections[q.id] || [];
+      if (!selected.length) continue;
+      answers[q.id] = q.multiSelect ? selected : selected[0];
+    }
+
+    if (Object.keys(answers).length === 0) {
+      return;
+    }
+
+    // Add loading message for clarification round
+    const loadingMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      text: 'Got it, searching with your selections...',
+      sender: 'agent',
+      loading: true,
+    };
+    setMessages((prev) => [...prev, loadingMessage]);
+
+    try {
+      const response = await enhancedAIAgentService.getRecommendations(
+        pendingFeatureDescription,
+        preferences,
+        undefined,
+        answers
+      );
+
+      const agentResponse: Message = {
+        id: (Date.now() + 2).toString(),
+        text: response.text,
+        sender: 'agent',
+        recommendations: response.recommendations,
+        reasoning: response.reasoning,
+        toolsUsed: response.tools_used,
+        confidence: response.confidence,
+        clarificationQuestions: response.clarificationQuestions,
+        quickReplies: response.recommendations && response.recommendations.length > 0
+          ? [
+              'Show more',
+              'Explain reasoning',
+              'Find alternatives',
+              'Start over',
+            ]
+          : undefined,
+      };
+
+      // Clear selections if we got results (or new questions)
+      setClarificationSelections({});
+      if (!response.clarificationQuestions || response.clarificationQuestions.length === 0) {
+        setPendingFeatureDescription(null);
+      }
+
+      setMessages((prev) => {
+        const withoutLoading = prev.filter((m) => !m.loading);
+        return [...withoutLoading, agentResponse];
+      });
+    } catch (error) {
+      setMessages((prev) => {
+        const withoutLoading = prev.filter((m) => !m.loading);
+        const errorMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          text: "Sorry, I couldn't complete the search with those details. Please try again.",
+          sender: 'agent',
+          error: 'api_error',
+        };
+        return [...withoutLoading, errorMessage];
+      });
+    }
+  };
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
@@ -118,6 +220,7 @@ export function AgentScreen() {
           reasoning: response.reasoning,
           toolsUsed: response.tools_used,
           confidence: response.confidence,
+          clarificationQuestions: response.clarificationQuestions,
           quickReplies: [
             'Show more',
             'Explain reasoning',
@@ -125,6 +228,15 @@ export function AgentScreen() {
             'Start over',
           ],
         };
+
+        // If the agent is asking clarification questions, remember this as a feature-building session
+        if (response.clarificationQuestions && response.clarificationQuestions.length > 0) {
+          setPendingFeatureDescription(text);
+          setClarificationSelections({});
+        } else {
+          setPendingFeatureDescription(null);
+          setClarificationSelections({});
+        }
       } else {
         // Fallback to basic AI service
         const recommendations = await aiService.getRecommendations(text, preferences);
@@ -316,6 +428,46 @@ export function AgentScreen() {
                     )}
                   </SignatureCard>
                 ))}
+              </div>
+            )}
+
+            {/* Clarification questions (slot filling) */}
+            {message.clarificationQuestions && message.clarificationQuestions.length > 0 && (
+              <div className="mt-4 space-y-4">
+                {message.clarificationQuestions.map((q) => {
+                  const selected = clarificationSelections[q.id] || [];
+                  return (
+                    <div key={q.id} className="bg-gray-800/60 border border-gray-700 rounded-[16px] p-3">
+                      <p className="text-sm text-gray-100 mb-2">{q.question}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {q.options.map((opt) => {
+                          const isSelected = selected.includes(opt.id);
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => toggleClarificationSelection(q.id, opt.id, q.multiSelect)}
+                              className={`px-3 py-1 rounded-full text-xs border transition-colors ${
+                                isSelected
+                                  ? 'bg-cyan-600 border-cyan-400 text-white'
+                                  : 'bg-gray-900 border-gray-600 text-gray-200 hover:bg-gray-700'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={handleSubmitClarifications}
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full text-sm font-medium transition-colors"
+                >
+                  Continue with these choices
+                </button>
               </div>
             )}
 

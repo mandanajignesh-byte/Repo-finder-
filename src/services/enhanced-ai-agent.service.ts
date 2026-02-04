@@ -9,6 +9,38 @@ import { Repository, UserPreferences, Recommendation } from '@/lib/types';
 import { ToolExecutor, AI_AGENT_TOOLS, ToolCall } from './ai-agent-tools';
 import { supabaseService } from './supabase.service';
 
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export type GoalType =
+  | 'learn-concepts'
+  | 'ship-feature-fast'
+  | 'explore-best-practices'
+  | 'copy-and-adapt';
+
+export interface FeatureRequestContext {
+  featureDescription: string;
+  techStack?: string;
+  platform?: string[];
+  language?: string;
+  experienceLevel?: ExperienceLevel;
+  goalType?: GoalType;
+}
+
+export interface ClarificationOption {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+export interface ClarificationQuestion {
+  id: 'techStack' | 'platform' | 'language' | 'experienceLevel' | 'goalType';
+  question: string;
+  multiSelect?: boolean;
+  options: ClarificationOption[];
+}
+
+export type ClarificationAnswers = Record<string, string | string[]>;
+
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -29,6 +61,8 @@ interface AgentResponse {
   reasoning?: string;
   tools_used?: string[];
   confidence?: number;
+  clarificationQuestions?: ClarificationQuestion[];
+  featureContext?: FeatureRequestContext;
 }
 
 class EnhancedAIAgentService {
@@ -48,7 +82,9 @@ class EnhancedAIAgentService {
    */
   async getRecommendations(
     userQuery: string,
-    preferences?: UserPreferences
+    preferences?: UserPreferences,
+    featureContext?: FeatureRequestContext,
+    clarificationAnswers?: ClarificationAnswers
   ): Promise<AgentResponse> {
     if (!this.isConfigured()) {
       return this.getFallbackResponse(userQuery, preferences);
@@ -57,6 +93,58 @@ class EnhancedAIAgentService {
     try {
       const userId = await supabaseService.getOrCreateUserId();
       const executor = new ToolExecutor(userId, preferences || {});
+
+       // Feature builder flow with slot filling
+      if (this.isFeatureBuilderQuery(userQuery)) {
+        const {
+          context,
+          questions,
+        } = this.buildFeatureContext(userQuery, preferences, featureContext, clarificationAnswers);
+
+        // If we still need more information, ask clarification questions instead of searching
+        if (questions.length > 0) {
+          return {
+            text: 'To recommend the best repos for this feature, I need a bit more info. Please choose from the options below.',
+            recommendations: [],
+            reasoning: 'Collecting core slots (tech stack, platform, language, experience, goal) before searching',
+            tools_used: [],
+            confidence: 0.0,
+            clarificationQuestions: questions,
+            featureContext: context,
+          };
+        }
+
+        // We have enough context → run a targeted search without an extra planning LLM call
+        const goal = this.buildGoalFromContext(context);
+
+        const searchResult = await executor.executeTool({
+          name: 'search_repos_by_need',
+          arguments: {
+            goal,
+            tech_stack: context.techStack
+              ? [context.techStack]
+              : preferences?.techStack || [],
+            difficulty: context.experienceLevel || preferences?.experienceLevel || 'intermediate',
+            limit: 10,
+          },
+        });
+
+        const toolResults = [{
+          tool: 'search_repos_by_need',
+          result: searchResult.success ? searchResult.data : null,
+          reasoning: searchResult.reasoning,
+        }];
+
+        const response = await this.synthesizeResponse(
+          goal,
+          toolResults,
+          preferences,
+          ['search_repos_by_need']
+        );
+
+        response.featureContext = context;
+        return response;
+      }
 
       // Step 1: Planning - Let AI decide which tools to use
       const plan = await this.planToolUsage(userQuery, preferences);
@@ -379,6 +467,269 @@ ${preferences ? `
 Be specific, helpful, and personalized. Don't just list repos - explain the journey.`;
 
     return prompt;
+  }
+
+  /**
+   * Detect if the query looks like a feature-building request
+   */
+  private isFeatureBuilderQuery(userQuery: string): boolean {
+    const q = userQuery.toLowerCase();
+    const builders = [
+      'i am building',
+      "i'm building",
+      'i want to build',
+      'i want to add',
+      'i want to create',
+      'help me build',
+      'add this feature',
+      'build this feature',
+      'implement this feature',
+    ];
+
+    return builders.some((p) => q.includes(p));
+  }
+
+  /**
+   * Build or refine the feature request context and derive clarification questions
+   */
+  private buildFeatureContext(
+    userQuery: string,
+    preferences?: UserPreferences,
+    existingContext?: FeatureRequestContext,
+    clarificationAnswers?: ClarificationAnswers
+  ): { context: FeatureRequestContext; questions: ClarificationQuestion[] } {
+    const base: FeatureRequestContext = existingContext || {
+      featureDescription: userQuery.trim(),
+    };
+
+    const context: FeatureRequestContext = { ...base };
+
+    // 1) Apply preferences as gentle defaults
+    if (!context.techStack && preferences?.techStack?.length) {
+      context.techStack = preferences.techStack[0];
+    }
+
+    if (!context.experienceLevel && preferences?.experienceLevel) {
+      context.experienceLevel = preferences.experienceLevel as ExperienceLevel;
+    }
+
+    if (!context.goalType && preferences?.goals?.length) {
+      context.goalType = 'ship-feature-fast';
+    }
+
+    // 2) Infer from free-text query
+    const lower = userQuery.toLowerCase();
+
+    if (!context.platform || context.platform.length === 0) {
+      const platforms: string[] = [];
+      if (lower.includes('mobile') || lower.includes('android') || lower.includes('ios')) {
+        platforms.push('mobile');
+      }
+      if (lower.includes('web') || lower.includes('dashboard') || lower.includes('website')) {
+        platforms.push('web');
+      }
+      if (lower.includes('api') || lower.includes('backend')) {
+        platforms.push('backend');
+      }
+      context.platform = platforms.length ? platforms : context.platform;
+    }
+
+    if (!context.language) {
+      const languageKeywords: { keyword: string; lang: string }[] = [
+        { keyword: 'typescript', lang: 'typescript' },
+        { keyword: 'ts ', lang: 'typescript' },
+        { keyword: 'javascript', lang: 'javascript' },
+        { keyword: 'js ', lang: 'javascript' },
+        { keyword: 'python', lang: 'python' },
+        { keyword: 'dart', lang: 'dart' },
+        { keyword: 'kotlin', lang: 'kotlin' },
+        { keyword: 'swift', lang: 'swift' },
+      ];
+      const found = languageKeywords.find((entry) => lower.includes(entry.keyword));
+      if (found) {
+        context.language = found.lang;
+      } else if (context.techStack === 'nextjs' || context.techStack === 'react') {
+        context.language = 'typescript';
+      }
+    }
+
+    if (!context.techStack) {
+      const stackKeywords: { keyword: string; stack: string }[] = [
+        { keyword: 'next', stack: 'nextjs' },
+        { keyword: 'react native', stack: 'react-native' },
+        { keyword: 'react', stack: 'react' },
+        { keyword: 'flutter', stack: 'flutter' },
+        { keyword: 'vue', stack: 'vue' },
+        { keyword: 'angular', stack: 'angular' },
+        { keyword: 'node', stack: 'node-express' },
+        { keyword: 'nestjs', stack: 'nestjs' },
+      ];
+      const found = stackKeywords.find((entry) => lower.includes(entry.keyword));
+      if (found) {
+        context.techStack = found.stack;
+      }
+    }
+
+    if (!context.experienceLevel) {
+      if (lower.includes('beginner') || lower.includes('new to')) {
+        context.experienceLevel = 'beginner';
+      } else if (lower.includes('advanced') || lower.includes('senior')) {
+        context.experienceLevel = 'advanced';
+      } else {
+        context.experienceLevel = 'intermediate';
+      }
+    }
+
+    if (!context.goalType) {
+      if (lower.includes('learn') || lower.includes('understand')) {
+        context.goalType = 'learn-concepts';
+      } else if (lower.includes('ship') || lower.includes('launch') || lower.includes('production')) {
+        context.goalType = 'ship-feature-fast';
+      } else {
+        context.goalType = 'ship-feature-fast';
+      }
+    }
+
+    // 3) Apply explicit clarification answers (override everything)
+    if (clarificationAnswers) {
+      Object.entries(clarificationAnswers).forEach(([key, value]) => {
+        switch (key) {
+          case 'techStack':
+            context.techStack = Array.isArray(value) ? value[0] : value;
+            break;
+          case 'platform':
+            context.platform = Array.isArray(value) ? value : [value];
+            break;
+          case 'language':
+            context.language = Array.isArray(value) ? value[0] : value;
+            break;
+          case 'experienceLevel':
+            context.experienceLevel = (Array.isArray(value) ? value[0] : value) as ExperienceLevel;
+            break;
+          case 'goalType':
+            context.goalType = (Array.isArray(value) ? value[0] : value) as GoalType;
+            break;
+          default:
+            break;
+        }
+      });
+    }
+
+    // 4) Determine which core slots are still missing
+    const questions: ClarificationQuestion[] = [];
+
+    if (!context.techStack) {
+      questions.push({
+        id: 'techStack',
+        question: 'What tech stack are you using (or want to use) for this feature?',
+        multiSelect: false,
+        options: [
+          { id: 'nextjs', label: 'Next.js (React + TypeScript)' },
+          { id: 'react', label: 'React SPA' },
+          { id: 'react-native', label: 'React Native' },
+          { id: 'flutter', label: 'Flutter' },
+          { id: 'vue', label: 'Vue' },
+          { id: 'angular', label: 'Angular' },
+          { id: 'node-express', label: 'Node.js (Express)' },
+          { id: 'nestjs', label: 'NestJS' },
+          { id: 'other', label: 'Other / not sure' },
+        ],
+      });
+    }
+
+    if (!context.platform || context.platform.length === 0) {
+      questions.push({
+        id: 'platform',
+        question: 'Where will this feature run?',
+        multiSelect: true,
+        options: [
+          { id: 'web', label: 'Web app' },
+          { id: 'mobile', label: 'Mobile app' },
+          { id: 'desktop', label: 'Desktop app' },
+          { id: 'backend', label: 'Backend / API only' },
+        ],
+      });
+    }
+
+    if (!context.language) {
+      questions.push({
+        id: 'language',
+        question: 'What is your primary programming language for this feature?',
+        multiSelect: false,
+        options: [
+          { id: 'typescript', label: 'TypeScript' },
+          { id: 'javascript', label: 'JavaScript' },
+          { id: 'python', label: 'Python' },
+          { id: 'dart', label: 'Dart' },
+          { id: 'kotlin', label: 'Kotlin' },
+          { id: 'swift', label: 'Swift' },
+          { id: 'other', label: 'Other / not sure' },
+        ],
+      });
+    }
+
+    if (!context.experienceLevel) {
+      questions.push({
+        id: 'experienceLevel',
+        question: 'What is your experience level with this stack?',
+        multiSelect: false,
+        options: [
+          { id: 'beginner', label: 'Beginner' },
+          { id: 'intermediate', label: 'Intermediate' },
+          { id: 'advanced', label: 'Advanced' },
+        ],
+      });
+    }
+
+    if (!context.goalType) {
+      questions.push({
+        id: 'goalType',
+        question: 'What is your main goal right now?',
+        multiSelect: false,
+        options: [
+          { id: 'learn-concepts', label: 'Learn concepts and patterns' },
+          { id: 'ship-feature-fast', label: 'Ship this feature as fast as possible' },
+          { id: 'explore-best-practices', label: 'See best-practice architectures' },
+          { id: 'copy-and-adapt', label: 'Copy a good repo and adapt it' },
+        ],
+      });
+    }
+
+    // To avoid overwhelming the user, only ask at most 3 questions in one round
+    const limitedQuestions = questions.slice(0, 3);
+
+    return { context, questions: limitedQuestions };
+  }
+
+  /**
+   * Build a focused goal string for repo search from the feature context
+   */
+  private buildGoalFromContext(context: FeatureRequestContext): string {
+    const parts: string[] = [];
+
+    parts.push(context.featureDescription);
+
+    if (context.techStack) {
+      parts.push(`tech stack: ${context.techStack}`);
+    }
+
+    if (context.platform && context.platform.length > 0) {
+      parts.push(`platform: ${context.platform.join(', ')}`);
+    }
+
+    if (context.language) {
+      parts.push(`language: ${context.language}`);
+    }
+
+    if (context.experienceLevel) {
+      parts.push(`experience: ${context.experienceLevel}`);
+    }
+
+    if (context.goalType) {
+      parts.push(`goal: ${context.goalType}`);
+    }
+
+    return parts.join(' | ');
   }
 
   /**

@@ -23,11 +23,12 @@ export function TrendingScreen() {
     try {
       const since = timeRange === 'today' ? 'daily' : 'weekly';
       
-      // Fetch all trending repos (no language filter to get more variety)
+      // Fetch trending repos (no language filter to get more variety)
       // Filter out well-known repos to surface unknown gems by default
       const trending = await githubService.getTrendingRepos({
         since,
-        perPage: 100, // Get more repos for better categorization
+        // PERFORMANCE: 40 is a good balance between variety and speed.
+        perPage: 40,
         usePagination: false,
         excludeWellKnown: showUnknownGems, // Filter based on toggle
       });

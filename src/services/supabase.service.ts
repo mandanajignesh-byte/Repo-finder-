@@ -180,7 +180,7 @@ class SupabaseService {
       // OPTIMIZATION: Add Accept header to prevent 406 errors
       const { data, error } = await supabase
         .from(TABLES.user_preferences)
-        .select('*')
+        .select('primary_cluster, secondary_clusters, tech_stack, interests, experience_level, goals, project_types, activity_preference, popularity_weight, documentation_importance, license_preference, repo_size, onboarding_completed')
         .eq('user_id', userId)
         .single();
 
@@ -272,7 +272,7 @@ class SupabaseService {
 
       const { data, error } = await supabase
         .from(TABLES.saved_repos)
-        .select('*')
+        .select('repo_id, repo_name, repo_full_name, repo_description, repo_stars, repo_language, repo_url, repo_tags, repo_topics, saved_at')
         .eq('user_id', userId)
         .order('saved_at', { ascending: false });
 
@@ -382,7 +382,7 @@ class SupabaseService {
 
       const { data, error } = await supabase
         .from(TABLES.liked_repos)
-        .select('*')
+        .select('repo_id, repo_name, repo_full_name, repo_description, repo_stars, repo_language, repo_url, repo_tags, repo_topics, liked_at')
         .eq('user_id', userId)
         .order('liked_at', { ascending: false });
 
@@ -457,7 +457,7 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from(TABLES.user_interactions)
-        .select('*')
+        .select('repo_id, action, created_at, session_id, time_spent, context')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -565,7 +565,7 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from(TABLES.user_interactions)
-        .select('*')
+        .select('repo_id, action, created_at, session_id, time_spent, context')
         .eq('repo_id', repoId)
         .eq('action', 'save') // Only use saves for collaborative filtering
         .order('created_at', { ascending: false })
@@ -647,7 +647,7 @@ class SupabaseService {
     try {
       const { data, error } = await supabase
         .from('repo_pools')
-        .select('*')
+        .select('repos')
         .eq('user_id', userId)
         .single();
 

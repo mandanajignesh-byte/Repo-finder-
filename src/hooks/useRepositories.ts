@@ -24,10 +24,10 @@ export function useRepositories(query?: string) {
     setLoading(true);
     setError(null);
     try {
-      // Use pagination to get more repos (100 per page like Python script)
       const trending = await githubService.getTrendingRepos({
         since: 'daily',
-        perPage: 100, // Increased from 30 to 100
+        // PERFORMANCE: 40 is enough for UI while keeping responses snappy.
+        perPage: 40,
         usePagination: false, // Set to true if you want to fetch all pages
       });
       setRepos(trending);
@@ -42,11 +42,11 @@ export function useRepositories(query?: string) {
     setLoading(true);
     setError(null);
     try {
-      // Use pagination to get more repos (100 per page like Python script)
       const results = await githubService.searchRepos(searchQuery, {
         sort: 'stars',
         order: 'desc',
-        perPage: 100, // Increased from 30 to 100
+        // PERFORMANCE: 40 results per search keeps latency low.
+        perPage: 40,
         usePagination: false, // Set to true if you want to fetch all pages
       });
       setRepos(results);

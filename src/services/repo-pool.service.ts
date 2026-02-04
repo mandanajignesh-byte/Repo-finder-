@@ -270,8 +270,9 @@ class RepoPoolService {
       const repos = await githubService.searchRepos(searchQuery, {
         sort: 'stars',
         order: 'desc',
-        perPage: 100,
-        usePagination: false, // Smaller fetch for dynamic
+        // PERFORMANCE: keep dynamic fetches light; 40 is enough for fallback pool.
+        perPage: 40,
+        usePagination: false,
       });
       
       // Apply quality validation

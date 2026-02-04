@@ -435,7 +435,8 @@ class EnhancedRecommendationService {
       const repos = await githubService.searchRepos(searchQuery, {
         sort: 'stars',
         order: 'desc',
-        perPage: 200, // Get more to filter better
+        // PERFORMANCE: 50 results is enough for scoring/diversity; larger pages cause 3–6s waits.
+        perPage: 50,
         usePagination: false,
       });
 
@@ -799,7 +800,13 @@ class EnhancedRecommendationService {
         this.getContentBasedRecommendations(preferences, 50),
         this.getSessionBasedRecommendations(
           sessionHistory,
-          await githubService.searchRepos('stars:>100', { sort: 'stars', order: 'desc', perPage: 200, usePagination: false }),
+          await githubService.searchRepos('stars:>100', {
+            sort: 'stars',
+            order: 'desc',
+            // PERFORMANCE: smaller page for background candidate pool
+            perPage: 50,
+            usePagination: false,
+          }),
           50
         ),
       ]);
