@@ -988,11 +988,9 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
       isScrollingRef.current = true;
     };
     const handleEnableDrag = () => {
-      // Re-enable drag more quickly for better responsiveness
-      setTimeout(() => {
-        isScrollingRef.current = false;
-        setDragEnabled(true);
-      }, 200); // Reduced from 500ms to 200ms
+      // Re-enable drag immediately since we now properly detect scroll end
+      isScrollingRef.current = false;
+      setDragEnabled(true);
     };
     
     cardRef.current.addEventListener('disableDrag', handleDisableDrag);

@@ -14,6 +14,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
   const cardRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
   const [scrollableHeight, setScrollableHeight] = useState<number | undefined>(undefined);
+  const scrollEndTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
     const calculateHeight = () => {
@@ -69,6 +70,9 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
     return () => {
       clearTimeout(timeoutId1);
       clearTimeout(debounceTimer);
+      if (scrollEndTimerRef.current) {
+        clearTimeout(scrollEndTimerRef.current);
+      }
       resizeObserver.disconnect();
     };
   }, []);
@@ -113,6 +117,19 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             const parent = e.currentTarget.closest('[data-swipeable-card]');
             if (parent) {
               parent.dispatchEvent(new CustomEvent('disableDrag'));
+              
+              // Clear existing timer
+              if (scrollEndTimerRef.current) {
+                clearTimeout(scrollEndTimerRef.current);
+              }
+              
+              // Set a timer to re-enable drag after scrolling stops
+              scrollEndTimerRef.current = setTimeout(() => {
+                if (parent) {
+                  parent.dispatchEvent(new CustomEvent('enableDrag'));
+                }
+                scrollEndTimerRef.current = null;
+              }, 150); // Re-enable after 150ms of no scrolling
             }
             // Let the scroll happen naturally
           }}
@@ -121,6 +138,19 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             const parent = document.querySelector('[data-swipeable-card]');
             if (parent) {
               parent.dispatchEvent(new CustomEvent('disableDrag'));
+              
+              // Clear existing timer
+              if (scrollEndTimerRef.current) {
+                clearTimeout(scrollEndTimerRef.current);
+              }
+              
+              // Set a timer to re-enable drag after scrolling stops
+              scrollEndTimerRef.current = setTimeout(() => {
+                if (parent) {
+                  parent.dispatchEvent(new CustomEvent('enableDrag'));
+                }
+                scrollEndTimerRef.current = null;
+              }, 150); // Re-enable after 150ms of no scrolling
             }
           }}
           onTouchStart={(e) => {
@@ -135,6 +165,35 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             const parent = e.currentTarget.closest('[data-swipeable-card]');
             if (parent) {
               parent.dispatchEvent(new CustomEvent('disableDrag'));
+              
+              // Clear existing timer
+              if (scrollEndTimerRef.current) {
+                clearTimeout(scrollEndTimerRef.current);
+              }
+              
+              // Set a timer to re-enable drag after scrolling stops
+              scrollEndTimerRef.current = setTimeout(() => {
+                if (parent) {
+                  parent.dispatchEvent(new CustomEvent('enableDrag'));
+                }
+                scrollEndTimerRef.current = null;
+              }, 150); // Re-enable after 150ms of no scrolling
+            }
+          }}
+          onTouchEnd={() => {
+            // Re-enable drag when touch ends
+            const parent = document.querySelector('[data-swipeable-card]');
+            if (parent) {
+              // Clear existing timer
+              if (scrollEndTimerRef.current) {
+                clearTimeout(scrollEndTimerRef.current);
+              }
+              // Re-enable immediately when touch ends
+              setTimeout(() => {
+                if (parent) {
+                  parent.dispatchEvent(new CustomEvent('enableDrag'));
+                }
+              }, 100);
             }
           }}
         >
