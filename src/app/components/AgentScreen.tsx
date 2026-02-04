@@ -49,11 +49,14 @@ export function AgentScreen() {
   // Typed placeholder effect
   useTypedPlaceholder({
     strings: [
-      'Type a message...',
-      'What are you building?',
+      "I'm building Netflix for X and want recommendations better than Netflix",
+      "I'm building Google for X and want a smarter search engine",
+      "I'm building a Notion-style app and need the best open source building blocks",
+      "I'm building a Stripe-level product and want world-class API examples",
+      "I'm building X — what repos did the best companies learn from?",
+      'What are you building today?',
       'Looking for a React project?',
       'Need a Python library?',
-      'Search for repositories...',
     ],
     typeSpeed: 50,
     backSpeed: 30,

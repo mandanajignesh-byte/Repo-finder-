@@ -26,6 +26,26 @@ export function DiscoveryScreen() {
   const [isSwiping, setIsSwiping] = useState(false);
   const [triggerSwipe, setTriggerSwipe] = useState<'left' | 'right' | null>(null);
 
+  // Short one-line tips about using GitHub repos, shown during loading states
+  const loadingTips = [
+    'Star repos you actually use so your stars become a curated toolbox.',
+    'Always scan the README first to see if a repo really fits your needs.',
+    'Glance at open issues to spot real bugs and maintainer responsiveness.',
+    'Watch releases to see how mature projects ship changes safely.',
+    'Inspect popular forks to discover improved or alternative implementations.',
+    'Study the tests – they are living examples of how to use the library.',
+    'Browse commit history to understand how the project evolved over time.',
+    'Use GitHub code search to jump straight to real implementations.',
+    'Check top contributors – their profiles often hide more great repos.',
+    'Clone a repo and rebuild one feature to turn browsing into real learning.',
+  ];
+
+  const loadingTip = useMemo(
+    () => loadingTips[Math.floor(Math.random() * loadingTips.length)],
+    // We deliberately only pick once per mount so the tip stays stable while loading
+    []
+  );
+
   // Check if onboarding is needed
   useEffect(() => {
     if (loaded && !preferences.onboardingCompleted) {
@@ -730,6 +750,9 @@ export function DiscoveryScreen() {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
           <p className="text-gray-400">Loading recommendations...</p>
+          <p className="text-gray-500 text-sm text-center max-w-md px-4">
+            {loadingTip}
+          </p>
         </div>
       </div>
     );
@@ -794,7 +817,9 @@ export function DiscoveryScreen() {
               <Loader2 className="w-8 h-8 text-gray-400" />
               <div className="space-y-2">
                 <p className="text-white text-lg font-medium">Loading recommendations…</p>
-                <p className="text-gray-400 text-sm">Fetching the best repos for you</p>
+                <p className="text-gray-400 text-sm max-w-md mx-auto">
+                  {loadingTip}
+                </p>
               </div>
             </div>
           ) : (
