@@ -1,5 +1,4 @@
 import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark } from 'lucide-react';
-import { motion } from 'motion/react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
 import { useRef, useEffect, useState, memo } from 'react';
@@ -78,12 +77,12 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
     <div ref={cardRef} className="h-full w-full" style={{ ...style, maxHeight: '100%', height: '100%', overflow: 'visible' }}>
       <SignatureCard 
         className="h-full max-h-full p-6 md:p-8 flex flex-col relative overflow-hidden" 
-        showLayers={true}
-        showParticles={true}
+        showLayers={false}
+        showParticles={false}
       >
         {/* Fit Score Badge */}
         {repo.fitScore && (
-          <div className="absolute top-4 right-4 md:top-6 md:right-6 bg-gradient-to-br from-cyan-700 to-pink-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-20">
+          <div className="absolute top-4 right-4 md:top-6 md:right-6 bg-gray-100 text-gray-900 text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-20">
             {repo.fitScore}% fit
           </div>
         )}
@@ -185,7 +184,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
                   {additionalTopics.map((topic) => (
                     <span
                       key={topic}
-                      className="px-3 md:px-4 py-1.5 md:py-2 bg-cyan-900/30 text-cyan-300 border border-cyan-700 rounded-full text-xs md:text-sm font-medium"
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-gray-800 text-gray-200 border border-gray-600 rounded-full text-xs md:text-sm font-medium"
                     >
                       {topic}
                     </span>
@@ -224,7 +223,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             )}
             {repo.language && (
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-cyan-400"></div>
+                <div className="w-3 h-3 rounded-full bg-gray-100"></div>
                 <span>{repo.language}</span>
               </div>
             )}
@@ -236,7 +235,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
               href={repo.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 text-gray-100 hover:text-white text-sm font-medium transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
               View on GitHub
@@ -245,37 +244,19 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
           
           {/* Save button - integrated in card */}
           {onSave && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="pt-4"
+          <div className="pt-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSave();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-full px-6 py-3 font-bold rounded-full shadow-md bg-white text-gray-900 flex items-center justify-center gap-2"
             >
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSave();
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                className="w-full px-6 py-3 font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
-                style={{
-                  background: 'linear-gradient(135deg, #0891b2 0%, #be185d 100%)',
-                  color: '#ffffff',
-                  fontWeight: '700',
-                  textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)'
-                }}
-              >
-                <motion.div
-                  animate={{ rotate: [0, -10, 10, -10, 0] }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <Bookmark className="w-5 h-5" />
-                </motion.div>
-                Save
-              </motion.button>
-            </motion.div>
+              <Bookmark className="w-5 h-5" />
+              Save
+            </button>
+          </div>
           )}
         </div>
       </SignatureCard>

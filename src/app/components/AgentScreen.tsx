@@ -295,12 +295,6 @@ export function AgentScreen() {
   return (
     <div 
       className="h-full bg-black flex flex-col pb-24 md:pb-0"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(219, 39, 119, 0.05) 0%, transparent 50%)',
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}
     >
       {/* Header */}
       <div className="p-4 md:p-6 border-b border-gray-700">
@@ -313,15 +307,12 @@ export function AgentScreen() {
         </div>
       </div>
 
-      {/* Enhanced Agent Features Banner */}
+      {/* Agent description banner */}
       <div className="px-4 md:px-6 pt-4 max-w-4xl mx-auto w-full">
-        <div className="bg-gradient-to-r from-cyan-900/30 to-pink-900/30 border-2 border-cyan-700/50 rounded-[20px] p-4 md:p-6 relative overflow-hidden">
-          {/* Animated background effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-pink-500/5 animate-pulse" />
-          
-          <div className="relative z-10">
+        <div className="bg-gray-900 border border-gray-700 rounded-[20px] p-4 md:p-6 relative overflow-hidden">
+          <div className="relative">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-pink-500 flex items-center justify-center">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white flex items-center justify-center">
                 <span className="text-white text-xl">🤖</span>
               </div>
               <div className="flex-1">
@@ -329,15 +320,13 @@ export function AgentScreen() {
                   Enhanced AI Agent - Powered by Tools & Reasoning
                 </h3>
                 <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-                  Our AI agent uses <span className="text-cyan-400 font-semibold">advanced tool orchestration</span>, 
-                  <span className="text-cyan-400 font-semibold"> personalized recommendations</span>, and 
-                  <span className="text-cyan-400 font-semibold"> deep reasoning</span> to find the perfect repos. 
+                  Our AI agent uses advanced tool orchestration, personalized recommendations, and deep reasoning to find the perfect repos. 
                   It understands your tech stack, experience level, and goals to provide better-than-LLM results.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="px-2 py-1 bg-cyan-900/40 text-cyan-300 text-xs rounded-full">Tool-based</span>
-                  <span className="px-2 py-1 bg-pink-900/40 text-pink-300 text-xs rounded-full">Personalized</span>
-                  <span className="px-2 py-1 bg-purple-900/40 text-purple-300 text-xs rounded-full">Reasoning</span>
+                  <span className="px-2 py-1 bg-gray-800 text-gray-100 text-xs rounded-full">Tool-based</span>
+                  <span className="px-2 py-1 bg-gray-800 text-gray-100 text-xs rounded-full">Personalized</span>
+                  <span className="px-2 py-1 bg-gray-800 text-gray-100 text-xs rounded-full">Reasoning</span>
                 </div>
               </div>
             </div>
@@ -391,7 +380,7 @@ export function AgentScreen() {
                     showLayers={false}
                   >
                     <div className="flex items-start gap-2 mb-2">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-cyan-700 to-pink-700 text-white font-bold flex items-center justify-center text-xs shadow-md">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white text-gray-900 font-bold flex items-center justify-center text-xs shadow-md">
                         {index + 1}
                       </div>
                       <div className="flex-1">
@@ -403,7 +392,7 @@ export function AgentScreen() {
                             </p>
                           )}
                           {rec.fitScore !== undefined && (
-                            <p className="text-cyan-400 text-xs font-semibold">
+                            <p className="text-gray-300 text-xs font-semibold">
                               Fit: {rec.fitScore}%
                             </p>
                           )}
@@ -411,8 +400,8 @@ export function AgentScreen() {
                       </div>
                     </div>
                     <p className="text-gray-300 text-sm mb-3">{rec.description}</p>
-                    <div className="bg-cyan-900/30 border-2 border-cyan-700 rounded-[16px] p-3">
-                      <p className="text-cyan-200 text-sm">
+                    <div className="bg-gray-900 border border-gray-700 rounded-[16px] p-3">
+                      <p className="text-gray-200 text-sm">
                         <span className="font-bold">Why this fits:</span> {rec.reason}
                       </p>
                     </div>
@@ -421,7 +410,7 @@ export function AgentScreen() {
                         href={rec.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 inline-block text-cyan-400 hover:text-cyan-300 text-sm font-medium"
+                        className="mt-3 inline-block text-gray-100 hover:text-white text-sm font-medium"
                       >
                         View on GitHub →
                       </a>
@@ -449,7 +438,7 @@ export function AgentScreen() {
                               onClick={() => toggleClarificationSelection(q.id, opt.id, q.multiSelect)}
                               className={`px-3 py-1 rounded-full text-xs border transition-colors ${
                                 isSelected
-                                  ? 'bg-cyan-600 border-cyan-400 text-white'
+                                  ? 'bg-white border-white text-gray-900'
                                   : 'bg-gray-900 border-gray-600 text-gray-200 hover:bg-gray-700'
                               }`}
                             >
@@ -464,7 +453,7 @@ export function AgentScreen() {
                 <button
                   type="button"
                   onClick={handleSubmitClarifications}
-                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full text-sm font-medium transition-colors"
+                  className="px-4 py-2 bg-white hover:bg-gray-200 text-gray-900 rounded-full text-sm font-medium transition-colors"
                 >
                   Continue with these choices
                 </button>
@@ -512,12 +501,12 @@ export function AgentScreen() {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
             placeholder="Ask me anything about finding repos..."
-            className="flex-1 px-4 py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+            className="flex-1 px-4 py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20"
           />
           <button
             onClick={() => handleSend(inputValue)}
             disabled={!inputValue.trim()}
-            className="w-12 h-12 bg-gradient-to-br from-cyan-600 to-pink-600 text-white rounded-full flex items-center justify-center hover:from-cyan-500 hover:to-pink-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-12 h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </button>

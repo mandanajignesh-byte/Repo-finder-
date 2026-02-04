@@ -10,12 +10,6 @@ export function SupportScreen() {
   return (
     <div 
       className="h-full bg-black p-4 md:p-6 overflow-y-auto pb-24 md:pb-0"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(219, 39, 119, 0.05) 0%, transparent 50%)',
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}
     >
       <div className="max-w-4xl mx-auto">
         {/* Header */}

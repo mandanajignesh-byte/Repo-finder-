@@ -127,7 +127,7 @@ export function TrendingScreen() {
               onClick={() => setShowUnknownGems(!showUnknownGems)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
                 showUnknownGems
-                  ? 'bg-gradient-to-r from-cyan-700 to-pink-700 text-white shadow-lg'
+                  ? 'bg-white text-gray-900 shadow-lg'
                   : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
               }`}
             >

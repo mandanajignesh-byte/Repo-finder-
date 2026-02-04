@@ -26,9 +26,8 @@ export function useRepositories(query?: string) {
     try {
       const trending = await githubService.getTrendingRepos({
         since: 'daily',
-        // PERFORMANCE: 40 is enough for UI while keeping responses snappy.
         perPage: 40,
-        usePagination: false, // Set to true if you want to fetch all pages
+        usePagination: false,
       });
       setRepos(trending);
     } catch (err) {
@@ -45,9 +44,8 @@ export function useRepositories(query?: string) {
       const results = await githubService.searchRepos(searchQuery, {
         sort: 'stars',
         order: 'desc',
-        // PERFORMANCE: 40 results per search keeps latency low.
         perPage: 40,
-        usePagination: false, // Set to true if you want to fetch all pages
+        usePagination: false,
       });
       setRepos(results);
     } catch (err) {

@@ -4,7 +4,6 @@ import { motion, useMotionValue, useTransform, animate, AnimatePresence } from '
 import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
 import { SignatureCard } from './SignatureCard';
-import { ParticlesBackground } from './ParticlesBackground';
 import { OnboardingQuestionnaire } from './OnboardingQuestionnaire';
 import { useRepositories } from '@/hooks/useRepositories';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -756,80 +755,30 @@ export function DiscoveryScreen() {
     );
   }
 
-  // Optimized particles for discovery screen (reduced from 150 to 80 for performance)
-  const discoveryParticlesConfig = {
-    particles: {
-      number: { 
-        value: 80,
-        density: { enable: true, value_area: 800 }
-      },
-      color: { value: ['#22d3ee', '#ec4899', '#a855f7'] }, // Added purple for more variety
-      shape: { type: 'circle' },
-      opacity: { 
-        value: 0.6, // Increased opacity for better visibility
-        random: true 
-      },
-      size: { 
-        value: 3, // Slightly larger particles
-        random: true 
-      },
-      line_linked: {
-        enable: true,
-        distance: 120, // Reduced for better performance
-        color: '#22d3ee',
-        opacity: 0.25, // Slightly reduced for performance
-        width: 1
-      },
-      move: {
-        enable: true,
-        speed: 1.2, // Slightly reduced for better performance
-        direction: 'none',
-        random: false,
-        out_mode: 'out'
-      }
-    },
-    interactivity: {
-      detect_on: 'canvas',
-      events: {
-        onhover: { enable: false, mode: 'repulse' }, // Disabled for better performance
-        onclick: { enable: false, mode: 'push' }, // Disabled for better performance
-        resize: true
-      },
-      modes: {
-        repulse: { distance: 150 },
-        push: { particles_nb: 6 }
-      }
-    },
-    retina_detect: true // Enabled for better quality on retina displays
-  };
-
   return (
     <div className="h-full bg-black flex flex-col pb-20 md:pb-16 relative overflow-hidden">
-      {/* Subtle particles background */}
-      <ParticlesBackground id="discovery-particles" config={discoveryParticlesConfig} />
-      
       {/* Header with bookmark and heart */}
       <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-2 md:mb-0">
         <h1 className="text-2xl text-white" style={{ fontWeight: 700 }}>Explore</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowLiked(true)}
-            className="p-2 hover:bg-gray-700 rounded-full transition-colors relative text-gray-300"
+            className="p-2 hover:bg-gray-800 rounded-full transition-colors relative text-gray-300"
           >
             <Heart className="w-6 h-6" />
             {likedRepos.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-gradient-to-br from-cyan-600 to-pink-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-md">
+              <span className="absolute -top-1 -right-1 bg-white text-black text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-md">
                 {likedRepos.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setShowSaved(true)}
-            className="p-2 hover:bg-gray-700 rounded-full transition-colors relative text-gray-300"
+            className="p-2 hover:bg-gray-800 rounded-full transition-colors relative text-gray-300"
           >
             <Bookmark className="w-6 h-6" />
             {savedRepos.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-gradient-to-br from-cyan-600 to-pink-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-md">
+              <span className="absolute -top-1 -right-1 bg-white text-black text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-md">
                 {savedRepos.length}
               </span>
             )}
@@ -842,16 +791,16 @@ export function DiscoveryScreen() {
         {cards.length === 0 ? (
           isLoadingMore || loading ? (
             <div className="flex flex-col items-center justify-center gap-4 text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+              <Loader2 className="w-8 h-8 text-gray-400" />
               <div className="space-y-2">
-                <p className="text-white text-lg font-medium">Scanning the galaxy for perfect repos...</p>
-                <p className="text-gray-400 text-sm">Charting your path through the universe</p>
+                <p className="text-white text-lg font-medium">Loading recommendations…</p>
+                <p className="text-gray-400 text-sm">Fetching the best repos for you</p>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center gap-4 text-center">
-              <p className="text-gray-400 text-lg">You've explored this sector of the universe</p>
-              <p className="text-gray-500 text-sm">Adjust your course to discover new galaxies</p>
+              <p className="text-gray-400 text-lg">No more recommendations right now.</p>
+              <p className="text-gray-500 text-sm">Adjust your preferences or try again later.</p>
             </div>
           )
         ) : (
@@ -934,10 +883,6 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
   // Opacity for swipe indicators
   const skipOpacity = useTransform(x, [-swipeThreshold, 0], [1, 0]);
   const saveOpacity = useTransform(x, [0, swipeThreshold], [0, 1]);
-  
-  // Glow effects
-  const cyanGlow = useTransform(x, [0, swipeThreshold], [0, 1]);
-  const pinkGlow = useTransform(x, [-swipeThreshold, 0], [1, 0]);
 
   const handleDragEnd = () => {
     if (!dragEnabled || isExiting) {
@@ -1234,28 +1179,6 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
         }
       }}
     >
-      {/* Cyan glow for right swipe */}
-      <motion.div
-        className="absolute -inset-2 rounded-[28px] pointer-events-none"
-        style={{
-          opacity: cyanGlow,
-          background: 'radial-gradient(circle at center, rgba(34, 211, 238, 0.3), transparent 70%)',
-          filter: 'blur(20px)',
-          zIndex: -1,
-        }}
-      />
-      
-      {/* Pink glow for left swipe */}
-      <motion.div
-        className="absolute -inset-2 rounded-[28px] pointer-events-none"
-        style={{
-          opacity: pinkGlow,
-          background: 'radial-gradient(circle at center, rgba(236, 72, 153, 0.3), transparent 70%)',
-          filter: 'blur(20px)',
-          zIndex: -1,
-        }}
-      />
-      
       <div 
         className="relative h-full w-full rounded-[24px]" 
         style={{ 
@@ -1268,11 +1191,11 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
         <RepoCard repo={repo} style={{ height: '100%', maxHeight: '100%' }} onSave={onSave} />
         
         {/* Skip indicator (left swipe) */}
-        <motion.div
+            <motion.div
           className="absolute top-12 left-8 flex items-center gap-2 pointer-events-none z-30"
           style={{ opacity: skipOpacity }}
         >
-          <div className="bg-gray-800/95 backdrop-blur-sm border-2 border-gray-500 rounded-full p-3 shadow-lg">
+          <div className="bg-gray-900 border-2 border-gray-500 rounded-full p-3 shadow-lg">
             <XCircle className="w-8 h-8 text-gray-300" strokeWidth={2.5} />
           </div>
           <span className="text-gray-300 font-bold text-lg">SKIP</span>
@@ -1283,9 +1206,9 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
           className="absolute top-12 right-8 flex items-center gap-2 pointer-events-none z-30"
           style={{ opacity: saveOpacity }}
         >
-          <span className="text-cyan-400 font-bold text-lg">LIKE</span>
-          <div className="bg-gray-800/95 backdrop-blur-sm border-2 border-cyan-400 rounded-full p-3 shadow-lg">
-            <Heart className="w-8 h-8 text-cyan-400" fill="currentColor" strokeWidth={2.5} />
+          <span className="text-white font-bold text-lg">LIKE</span>
+          <div className="bg-gray-900 border-2 border-gray-300 rounded-full p-3 shadow-lg">
+            <Heart className="w-8 h-8 text-white" fill="currentColor" strokeWidth={2.5} />
           </div>
         </motion.div>
       </div>
