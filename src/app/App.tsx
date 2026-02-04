@@ -40,7 +40,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-full bg-black relative overflow-hidden flex flex-col dark">
+    <div className="h-screen w-full bg-transparent relative overflow-hidden flex flex-col dark">
       {/* Main content area */}
       <div className="flex-1 overflow-hidden flex">
         {/* Sidebar navigation (desktop) */}

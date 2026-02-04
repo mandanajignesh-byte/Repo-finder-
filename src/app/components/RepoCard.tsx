@@ -149,13 +149,21 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
                     className="w-6 h-6 rounded-full"
                   />
                 )}
-                <span className="text-sm text-gray-400 font-mono">{repo.owner?.login || ''}</span>
+                <span className="text-sm font-mono" style={{ color: '#8E8E93' }}>{repo.owner?.login || ''}</span>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold leading-tight text-white break-words font-mono">{repo.fullName || repo.name}</h2>
+              <h2
+                className="text-2xl md:text-3xl leading-tight break-words font-mono"
+                style={{ color: '#FFFFFF', fontWeight: 600 }}
+              >
+                {repo.fullName || repo.name}
+              </h2>
             </div>
             
             {/* Description */}
-            <p className="text-base md:text-lg text-gray-300 leading-relaxed">
+            <p
+              className="text-base md:text-lg leading-relaxed line-clamp-3"
+              style={{ color: '#B3B3B8' }}
+            >
               {repo.description}
             </p>
             
@@ -198,23 +206,27 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
         {/* Fixed stats and metadata row at bottom */}
         <div ref={footerRef} className="footer-section flex-shrink-0 pt-4 md:pt-6 mt-4 mb-4 border-t-2 border-gray-700 space-y-3 overflow-hidden">
           {/* Primary stats */}
-          <div className="flex items-center flex-wrap gap-4 md:gap-6">
-            <div className="flex items-center gap-2 text-gray-300">
-              <Star className="w-4 h-4 md:w-5 md:h-5 fill-yellow-400 text-yellow-400" />
-              <span className="font-medium text-sm md:text-base">{repo.stars.toLocaleString()}</span>
+            <div className="flex items-center flex-wrap gap-4 md:gap-6">
+              <div className="flex items-center gap-2" style={{ color: '#8E8E93' }}>
+                <Star
+                  className="w-4 h-4 md:w-5 md:h-5"
+                  style={{ color: '#0A84FF' }}
+                  fill="currentColor"
+                />
+                <span className="font-medium text-sm md:text-base">{repo.stars.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-2" style={{ color: '#8E8E93' }}>
+                <GitFork className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="font-medium text-sm md:text-base">{repo.forks.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-2" style={{ color: '#8E8E93' }}>
+                <Clock className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="font-medium text-sm md:text-base">{repo.lastUpdated}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-gray-300">
-              <GitFork className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="font-medium text-sm md:text-base">{repo.forks.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center gap-2 text-gray-300">
-              <Clock className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="font-medium text-sm md:text-base">{repo.lastUpdated}</span>
-            </div>
-          </div>
           
           {/* License and language */}
-          <div className="flex items-center flex-wrap gap-4 text-sm text-gray-400">
+          <div className="flex items-center flex-wrap gap-4 text-sm" style={{ color: '#8E8E93' }}>
             {repo.license && (
               <div className="flex items-center gap-2">
                 <Scale className="w-4 h-4" />
@@ -235,7 +247,10 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
               href={repo.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-gray-100 hover:text-white text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+              style={{ color: '#0A84FF' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#4DA3FF')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#0A84FF')}
             >
               <ExternalLink className="w-4 h-4" />
               View on GitHub
@@ -244,19 +259,33 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
           
           {/* Save button - integrated in card */}
           {onSave && (
-          <div className="pt-4">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSave();
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="w-full px-6 py-3 font-bold rounded-full shadow-md bg-white text-gray-900 flex items-center justify-center gap-2"
-            >
-              <Bookmark className="w-5 h-5" />
-              Save
-            </button>
-          </div>
+            <div className="pt-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSave();
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="w-full px-6 py-3 font-semibold rounded-full text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                style={{
+                  backgroundColor: '#2C2C2E',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#FFFFFF',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#0A84FF';
+                  e.currentTarget.style.transform = 'scale(1.01)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                  e.currentTarget.style.transform = 'scale(1.0)';
+                }}
+              >
+                <Bookmark className="w-5 h-5" />
+                Save
+              </button>
+            </div>
           )}
         </div>
       </SignatureCard>

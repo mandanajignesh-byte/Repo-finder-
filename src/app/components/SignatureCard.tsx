@@ -24,10 +24,14 @@ export function SignatureCard({
   return (
     <div className="relative">
       <div
-        className={`relative rounded-[24px] shadow-md overflow-hidden bg-gray-900 border border-gray-700 ${className} ${
+        className={`relative rounded-[20px] overflow-hidden border transition-all duration-200 ${className} ${
           onClick ? 'cursor-pointer' : ''
         }`}
         style={{
+          borderColor: 'rgba(255,255,255,0.06)',
+          background: 'rgba(28,28,30,0.85)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           ...style,
         }}
         onClick={onClick}
