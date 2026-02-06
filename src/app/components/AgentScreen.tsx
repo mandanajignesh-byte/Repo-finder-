@@ -29,7 +29,7 @@ interface Message {
 const initialMessages: Message[] = [
   {
     id: '1',
-    text: "Hi! I'm your RepoVerse AI agent - your intelligent navigator through the GitHub universe. I use advanced tools, reasoning, and your personal preferences to find the perfect repositories for you. Ask me anything about finding repos!",
+    text: "Hi! I'm your RepoVerse AI agent. I'm learning and improving every day so I don't disappoint you. If I do, you can always complain to my maker through the feedback section and they'll teach me. Thanks for building with me 🤝",
     sender: 'agent',
   },
 ];
