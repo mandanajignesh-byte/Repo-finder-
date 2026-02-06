@@ -203,8 +203,9 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
             className="flex items-center justify-between mb-4 md:mb-6"
           >
             <div className="flex-1 min-w-0 pr-2">
-              <h2 className="text-lg md:text-2xl text-white mb-1 leading-tight" style={{ fontWeight: 700 }}>Let's chart your course through the universe</h2>
-              <p className="text-gray-400 text-xs md:text-sm">Step {step} of {totalSteps}</p>
+              <h2 className="text-lg md:text-2xl text-white mb-1 leading-tight" style={{ fontWeight: 700 }}>Help us understand what you like</h2>
+              <p className="text-gray-400 text-xs md:text-sm mb-2">So that we don't throw random repos on you. This will save your and our time as well.</p>
+              <p className="text-gray-500 text-xs">Step {step} of {totalSteps}</p>
             </div>
             {onSkip && (
               <motion.button

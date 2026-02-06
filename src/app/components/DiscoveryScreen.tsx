@@ -25,6 +25,7 @@ export function DiscoveryScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
   const [triggerSwipe, setTriggerSwipe] = useState<'left' | 'right' | null>(null);
+  const [swipeCount, setSwipeCount] = useState(0); // Track swipe count for delayed onboarding
 
   // Short one-line tips about using GitHub repos, shown during loading states
   const loadingTips = [
@@ -46,19 +47,8 @@ export function DiscoveryScreen() {
     []
   );
 
-  // Check if onboarding is needed
-  useEffect(() => {
-    if (loaded && !preferences.onboardingCompleted) {
-      // Check if user has any preferences set
-      const hasBasicPrefs = preferences.techStack && preferences.techStack.length > 0;
-      if (!hasBasicPrefs) {
-        setShowOnboarding(true);
-      } else {
-        // Mark as completed if they have basic prefs
-        updatePreferences({ onboardingCompleted: true });
-      }
-    }
-  }, [loaded, preferences, updatePreferences]);
+  // Don't show onboarding immediately - let users try the site first
+  // Onboarding will be triggered after 4-5 swipes if not completed
 
   // Check if there's a shared repo from URL redirect
   useEffect(() => {
@@ -75,6 +65,74 @@ export function DiscoveryScreen() {
       }
     }
   }, []);
+
+  // Load random repos from database when no preferences exist
+  const loadRandomRepos = useCallback(async (append = false) => {
+    try {
+      setIsLoadingMore(true);
+      
+      // Get user ID first
+      const { supabaseService } = await import('@/services/supabase.service');
+      const actualUserId = await supabaseService.getOrCreateUserId();
+      
+      // Get seen repo IDs
+      const allSeenRepoIds = await supabaseService.getAllSeenRepoIds(actualUserId);
+      
+      // Get a random active cluster
+      const { data: clusters } = await supabase
+        .from('cluster_metadata')
+        .select('cluster_name')
+        .eq('is_active', true);
+      
+      if (!clusters || clusters.length === 0) {
+        console.error('No active clusters found');
+        return;
+      }
+      
+      // Pick a random cluster
+      const randomCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
+      
+      // Get repos from random cluster
+      const randomRepos = await clusterService.getBestOfCluster(
+        randomCluster,
+        20,
+        allSeenRepoIds,
+        actualUserId
+      );
+      
+      if (randomRepos.length > 0) {
+        // Filter out overly popular repos (>30k stars) for better variety
+        const MAX_STARS = 30000;
+        const filteredRepos = randomRepos.filter(r => r && r.id && r.stars <= MAX_STARS);
+        
+        if (append) {
+          setCards(prev => {
+            const existingIds = new Set(prev.map(c => c.id));
+            const newRepos = filteredRepos.filter(r => r && r.id && !existingIds.has(r.id));
+            return [...prev, ...newRepos];
+          });
+        } else {
+          setCards(filteredRepos);
+        }
+        
+        // Track views in background
+        Promise.all(
+          filteredRepos
+            .filter(repo => repo && repo.id)
+            .map((repo, index) =>
+              interactionService.trackInteraction(repo, 'view', {
+                position: cards.length + index,
+                source: 'discover',
+              }).catch(err => console.error(`Error tracking view:`, err))
+            )
+        ).catch(err => console.error('Error in batch view tracking:', err));
+      }
+    } catch (error) {
+      console.error('Error loading random repos:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [cards.length]);
 
   const loadPersonalizedRepos = useCallback(async (append = false) => {
     try {
@@ -386,14 +444,19 @@ export function DiscoveryScreen() {
   // Track previous preferences to detect changes
   const prevPreferencesRef = useRef<string>('');
 
-  // Load repos when preferences are loaded and onboarding is complete
-  // OPTIMIZATION: Load immediately instead of deferring for faster initial load
+  // Load repos when preferences are loaded
+  // If onboarding completed, load personalized repos; otherwise load random repos
   useEffect(() => {
-    if (loaded && preferences.onboardingCompleted && cards.length === 0 && !loading) {
-      // Load immediately for faster recommendations
-      loadPersonalizedRepos();
+    if (loaded && cards.length === 0 && !loading) {
+      if (preferences.onboardingCompleted) {
+        // Load personalized repos if onboarding completed
+        loadPersonalizedRepos();
+      } else {
+        // Load random repos for first-time visitors
+        loadRandomRepos();
+      }
     }
-  }, [loaded, preferences.onboardingCompleted, cards.length, loading, loadPersonalizedRepos]);
+  }, [loaded, preferences.onboardingCompleted, cards.length, loading, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reload repos when preferences change significantly (e.g., from profile screen)
   useEffect(() => {
@@ -435,10 +498,14 @@ export function DiscoveryScreen() {
 
   // Load more cards when running low
   useEffect(() => {
-    if (cards.length < 5 && !isLoadingMore && !loading && preferences.onboardingCompleted) {
-      loadPersonalizedRepos(true);
+    if (cards.length < 5 && !isLoadingMore && !loading && loaded) {
+      if (preferences.onboardingCompleted) {
+        loadPersonalizedRepos(true);
+      } else {
+        loadRandomRepos(true);
+      }
     }
-  }, [cards.length, isLoadingMore, loading, preferences.onboardingCompleted, loadPersonalizedRepos]);
+  }, [cards.length, isLoadingMore, loading, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reset trigger when card changes
   useEffect(() => {
@@ -457,16 +524,32 @@ export function DiscoveryScreen() {
         source: 'discover',
       }).catch(err => console.error('Error tracking skip:', err));
     }
+    
+    // Increment swipe count and check if onboarding should be shown
+    setSwipeCount(prev => {
+      const newCount = prev + 1;
+      // Show onboarding after 4-5 swipes if not completed
+      if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
+        setShowOnboarding(true);
+      }
+      return newCount;
+    });
+    
     // Remove the card
     setCards((prev) => {
       const newCards = prev.slice(1);
       // If we're running low on cards, trigger loading more
       if (newCards.length < 3 && !isLoadingMore && !loading) {
-        setTimeout(() => loadPersonalizedRepos(true), 100);
+        // Use personalized repos if onboarding completed, otherwise random
+        if (preferences.onboardingCompleted) {
+          setTimeout(() => loadPersonalizedRepos(true), 100);
+        } else {
+          setTimeout(() => loadRandomRepos(true), 100);
+        }
       }
       return newCards;
     });
-  }, [cards, isLoadingMore, loading, loadPersonalizedRepos]);
+  }, [cards, isLoadingMore, loading, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
 
   const handleLike = useCallback(async (repo?: Repository) => {
     const repoToLike = repo || cards[0];
@@ -478,16 +561,32 @@ export function DiscoveryScreen() {
       }).catch(err => console.error('Error tracking like:', err));
       setLikedRepos((liked) => [...liked, repoToLike]);
     }
+    
+    // Increment swipe count and check if onboarding should be shown
+    setSwipeCount(prev => {
+      const newCount = prev + 1;
+      // Show onboarding after 4-5 swipes if not completed
+      if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
+        setShowOnboarding(true);
+      }
+      return newCount;
+    });
+    
     // Remove the card
     setCards((prev) => {
       const newCards = prev.slice(1);
       // If we're running low on cards, trigger loading more
       if (newCards.length < 3 && !isLoadingMore && !loading) {
-        setTimeout(() => loadPersonalizedRepos(true), 100);
+        // Use personalized repos if onboarding completed, otherwise random
+        if (preferences.onboardingCompleted) {
+          setTimeout(() => loadPersonalizedRepos(true), 100);
+        } else {
+          setTimeout(() => loadRandomRepos(true), 100);
+        }
       }
       return newCards;
     });
-  }, [cards, isLoadingMore, loading, loadPersonalizedRepos]);
+  }, [cards, isLoadingMore, loading, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
 
   const handleSave = useCallback(async (repo?: Repository) => {
     const repoToSave = repo || cards[0];
@@ -606,8 +705,14 @@ export function DiscoveryScreen() {
       <OnboardingQuestionnaire
         onComplete={handleOnboardingComplete}
         onSkip={() => {
+          // Mark onboarding as completed but don't set preferences
+          // User will continue seeing random repos
           updatePreferences({ onboardingCompleted: true });
           setShowOnboarding(false);
+          // Continue loading random repos if no cards
+          if (cards.length === 0) {
+            loadRandomRepos();
+          }
         }}
       />
     );
