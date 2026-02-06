@@ -121,6 +121,20 @@ class ShareService {
       return false;
     }
   }
+
+  /**
+   * Copy platform link to clipboard (for visible link display)
+   */
+  async copyPlatformLink(repo: Repository): Promise<boolean> {
+    const platformLink = this.generatePlatformShareLink(repo);
+    try {
+      await navigator.clipboard.writeText(platformLink);
+      return true;
+    } catch (error) {
+      console.error('Error copying platform link:', error);
+      return false;
+    }
+  }
 }
 
 export const shareService = new ShareService();

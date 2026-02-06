@@ -187,7 +187,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-3 md:p-4"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
@@ -195,23 +195,23 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         className="w-full max-w-2xl"
       >
-        <SignatureCard className="w-full max-h-[90vh] overflow-y-auto p-6 md:p-8">
+        <SignatureCard className="w-full max-h-[90vh] overflow-y-auto p-4 md:p-8">
           {/* Header */}
           <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="flex items-center justify-between mb-6"
+            className="flex items-center justify-between mb-4 md:mb-6"
           >
-            <div>
-              <h2 className="text-2xl text-white mb-1" style={{ fontWeight: 700 }}>Let's chart your course through the universe</h2>
-              <p className="text-gray-400 text-sm">Step {step} of {totalSteps}</p>
+            <div className="flex-1 min-w-0 pr-2">
+              <h2 className="text-lg md:text-2xl text-white mb-1 leading-tight" style={{ fontWeight: 700 }}>Let's chart your course through the universe</h2>
+              <p className="text-gray-400 text-xs md:text-sm">Step {step} of {totalSteps}</p>
             </div>
             {onSkip && (
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onSkip}
-                className="text-gray-400 hover:text-white transition-colors text-2xl font-bold w-8 h-8 flex items-center justify-center"
+                className="text-gray-400 hover:text-white transition-colors text-xl md:text-2xl font-bold w-7 h-7 md:w-8 md:h-8 flex items-center justify-center flex-shrink-0"
               >
                 ×
               </motion.button>
@@ -223,7 +223,7 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
             initial={{ width: 0 }}
             animate={{ width: '100%' }}
             transition={{ duration: 0.3 }}
-            className="mb-8"
+            className="mb-4 md:mb-8"
           >
             <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
               <motion.div

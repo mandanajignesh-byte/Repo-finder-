@@ -797,8 +797,8 @@ export function DiscoveryScreen() {
   return (
     <div className="h-full bg-black flex flex-col pb-20 md:pb-16 relative overflow-hidden">
       {/* Header with bookmark and heart */}
-      <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-2 md:mb-0">
-        <h1 className="text-2xl text-white" style={{ fontWeight: 700 }}>Explore</h1>
+      <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-1 md:mb-0">
+        <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Explore</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowLiked(true)}
@@ -826,27 +826,27 @@ export function DiscoveryScreen() {
       </div>
 
       {/* Card stack - centered both horizontally and vertically */}
-      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-4 pt-4 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
+      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
         {cards.length === 0 ? (
           isLoadingMore || loading ? (
-            <div className="flex flex-col items-center justify-center gap-4 text-center">
-              <Loader2 className="w-8 h-8 text-gray-400" />
-              <div className="space-y-2">
-                <p className="text-white text-lg font-medium">Loading recommendations…</p>
-                <p className="text-gray-400 text-sm max-w-md mx-auto">
+            <div className="flex flex-col items-center justify-center gap-3 md:gap-4 text-center px-4">
+              <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
+              <div className="space-y-1.5 md:space-y-2">
+                <p className="text-white text-base md:text-lg font-medium">Loading recommendations…</p>
+                <p className="text-gray-400 text-xs md:text-sm max-w-md mx-auto">
                   {loadingTip}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-4 text-center">
-              <p className="text-gray-400 text-lg">No more recommendations right now.</p>
-              <p className="text-gray-500 text-sm">Adjust your preferences or try again later.</p>
+            <div className="flex flex-col items-center justify-center gap-3 md:gap-4 text-center px-4">
+              <p className="text-gray-400 text-base md:text-lg">No more recommendations right now.</p>
+              <p className="text-gray-500 text-xs md:text-sm">Adjust your preferences or try again later.</p>
             </div>
           )
         ) : (
           <>
-            <div className="relative w-full max-w-md" style={{ minHeight: '500px', marginTop: '1rem', marginBottom: '1rem' }}>
+            <div className="relative w-full max-w-md" style={{ minHeight: '400px', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
               <AnimatePresence mode="wait">
                 {cards[0] && (
                   <SwipeableCard
@@ -1135,7 +1135,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
         willChange: 'transform, opacity', // GPU acceleration hint
         touchAction: 'pan-x', // Allow horizontal panning (swipe) on touch devices
       }}
-      className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[450px] md:h-[600px] max-h-[75vh] md:max-h-[80vh] z-20 select-none"
+      className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh] z-20 select-none"
       dragDirectionLock={false} // Allow more freedom for touch gestures
       onDragStart={(event) => {
         // On touch devices, be more lenient - allow drag even if starting on scrollable content

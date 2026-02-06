@@ -302,8 +302,8 @@ export function AgentScreen() {
       {/* Header */}
       <div className="p-4 md:p-6 border-b border-gray-700">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <h1 className="text-2xl text-white" style={{ fontWeight: 700 }}>Agent</h1>
-          <div className="flex items-center gap-2 text-sm text-gray-300">
+          <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Agent</h1>
+          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-300">
             <span>Credits:</span>
             <span className="font-bold">{credits.total}</span>
           </div>
@@ -311,7 +311,7 @@ export function AgentScreen() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 max-w-4xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 max-w-4xl mx-auto w-full">
         {messages.map((message) => (
           <div key={message.id}>
             {message.loading ? (
@@ -337,13 +337,13 @@ export function AgentScreen() {
                 }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-[20px] px-4 py-3 ${
+                  className={`max-w-[85%] md:max-w-[80%] rounded-[16px] md:rounded-[20px] px-3 md:px-4 py-2 md:py-3 ${
                     message.sender === 'user'
                       ? 'bg-white text-gray-900'
                       : 'bg-gray-700 text-gray-200'
                   }`}
                 >
-                  <p>{message.text}</p>
+                  <p className="text-sm md:text-base leading-relaxed">{message.text}</p>
                 </div>
               </div>
             )}
@@ -470,7 +470,7 @@ export function AgentScreen() {
       </div>
 
       {/* Input - Disabled while in development */}
-      <div className="p-4 md:p-6 border-t border-gray-700">
+      <div className="p-3 md:p-6 border-t border-gray-700 pb-safe">
         <div className="flex gap-2 max-w-4xl mx-auto">
           <input
             ref={inputRef}
@@ -478,18 +478,18 @@ export function AgentScreen() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
-            placeholder="Ask me anything about finding repos..."
-            className="flex-1 px-4 py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20"
+            placeholder="Ask me anything..."
+            className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 text-sm md:text-base"
           />
           <button
             onClick={() => handleSend(inputValue)}
             disabled={!inputValue.trim()}
-            className="w-12 h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-10 h-10 md:w-12 md:h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4 md:w-5 md:h-5" />
           </button>
         </div>
-        <p className="text-center text-gray-500 text-xs mt-2 max-w-4xl mx-auto">
+        <p className="text-center text-gray-500 text-[10px] md:text-xs mt-1.5 md:mt-2 max-w-4xl mx-auto px-2">
           {enhancedAIAgentService.isConfigured() 
             ? "Enhanced AI agent ready - Ask me anything!" 
             : "Configure OpenAI API key in .env to enable enhanced AI agent"}

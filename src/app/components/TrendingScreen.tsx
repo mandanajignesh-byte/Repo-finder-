@@ -87,15 +87,15 @@ export function TrendingScreen() {
       className="h-full bg-black overflow-y-auto pb-24 md:pb-0"
     >
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl text-white" style={{ fontWeight: 700 }}>Trending Repositories</h1>
+        <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Trending Repositories</h1>
             
             {/* Time range toggle */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setTimeRange('today')}
-                className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                className="flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all"
                 style={{
                   backgroundColor: timeRange === 'today' ? '#FFFFFF' : '#1C1C1E',
                   color: timeRange === 'today' ? '#0F0F12' : '#F5F5F7',
@@ -107,10 +107,10 @@ export function TrendingScreen() {
               </button>
               <button
                 onClick={() => setTimeRange('week')}
-                className="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                className="flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all"
                 style={{
                   backgroundColor: timeRange === 'week' ? '#FFFFFF' : '#1C1C1E',
-                  color: timeRange === 'week' ? '#0F0F12' : '#F5F57F',
+                  color: timeRange === 'week' ? '#0F0F12' : '#F5F5F7',
                   borderRadius: '999px',
                   border: '1px solid rgba(255,255,255,0.06)',
                 }}
@@ -121,10 +121,10 @@ export function TrendingScreen() {
           </div>
           
           {/* Unknown Gems toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <button
               onClick={() => setShowUnknownGems(!showUnknownGems)}
-              className="px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2"
+              className="px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all flex items-center gap-2"
               style={{
                 backgroundColor: showUnknownGems ? '#FFFFFF' : '#1C1C1E',
                 color: showUnknownGems ? '#0F0F12' : '#F5F5F7',
@@ -134,7 +134,7 @@ export function TrendingScreen() {
             >
               <span>{showUnknownGems ? 'Unknown Gems' : 'All Trending'}</span>
             </button>
-            <span className="text-xs text-gray-400">
+            <span className="text-[10px] md:text-xs text-gray-400">
               {showUnknownGems 
                 ? 'Showing lesser-known trending repos' 
                 : 'Showing all trending repos including well-known ones'}
@@ -164,12 +164,12 @@ export function TrendingScreen() {
 
         {/* Category selection buttons */}
         {!loading && !error && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-3">
+          <div className="mb-4 md:mb-6">
+            <div className="flex flex-wrap gap-2 md:gap-3">
               {/* All categories button */}
               <button
                 onClick={() => setSelectedCategory('all')}
-                className="px-4 py-2.5 rounded-full text-sm font-medium transition-all"
+                className="px-3 md:px-4 py-1.5 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all"
                 style={{
                   backgroundColor: selectedCategory === 'all' ? '#FFFFFF' : '#1C1C1E',
                   color: selectedCategory === 'all' ? '#0F0F12' : '#F5F5F7',
@@ -189,7 +189,7 @@ export function TrendingScreen() {
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className="px-4 py-2.5 rounded-full text-sm.font-medium transition-all flex items-center gap-2"
+                    className="px-3 md:px-4 py-1.5 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2"
                     style={{
                       backgroundColor: selectedCategory === category ? '#FFFFFF' : '#1C1C1E',
                       color: selectedCategory === category ? '#0F0F12' : '#F5F5F7',
@@ -198,7 +198,7 @@ export function TrendingScreen() {
                     }}
                   >
                     <span>{categoryService.getCategoryName(category)}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-[10px] md:text-xs text-gray-400">
                       ({repos.length})
                     </span>
                   </button>
@@ -237,49 +237,49 @@ export function TrendingScreen() {
                   {repos.map((repo, index) => (
                     <SignatureCard
                       key={repo.id}
-                      className="p-4 hover:bg-gray-800 transition-colors cursor-pointer rounded-xl"
+                      className="p-3 md:p-4 hover:bg-gray-800 transition-colors cursor-pointer rounded-xl"
                       showLayers={false}
                       onClick={() => window.open(repo.url, '_blank')}
                     >
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-start gap-3 md:gap-4">
                         {/* Rank badge */}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white text-gray-900 font-bold flex items-center justify-center text-sm shadow-md">
+                        <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-lg bg-white text-gray-900 font-bold flex items-center justify-center text-xs md:text-sm shadow-md">
                           {index + 1}
                         </div>
                         
                         <div className="flex-1 min-w-0">
                           {/* Repo name and trending badge */}
-                          <div className="flex items-center gap-2 mb-1.5">
-                          <h3 className="font-bold text-lg text-white hover:text-gray-200 transition-colors font-mono">
+                          <div className="flex items-start sm:items-center gap-1.5 md:gap-2 mb-1 md:mb-1.5 flex-wrap">
+                          <h3 className="font-bold text-base md:text-lg text-white hover:text-gray-200 transition-colors font-mono break-words">
                               {repo.fullName}
                             </h3>
-                            <span className="flex-shrink-0 text-xs text-gray-300 font-medium bg-gray-800 px-2 py-0.5 rounded">
+                            <span className="flex-shrink-0 text-[10px] md:text-xs text-gray-300 font-medium bg-gray-800 px-1.5 md:px-2 py-0.5 rounded">
                               {repo.trending}
                             </span>
                           </div>
                           
                           {/* Description */}
-                          <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+                          <p className="text-gray-300 text-xs md:text-sm mb-2 md:mb-3 line-clamp-2">
                             {repo.description}
                           </p>
                           
                           {/* Tags and stats */}
                           <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex flex-wrap gap-1.5">
-                              {repo.tags.slice(0, 4).map((tag) => (
+                            <div className="flex flex-wrap gap-1 md:gap-1.5">
+                              {repo.tags.slice(0, 3).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="px-2.5 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
+                                  className="px-2 md:px-2.5 py-0.5 md:py-1 bg-gray-700 text-gray-200 rounded-full text-[10px] md:text-xs font-medium"
                                 >
                                   {tag}
                                 </span>
                               ))}
                             </div>
                             
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 md:gap-3">
                               <div className="flex items-center gap-1 text-gray-300">
-                                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                                <span className="text-sm font-medium">
+                                <Star className="w-3.5 h-3.5 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
+                                <span className="text-xs md:text-sm font-medium">
                                   {(repo.stars / 1000).toFixed(1)}k
                                 </span>
                               </div>
@@ -293,8 +293,8 @@ export function TrendingScreen() {
                                 onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
                                 onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
                               >
-                                <Share2 className="w-4 h-4" />
-                                <span className="text-xs">Share</span>
+                                <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                <span className="text-[10px] md:text-xs">Share</span>
                               </button>
                             </div>
                           </div>

@@ -1,8 +1,10 @@
-import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2 } from 'lucide-react';
+import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2, Copy, Check } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
 import { useRef, useEffect, useState, memo } from 'react';
 import { shareService } from '@/services/share.service';
+import { githubService } from '@/services/github.service';
+import { showToast } from '@/utils/toast';
 
 interface RepoCardProps {
   repo: Repository;
@@ -16,6 +18,23 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
   const footerRef = useRef<HTMLDivElement>(null);
   const [scrollableHeight, setScrollableHeight] = useState<number | undefined>(undefined);
   const scrollEndTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isReadmeOpen, setIsReadmeOpen] = useState(false);
+  const [readme, setReadme] = useState<string | null>(null);
+  const [readmeLoading, setReadmeLoading] = useState(false);
+  const [readmeError, setReadmeError] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const success = await shareService.copyPlatformLink(repo);
+    if (success) {
+      setLinkCopied(true);
+      showToast('Link copied to clipboard!');
+      setTimeout(() => setLinkCopied(false), 2000);
+    } else {
+      showToast('Failed to copy link');
+    }
+  };
   
   useEffect(() => {
     const calculateHeight = () => {
@@ -198,9 +217,9 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             }
           }}
         >
-          <div className="flex flex-col gap-4 md:gap-5 pt-2 md:pt-0 pr-20 md:pr-24 pb-6">
+          <div className="flex flex-col gap-3 md:gap-5 pt-2 md:pt-0 pr-12 md:pr-24 pb-4 md:pb-6">
             {/* Owner and Repo name */}
-            <div className="pr-16 md:pr-20">
+            <div className="pr-8 md:pr-20">
               <div className="flex items-center gap-2 mb-1">
                 {repo.owner?.avatarUrl && (
                   <img 
@@ -212,7 +231,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
                 <span className="text-sm font-mono" style={{ color: '#8E8E93' }}>{repo.owner?.login || ''}</span>
               </div>
               <h2
-                className="text-2xl md:text-3xl leading-tight break-words font-mono"
+                className="text-xl md:text-3xl leading-tight break-words font-mono"
                 style={{ color: '#FFFFFF', fontWeight: 600 }}
               >
                 {repo.fullName || repo.name}
@@ -221,11 +240,70 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             
             {/* Description */}
             <p
-              className="text-base md:text-lg leading-relaxed line-clamp-3"
+              className="text-sm md:text-lg leading-relaxed line-clamp-3"
               style={{ color: '#B3B3B8' }}
             >
               {repo.description}
             </p>
+
+            {/* README preview toggle */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const nextOpen = !isReadmeOpen;
+                  setIsReadmeOpen(nextOpen);
+
+                  // Lazy-load README the first time the user opens it
+                  if (nextOpen && !readme && !readmeLoading && !readmeError) {
+                    setReadmeLoading(true);
+                    setReadmeError(null);
+                    try {
+                      const fullName = repo.fullName || repo.name;
+                      const content = await githubService.getRepoReadme(fullName);
+                      if (!content) {
+                        setReadme('No README found for this repository.');
+                      } else {
+                        setReadme(content);
+                      }
+                    } catch (err) {
+                      console.error('Failed to load README preview:', err);
+                      setReadmeError('Unable to load README preview from GitHub.');
+                    } finally {
+                      setReadmeLoading(false);
+                    }
+                  }
+                }}
+                className="text-xs md:text-sm font-medium underline underline-offset-4"
+                style={{ color: '#E5E5EA' }}
+              >
+                {isReadmeOpen ? 'Hide README preview' : 'Preview README'}
+              </button>
+            </div>
+
+            {isReadmeOpen && (
+              <div className="mt-3 rounded-xl border border-gray-700 bg-black/40 p-3 md:p-4">
+                {readmeLoading && (
+                  <p className="text-xs md:text-sm" style={{ color: '#8E8E93' }}>
+                    Loading README from GitHub…
+                  </p>
+                )}
+                {!readmeLoading && readmeError && (
+                  <p className="text-xs md:text-sm" style={{ color: '#8E8E93' }}>
+                    {readmeError}
+                  </p>
+                )}
+                {!readmeLoading && !readmeError && readme && (
+                  <pre
+                    className="text-xs md:text-sm whitespace-pre-wrap break-words font-mono"
+                    style={{ color: '#D1D1D6' }}
+                  >
+                    {readme}
+                  </pre>
+                )}
+              </div>
+            )}
             
             {/* Tech stack tags and topics */}
             {(repo.tags.length > 0 || repo.topics) && (() => {
@@ -264,9 +342,9 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
         </div>
         
         {/* Fixed stats and metadata row at bottom */}
-        <div ref={footerRef} className="footer-section flex-shrink-0 pt-4 md:pt-6 mt-4 mb-4 border-t-2 border-gray-700 space-y-3 overflow-hidden">
+        <div ref={footerRef} className="footer-section flex-shrink-0 pt-3 md:pt-6 mt-3 md:mt-4 mb-2 md:mb-4 border-t-2 border-gray-700 space-y-2 md:space-y-3 overflow-hidden">
           {/* Primary stats */}
-            <div className="flex items-center flex-wrap gap-4 md:gap-6">
+            <div className="flex items-center flex-wrap gap-3 md:gap-6">
               <div className="flex items-center gap-2" style={{ color: '#8E8E93' }}>
                 <Star
                   className="w-4 h-4 md:w-5 md:h-5"
@@ -286,7 +364,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             </div>
           
           {/* License and language */}
-          <div className="flex items-center flex-wrap gap-4 text-sm" style={{ color: '#8E8E93' }}>
+          <div className="flex items-center flex-wrap gap-3 md:gap-4 text-xs md:text-sm" style={{ color: '#8E8E93' }}>
             {repo.license && (
               <div className="flex items-center gap-2">
                 <Scale className="w-4 h-4" />
@@ -301,20 +379,50 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             )}
           </div>
           
+          {/* Platform Share Link - Visible and Copyable */}
+          <div className="pt-2 md:pt-3 border-t border-gray-800">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0 bg-gray-900/50 rounded-lg px-3 py-2 border border-gray-700">
+                <p className="text-[10px] md:text-xs text-gray-400 mb-0.5">Shareable Link</p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span 
+                    className="text-xs md:text-sm text-gray-200 font-mono truncate flex-1"
+                    title={shareService.generatePlatformShareLink(repo)}
+                  >
+                    {shareService.generatePlatformShareLink(repo)}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleCopyLink}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="flex-shrink-0 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors flex items-center justify-center"
+                title="Copy link"
+              >
+                {linkCopied ? (
+                  <Check className="w-4 h-4 text-green-400" />
+                ) : (
+                  <Copy className="w-4 h-4 text-gray-300" />
+                )}
+              </button>
+            </div>
+          </div>
+          
           {/* GitHub link and Share button */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4 flex-wrap pt-2">
             {repo.url && (
               <a
                 href={repo.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm font-medium transition-colors"
                 style={{ color: '#0A84FF' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#4DA3FF')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#0A84FF')}
               >
-                <ExternalLink className="w-4 h-4" />
-                View on GitHub
+                <ExternalLink className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="hidden sm:inline">View on GitHub</span>
+                <span className="sm:hidden">GitHub</span>
               </a>
             )}
             <button
@@ -323,26 +431,26 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
                 await shareService.shareRepositoryWithPlatformLink(repo);
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm font-medium transition-colors"
               style={{ color: '#0A84FF' }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#4DA3FF')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#0A84FF')}
             >
-              <Share2 className="w-4 h-4" />
-              Share
+              <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span>Share</span>
             </button>
           </div>
           
           {/* Save button - integrated in card */}
           {onSave && (
-            <div className="pt-4">
+            <div className="pt-3 md:pt-4">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onSave();
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="w-full px-6 py-3 font-semibold rounded-full text-sm flex items-center justify-center gap-2 transition-all duration-200"
+                className="w-full px-4 md:px-6 py-2.5 md:py-3 font-semibold rounded-full text-xs md:text-sm flex items-center justify-center gap-2 transition-all duration-200"
                 style={{
                   backgroundColor: '#2C2C2E',
                   borderRadius: '999px',

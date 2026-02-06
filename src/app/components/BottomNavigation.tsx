@@ -57,7 +57,7 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-black border-top border-gray-800 px-6 py-3 z-50">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 px-4 py-2.5 pb-safe z-50 safe-area-inset-bottom">
         <div className="flex justify-around items-center">
           {navItems.map((item, i) => {
             const Icon = item.icon;
@@ -66,14 +66,14 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
               <Link
                 key={item.id}
                 to={item.path}
-                className={`flex flex-col items-center gap-1 transition-colors relative ${
+                className={`flex flex-col items-center gap-0.5 transition-colors relative px-2 py-1 ${
                   isActive ? 'text-white' : 'text-gray-500'
                 }`}
               >
                 <div>
-                  <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
+                  <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
                 </div>
-                <span className="text-xs font-medium">{item.label}</span>
+                <span className="text-[10px] md:text-xs font-medium leading-tight">{item.label}</span>
               </Link>
             );
           })}
