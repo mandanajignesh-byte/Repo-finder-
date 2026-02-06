@@ -20,7 +20,7 @@ export const updateSEO = (data: SEOData): void => {
     title,
     description,
     keywords,
-    image = 'https://repoverse.space/logo.png',
+    image = 'https://repoverse.space/og-image.png',
     url = window.location.href,
     type = 'website',
   } = data;
