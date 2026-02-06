@@ -4,6 +4,8 @@ import { Repository } from '@/lib/types';
 import { useRef, useEffect, useState, memo } from 'react';
 import { shareService } from '@/services/share.service';
 import { githubService } from '@/services/github.service';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { showToast } from '@/utils/toast';
 
 interface RepoCardProps {
@@ -23,7 +25,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
   const [readmeLoading, setReadmeLoading] = useState(false);
   const [readmeError, setReadmeError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
-  
+
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const success = await shareService.copyPlatformLink(repo);
@@ -295,12 +297,57 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
                   </p>
                 )}
                 {!readmeLoading && !readmeError && readme && (
-                  <pre
-                    className="text-xs md:text-sm whitespace-pre-wrap break-words font-mono"
-                    style={{ color: '#D1D1D6' }}
-                  >
-                    {readme}
-                  </pre>
+                  <div className="text-xs md:text-sm leading-relaxed space-y-2 readme-markdown">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({ node, ...props }) => (
+                          <h1 className="text-sm md:text-base font-semibold text-white mt-2 mb-1" {...props} />
+                        ),
+                        h2: ({ node, ...props }) => (
+                          <h2 className="text-xs md:text-sm font-semibold text-white mt-2 mb-1" {...props} />
+                        ),
+                        h3: ({ node, ...props }) => (
+                          <h3 className="text-xs md:text-sm font-semibold text-gray-100 mt-2 mb-1" {...props} />
+                        ),
+                        p: ({ node, ...props }) => (
+                          <p className="text-[11px] md:text-sm text-gray-200 mb-1" {...props} />
+                        ),
+                        a: ({ node, ...props }) => (
+                          <a
+                            className="underline underline-offset-2 text-blue-400 hover:text-blue-300 break-words"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            {...props}
+                          />
+                        ),
+                        li: ({ node, ...props }) => (
+                          <li className="ml-4 list-disc text-[11px] md:text-sm text-gray-200" {...props} />
+                        ),
+                        code: ({ node, inline, ...props }) =>
+                          inline ? (
+                            <code
+                              className="px-1 py-0.5 rounded bg-black/60 border border-gray-700 text-[10px] md:text-xs"
+                              {...props}
+                            />
+                          ) : (
+                            <code
+                              className="block p-2 rounded bg-black/70 border border-gray-700 text-[10px] md:text-xs overflow-x-auto"
+                              {...props}
+                            />
+                          ),
+                        img: ({ node, ...props }) => (
+                          <img
+                            className="max-h-32 md:max-h-40 w-auto rounded border border-gray-700 object-contain"
+                            loading="lazy"
+                            {...props}
+                          />
+                        ),
+                      }}
+                    >
+                      {readme}
+                    </ReactMarkdown>
+                  </div>
                 )}
               </div>
             )}
