@@ -12,6 +12,7 @@ import { interactionService } from '@/services/interaction.service';
 import { repoPoolService } from '@/services/repo-pool.service';
 import { clusterService } from '@/services/cluster.service';
 import { supabase } from '@/lib/supabase';
+import { trackRepoInteraction, trackOnboarding, trackNavigation } from '@/utils/analytics';
 
 export function DiscoveryScreen() {
   const { preferences, updatePreferences, loaded } = useUserPreferences();
@@ -523,6 +524,9 @@ export function DiscoveryScreen() {
         position: 0,
         source: 'discover',
       }).catch(err => console.error('Error tracking skip:', err));
+      
+      // Track in Google Analytics
+      trackRepoInteraction('skip', repoToSkip.id, repoToSkip.fullName || repoToSkip.name);
     }
     
     // Increment swipe count and check if onboarding should be shown
@@ -531,6 +535,7 @@ export function DiscoveryScreen() {
       // Show onboarding after 4-5 swipes if not completed
       if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
         setShowOnboarding(true);
+        trackOnboarding('started');
       }
       return newCount;
     });
@@ -559,6 +564,10 @@ export function DiscoveryScreen() {
         position: 0,
         source: 'discover',
       }).catch(err => console.error('Error tracking like:', err));
+      
+      // Track in Google Analytics
+      trackRepoInteraction('like', repoToLike.id, repoToLike.fullName || repoToLike.name);
+      
       setLikedRepos((liked) => [...liked, repoToLike]);
     }
     
@@ -568,6 +577,7 @@ export function DiscoveryScreen() {
       // Show onboarding after 4-5 swipes if not completed
       if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
         setShowOnboarding(true);
+        trackOnboarding('started');
       }
       return newCount;
     });
@@ -596,9 +606,14 @@ export function DiscoveryScreen() {
         position: 0,
         source: 'discover',
       }).catch(err => console.error('Error tracking save:', err));
+      
+      // Track in Google Analytics
+      trackRepoInteraction('save', repoToSave.id, repoToSave.fullName || repoToSave.name);
+      
       setSavedRepos((saved) => [...saved, repoToSave]);
       // Navigate to saved section
       setShowSaved(true);
+      trackNavigation('saved', 'discover');
     }
     setCards((prev) => prev.slice(1));
   }, [cards]);
@@ -654,6 +669,9 @@ export function DiscoveryScreen() {
       }
     }
     
+    // Track onboarding completion
+    trackOnboarding('completed', undefined, 7);
+    
     updatePreferences({
       ...newPreferences,
       onboardingCompleted: true,
@@ -705,6 +723,9 @@ export function DiscoveryScreen() {
       <OnboardingQuestionnaire
         onComplete={handleOnboardingComplete}
         onSkip={() => {
+          // Track onboarding skipped
+          trackOnboarding('skipped');
+          
           // Mark onboarding as completed but don't set preferences
           // User will continue seeing random repos
           updatePreferences({ onboardingCompleted: true });
@@ -906,7 +927,10 @@ export function DiscoveryScreen() {
         <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Explore</h1>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowLiked(true)}
+            onClick={() => {
+              setShowLiked(true);
+              trackNavigation('liked', 'discover');
+            }}
             className="p-2 hover:bg-gray-800 rounded-full transition-colors relative text-gray-300"
           >
             <Heart className="w-6 h-6" />
@@ -917,7 +941,10 @@ export function DiscoveryScreen() {
             )}
           </button>
           <button
-            onClick={() => setShowSaved(true)}
+            onClick={() => {
+              setShowSaved(true);
+              trackNavigation('saved', 'discover');
+            }}
             className="p-2 hover:bg-gray-800 rounded-full transition-colors relative text-gray-300"
           >
             <Bookmark className="w-6 h-6" />

@@ -7,6 +7,7 @@ import { DiscoveryScreen } from '@/app/components/DiscoveryScreen';
 import { BottomNavigation } from '@/app/components/BottomNavigation';
 import { RepositoryRedirect } from '@/app/components/RepositoryRedirect';
 import { Loader2 } from 'lucide-react';
+import { initGA, trackPageView } from '@/utils/analytics';
 
 // Lazy load heavy components for code splitting
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
@@ -27,6 +28,20 @@ const LoadingFallback = () => (
 function AppContent() {
   const location = useLocation();
   const [showSplash, setShowSplash] = useState(true);
+
+  // Initialize Google Analytics on mount
+  useEffect(() => {
+    initGA();
+  }, []);
+
+  // Track page views on route change
+  useEffect(() => {
+    if (!showSplash) {
+      const path = location.pathname;
+      const pageTitle = path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2);
+      trackPageView(path, `RepoVerse - ${pageTitle}`);
+    }
+  }, [location.pathname, showSplash]);
 
   useEffect(() => {
     // Show splash screen for 1 second (reduced from 2.5s for faster loading)

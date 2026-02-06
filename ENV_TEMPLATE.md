@@ -39,6 +39,14 @@ VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # ============================================
+# Google Analytics (Optional)
+# ============================================
+# Get your Measurement ID from: https://analytics.google.com/
+# Format: G-XXXXXXXXXX
+# See GOOGLE_ANALYTICS_SETUP.md for detailed setup instructions
+VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+
+# ============================================
 # Environment
 # ============================================
 VITE_ENV=development
@@ -107,6 +115,7 @@ NODE_ENV=development
 - ✅ **REQUIRED**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (for persistent storage)
 - ⚠️ **Recommended**: `VITE_GITHUB_API_TOKEN` (increases rate limits)
 - ⚠️ **Required for AI**: `VITE_OPENAI_API_KEY` (needed for AI agent feature)
+- ℹ️ **Optional**: `VITE_GA_MEASUREMENT_ID` (for Google Analytics tracking)
 
 ### Backend (Server `.env`)
 - ⚠️ **Recommended**: `GITHUB_TOKEN` (increases rate limits)

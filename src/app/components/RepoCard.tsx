@@ -7,6 +7,7 @@ import { githubService } from '@/services/github.service';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { showToast } from '@/utils/toast';
+import { trackShare, trackRepoInteraction } from '@/utils/analytics';
 
 interface RepoCardProps {
   repo: Repository;
@@ -32,6 +33,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
     if (success) {
       setLinkCopied(true);
       showToast('Link copied to clipboard!');
+      trackShare('copy', 'repo', repo.id);
       setTimeout(() => setLinkCopied(false), 2000);
     } else {
       showToast('Failed to copy link');
@@ -475,7 +477,13 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
             <button
               onClick={async (e) => {
                 e.stopPropagation();
-                await shareService.shareRepositoryWithPlatformLink(repo);
+                const shared = await shareService.shareRepositoryWithPlatformLink(repo);
+                if (shared) {
+                  trackShare('native', 'repo', repo.id);
+                } else {
+                  // Fallback to copy
+                  trackShare('copy', 'repo', repo.id);
+                }
               }}
               onPointerDown={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm font-medium transition-colors"
