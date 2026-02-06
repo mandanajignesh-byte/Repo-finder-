@@ -8,6 +8,7 @@ import { BottomNavigation } from '@/app/components/BottomNavigation';
 import { RepositoryRedirect } from '@/app/components/RepositoryRedirect';
 import { Loader2 } from 'lucide-react';
 import { initGA, trackPageView } from '@/utils/analytics';
+import { updateSEO, getSEOForRoute } from '@/utils/seo';
 
 // Lazy load heavy components for code splitting
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
@@ -34,12 +35,21 @@ function AppContent() {
     initGA();
   }, []);
 
-  // Track page views on route change
+  // Update SEO and track page views on route change
   useEffect(() => {
     if (!showSplash) {
       const path = location.pathname;
-      const pageTitle = path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2);
-      trackPageView(path, `RepoVerse - ${pageTitle}`);
+      const seoData = getSEOForRoute(path);
+      
+      // Update meta tags for SEO
+      updateSEO({
+        ...seoData,
+        url: window.location.href,
+      });
+      
+      // Track page view in Google Analytics
+      const pageTitle = seoData.title || `RepoVerse - ${path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2)}`;
+      trackPageView(path, pageTitle);
     }
   }, [location.pathname, showSplash]);
 

@@ -1,0 +1,12 @@
+# robots.txt for RepoVerse
+# Allow all search engines to crawl the site
+
+User-agent: *
+Allow: /
+
+# Disallow admin or private routes (if any)
+Disallow: /api/
+Disallow: /_next/
+
+# Sitemap location
+Sitemap: https://repoverse.space/sitemap.xml
