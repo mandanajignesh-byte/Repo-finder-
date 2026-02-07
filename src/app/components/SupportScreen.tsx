@@ -1,12 +1,16 @@
 /**
  * Support Screen Component
- * Contains Buy Me a Coffee and Feedback sections
+ * Contains Buy Me a Coffee, Feedback sections, and Feedback Dashboard
  */
 
+import { useState } from 'react';
 import { BuyMeACoffee } from './BuyMeACoffee';
 import { FeedbackSection } from './FeedbackSection';
+import { FeedbackDashboard } from './FeedbackDashboard';
 
 export function SupportScreen() {
+  const [showDashboard, setShowDashboard] = useState(false);
+
   return (
     <div 
       className="h-full bg-black p-4 md:p-6 overflow-y-auto pb-24 md:pb-0"
@@ -19,6 +23,23 @@ export function SupportScreen() {
             Choose your price and share your feedback
           </p>
         </div>
+
+        {/* Toggle Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowDashboard(!showDashboard)}
+            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
+          >
+            {showDashboard ? 'Hide' : 'View'} Feedback Dashboard
+          </button>
+        </div>
+
+        {/* Feedback Dashboard */}
+        {showDashboard && (
+          <div className="mb-6">
+            <FeedbackDashboard />
+          </div>
+        )}
 
         {/* Buy Me a Coffee Section */}
         <div className="mb-6">

@@ -82,23 +82,27 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
     documentationImportance: 'important',
   });
 
-  const totalSteps = 7; // Increased from 6 to 7 for name step
+  const totalSteps = 7; // Total steps including name as last step
 
   const handleNext = () => {
-    if (step === 1 && (!preferences.name || preferences.name.trim().length === 0)) {
-      alert('Please enter your name');
-      return;
-    }
-    if (step === 2 && !preferences.primaryCluster) {
+    // Step 1: Primary Cluster validation
+    if (step === 1 && !preferences.primaryCluster) {
       alert('Please select your primary area of interest');
       return;
     }
-    if (step === 4 && !preferences.experienceLevel) {
+    // Step 3: Experience Level validation
+    if (step === 3 && !preferences.experienceLevel) {
       alert('Please select your experience level');
       return;
     }
-    if (step === 5 && (!preferences.goals || preferences.goals.length === 0)) {
+    // Step 4: Goals validation
+    if (step === 4 && (!preferences.goals || preferences.goals.length === 0)) {
       alert('Please select at least one goal');
+      return;
+    }
+    // Step 7: Name validation (last step)
+    if (step === 7 && (!preferences.name || preferences.name.trim().length === 0)) {
+      alert('Please enter your name');
       return;
     }
 
@@ -238,37 +242,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
 
           {/* Step Content with AnimatePresence */}
           <AnimatePresence mode="wait">
-            {/* Step 1: Name Input */}
+            {/* Step 1: Primary Cluster Selection */}
             {step === 1 && (
-              <motion.div
-                key="step1-name"
-                variants={stepVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                className="space-y-6"
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What's your name?</h3>
-                  <p className="text-gray-400 text-sm mb-4">This helps us personalize your experience.</p>
-                </motion.div>
-                <input
-                  type="text"
-                  value={preferences.name || ''}
-                  onChange={(e) => setPreferences({ ...preferences, name: e.target.value })}
-                  placeholder="Enter your name"
-                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
-                  autoFocus
-                />
-              </motion.div>
-            )}
-
-            {/* Step 2: Primary Cluster Selection */}
-            {step === 2 && (
               <motion.div
                 key="step2"
                 variants={stepVariants}
@@ -310,8 +285,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 3: Secondary Clusters */}
-            {step === 3 && (
+            {/* Step 2: Secondary Clusters */}
+            {step === 2 && (
               <motion.div
                 key="step2"
                 variants={stepVariants}
@@ -358,8 +333,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 4: Experience Level */}
-            {step === 4 && (
+            {/* Step 3: Experience Level */}
+            {step === 3 && (
               <motion.div
                 key="step4"
                 variants={stepVariants}
@@ -401,8 +376,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 5: Goals/Use Cases */}
-            {step === 5 && (
+            {/* Step 4: Goals/Use Cases */}
+            {step === 4 && (
               <motion.div
                 key="step5"
                 variants={stepVariants}
@@ -447,8 +422,8 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 6: Tech Stack */}
-            {step === 6 && (
+            {/* Step 5: Tech Stack */}
+            {step === 5 && (
               <motion.div
                 key="step5"
                 variants={stepVariants}
@@ -524,10 +499,10 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
               </motion.div>
             )}
 
-            {/* Step 7: Fine-tuning */}
-            {step === 7 && (
+            {/* Step 6: Fine-tuning */}
+            {step === 6 && (
               <motion.div
-                key="step7"
+                key="step6"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -635,6 +610,35 @@ export function OnboardingQuestionnaire({ onComplete, onSkip }: OnboardingQuesti
                     ))}
                   </div>
                 </motion.div>
+              </motion.div>
+            )}
+
+            {/* Step 7: Name Input (Last Step) */}
+            {step === 7 && (
+              <motion.div
+                key="step7-name"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="space-y-6"
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <h3 className="text-xl text-white mb-2" style={{ fontWeight: 600 }}>What's your name?</h3>
+                  <p className="text-gray-400 text-sm mb-4">This helps us personalize your experience.</p>
+                </motion.div>
+                <input
+                  type="text"
+                  value={preferences.name || ''}
+                  onChange={(e) => setPreferences({ ...preferences, name: e.target.value })}
+                  placeholder="Enter your name"
+                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
+                  autoFocus
+                />
               </motion.div>
             )}
           </AnimatePresence>

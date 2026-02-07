@@ -57,13 +57,13 @@ class RepoPoolService {
       
       // OPTIMIZATION: Get seen repo IDs in parallel with primary cluster fetch
       // This was a sequential bottleneck - now runs in parallel!
-      // REDUCED LIMIT: Fetch fewer repos initially for faster loading (100 instead of 200)
+      // REDUCED LIMIT: Fetch fewer repos initially for faster loading
       const primaryCluster = preferences.primaryCluster;
       const [allSeenRepoIds, primaryRepos] = await Promise.all([
         supabaseService.getAllSeenRepoIds(userId),
         primaryCluster ? clusterService.getBestOfCluster(
           primaryCluster,
-          60, // CRITICAL: Reduced to 60 (was 100, originally 200) for 40% faster loading
+          50, // OPTIMIZED: Reduced to 50 (was 60) for faster initial loading
           [], // Will filter with allSeenRepoIds after we get it
           userId
         ) : Promise.resolve([]),
@@ -86,31 +86,37 @@ class RepoPoolService {
         }
       }
       
-      // PRIORITY 2: Supplement with SECONDARY CLUSTERS
+      // PRIORITY 2: Supplement with SECONDARY CLUSTERS (OPTIMIZED: Parallel fetching)
       if (preferences.secondaryClusters && preferences.secondaryClusters.length > 0 && clusterRepos.length < POOL_SIZE) {
         console.log(`➕ Supplementing with SECONDARY CLUSTERS: ${preferences.secondaryClusters.join(', ')}`);
         let excludeIds = [...allSeenRepoIds, ...clusterRepos.map(r => r.id)];
         
-        for (const secondaryCluster of preferences.secondaryClusters) {
-          if (clusterRepos.length >= POOL_SIZE) break;
-          
-          const secondaryRepos = await clusterService.getBestOfCluster(
-            secondaryCluster,
-            POOL_SIZE - clusterRepos.length,
+        // OPTIMIZATION: Fetch all secondary clusters in parallel instead of sequentially
+        const remainingNeeded = POOL_SIZE - clusterRepos.length;
+        const reposPerCluster = Math.ceil(remainingNeeded / preferences.secondaryClusters.length);
+        
+        const secondaryClusterPromises = preferences.secondaryClusters.map(cluster =>
+          clusterService.getBestOfCluster(
+            cluster,
+            reposPerCluster,
             excludeIds,
             userId
-          );
-          
-          const validSecondaryRepos = secondaryRepos.filter(r => r && r.id);
-          // Deduplicate when combining
-          const combined = [...clusterRepos, ...validSecondaryRepos];
-          clusterRepos = Array.from(
-            new Map(combined.map(r => [r.id, r])).values()
-          );
-          // Update excludeIds to include all current cluster repos
-          excludeIds = [...new Set([...excludeIds, ...clusterRepos.map(r => r.id)])];
-        }
-        console.log(`📊 After secondary clusters: ${clusterRepos.length} repos`);
+          )
+        );
+        
+        const allSecondaryRepos = await Promise.all(secondaryClusterPromises);
+        
+        // Combine and deduplicate all secondary repos
+        const validSecondaryRepos = allSecondaryRepos
+          .flat()
+          .filter(r => r && r.id);
+        
+        const combined = [...clusterRepos, ...validSecondaryRepos];
+        clusterRepos = Array.from(
+          new Map(combined.map(r => [r.id, r])).values()
+        ).slice(0, POOL_SIZE); // Limit to pool size
+        
+        console.log(`📊 After secondary clusters (parallel): ${clusterRepos.length} repos`);
       }
       
       // PRIORITY 3: If no primary cluster, use tag-based search
@@ -120,10 +126,10 @@ class RepoPoolService {
         const uniqueTags = this.buildComprehensiveTags(preferences);
         
         if (uniqueTags.length > 0) {
-          // CRITICAL: Reduced to 80 (was 150, originally 300) for 47% faster loading
+          // OPTIMIZED: Reduced to 60 (was 80) for faster loading
           const tagRepos = await clusterService.getReposByTags(
             uniqueTags,
-            80,
+            60,
             [...allSeenRepoIds, ...clusterRepos.map(r => r.id)],
             userId
           );
@@ -429,8 +435,15 @@ class RepoPoolService {
    * - Each user has their own exclusion list based on their interactions
    * 
    * OPTIMIZATION: Check cache first to avoid rebuilding pool unnecessarily
+   * OPTIMIZATION: Accept pre-fetched seenRepoIds to avoid duplicate calls
    */
-  async getRecommendations(userId: string, preferences: UserPreferences, count = 20, additionalExcludeIds: string[] = []): Promise<Repository[]> {
+  async getRecommendations(
+    userId: string, 
+    preferences: UserPreferences, 
+    count = 20, 
+    additionalExcludeIds: string[] = [],
+    preFetchedSeenRepoIds?: string[] // OPTIMIZATION: Pass already-fetched seen repo IDs
+  ): Promise<Repository[]> {
     // OPTIMIZATION: Check if pool matches current preferences before rebuilding
     const preferencesHash = this.hashPreferences(preferences);
     const cachedPool = this.getCachedPool(preferences);
@@ -451,9 +464,9 @@ class RepoPoolService {
       return [];
     }
 
-    // Get ALL repos THIS USER has ever seen (saved, liked, skipped, viewed)
-    // NOTE: This is user-specific - other users can still see these repos
-    const allSeenRepoIds = await supabaseService.getAllSeenRepoIds(userId);
+    // OPTIMIZATION: Use pre-fetched seen repo IDs if provided, otherwise fetch
+    // This eliminates duplicate getAllSeenRepoIds calls
+    const allSeenRepoIds = preFetchedSeenRepoIds || await supabaseService.getAllSeenRepoIds(userId);
     const seenSet = new Set([...allSeenRepoIds, ...additionalExcludeIds]);
     
     // Only log if significant number of excluded repos

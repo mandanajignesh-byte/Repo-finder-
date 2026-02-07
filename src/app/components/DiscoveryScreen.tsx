@@ -178,17 +178,45 @@ export function DiscoveryScreen() {
       const shownIds = new Set(cards.map(card => card?.id).filter(Boolean));
       const excludeIds = [...new Set([...allSeenRepoIds, ...Array.from(shownIds)])];
 
+      // OPTIMIZATION: Pass pre-fetched seenRepoIds to avoid duplicate getAllSeenRepoIds call
       // Get repos from pool (already excludes seen repos and applies user-specific shuffling)
-      // Pass currently shown IDs to ensure they're excluded
+      // OPTIMIZATION: Get first batch immediately for fast initial display
       let recommended = await repoPoolService.getRecommendations(
         actualUserId, 
         preferences, 
-        20,
-        Array.from(shownIds) // Pass currently shown repo IDs
+        append ? 20 : 10, // Get 10 for initial load (faster), 20 for append
+        Array.from(shownIds), // Pass currently shown repo IDs
+        allSeenRepoIds // OPTIMIZATION: Pass pre-fetched seen repo IDs to avoid duplicate call
       );
       
       // Final filter to ensure no duplicates (defensive check)
       recommended = recommended.filter(repo => repo && repo.id && !shownIds.has(repo.id));
+
+      // OPTIMIZATION: Show first batch immediately for initial load, then load more in background
+      if (recommended.length >= 10 && !append) {
+        // Initial load with enough repos: show immediately, load more in background
+        setCards(recommended);
+        setIsLoadingMore(false); // Allow user to start interacting immediately
+        
+        // Load additional repos in background (non-blocking)
+        repoPoolService.getRecommendations(
+          actualUserId,
+          preferences,
+          20, // Get 20 more repos
+          [...Array.from(shownIds), ...recommended.map(r => r.id)], // Exclude already shown
+          allSeenRepoIds
+        ).then(additionalRepos => {
+          const validAdditional = additionalRepos
+            .filter(repo => repo && repo.id && !shownIds.has(repo.id))
+            .filter(repo => !recommended.some(r => r.id === repo.id)); // No duplicates
+          
+          if (validAdditional.length > 0) {
+            setCards(prev => [...prev, ...validAdditional]);
+          }
+        }).catch(err => console.error('Error loading additional repos:', err));
+        
+        return; // Exit early - we've shown the first batch and loading more in background
+      }
 
       // If pool doesn't have enough, try cluster repos first (not generic trending)
       if (recommended.length < 10) {
