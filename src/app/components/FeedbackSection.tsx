@@ -1,21 +1,65 @@
 /**
  * Feedback Section Component
  * Allows users to submit feedback, report issues, and share experiences
+ * Only users who have completed onboarding can submit feedback
  */
 
-import { useState } from 'react';
-import { MessageSquare, Send, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MessageSquare, Send, CheckCircle, Lock } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { supabase } from '@/lib/supabase';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 export function FeedbackSection() {
+  const { preferences, loaded } = useUserPreferences;
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+
+  // Check if user has completed onboarding
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!loaded) {
+        setIsCheckingOnboarding(true);
+        return;
+      }
+
+      try {
+        // Check if onboarding is completed in preferences
+        if (preferences.onboardingCompleted) {
+          setHasCompletedOnboarding(true);
+          setIsCheckingOnboarding(false);
+          return;
+        }
+
+        // Also check in Supabase to be sure
+        const { supabaseService } = await import('@/services/supabase.service');
+        const userId = await supabaseService.getOrCreateUserId();
+        const userPrefs = await supabaseService.getUserPreferences(userId);
+        
+        setHasCompletedOnboarding(userPrefs?.onboardingCompleted === true);
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+        // Default to false if we can't check
+        setHasCompletedOnboarding(false);
+      } finally {
+        setIsCheckingOnboarding(false);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [preferences.onboardingCompleted, loaded]);
 
   const handleSubmit = async () => {
     if (!feedback.trim()) {
       alert('Please enter your feedback before submitting');
+      return;
+    }
+
+    if (!hasCompletedOnboarding) {
+      alert('Please complete the onboarding process before submitting feedback.');
       return;
     }
 
@@ -24,6 +68,14 @@ export function FeedbackSection() {
       // Get user ID
       const { supabaseService } = await import('@/services/supabase.service');
       const userId = await supabaseService.getOrCreateUserId();
+
+      // Verify onboarding completion one more time before submitting
+      const userPrefs = await supabaseService.getUserPreferences(userId);
+      if (!userPrefs?.onboardingCompleted) {
+        alert('Please complete the onboarding process before submitting feedback.');
+        setIsSubmitting(false);
+        return;
+      }
 
       // Save feedback to Supabase
       const { error } = await supabase
@@ -101,7 +153,7 @@ export function FeedbackSection() {
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           placeholder="Write your feedback here... Share your thoughts, report issues, suggest improvements, or tell us about your experience using this app."
-          disabled={isSubmitting}
+          disabled={isSubmitting || !hasCompletedOnboarding || isCheckingOnboarding}
           rows={6}
           className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-white disabled:opacity-50 resize-none placeholder-gray-500"
         />
@@ -113,7 +165,7 @@ export function FeedbackSection() {
       {/* Submit Button */}
       <button
         onClick={handleSubmit}
-        disabled={isSubmitting || !feedback.trim()}
+        disabled={isSubmitting || !feedback.trim() || !hasCompletedOnboarding || isCheckingOnboarding}
         className="w-full px-6 py-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
       >
         {isSubmitting ? (
@@ -128,6 +180,23 @@ export function FeedbackSection() {
           </>
         )}
       </button>
+
+      {/* Onboarding Required Message */}
+      {!isCheckingOnboarding && !hasCompletedOnboarding && (
+        <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+          <div className="flex items-start gap-3">
+            <Lock className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-yellow-300 text-sm font-medium mb-1">
+                Onboarding Required
+              </p>
+              <p className="text-yellow-400 text-xs">
+                Please complete the onboarding process to submit feedback. This helps us understand your preferences and provide better recommendations.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Privacy Note */}
       <div className="mt-4 p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg">

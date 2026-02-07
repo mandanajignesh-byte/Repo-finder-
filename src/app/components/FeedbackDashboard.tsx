@@ -34,7 +34,17 @@ export function FeedbackDashboard() {
 
       if (fetchError) {
         console.error('Error fetching feedback:', fetchError);
-        setError('Failed to load feedback. Please check your Supabase connection.');
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to load feedback. ';
+        if (fetchError.code === 'PGRST116' || fetchError.message?.includes('relation') || fetchError.message?.includes('does not exist')) {
+          errorMessage += 'The feedback table does not exist in Supabase. Please run the SQL setup script.';
+        } else if (fetchError.code === '42501' || fetchError.message?.includes('permission') || fetchError.message?.includes('policy')) {
+          errorMessage += 'RLS policies do not allow reading feedback. Please update the policies in Supabase.';
+        } else {
+          errorMessage += `Error: ${fetchError.message || 'Unknown error'}. Please check your Supabase connection.`;
+        }
+        setError(errorMessage);
         
         // Try to load from localStorage fallback
         const localFeedback = localStorage.getItem('app_feedback');
@@ -47,6 +57,7 @@ export function FeedbackDashboard() {
               feedback_text: item.feedback || item.feedback_text || '',
               created_at: item.timestamp || item.created_at || new Date().toISOString(),
             })));
+            setError(null); // Clear error if we have local feedback
           } catch (e) {
             console.error('Error parsing local feedback:', e);
           }
@@ -137,10 +148,17 @@ export function FeedbackDashboard() {
       {/* Error Message */}
       {error && (
         <div className="mb-4 p-4 bg-red-900/20 border border-red-700 rounded-lg">
-          <p className="text-red-300 text-sm">{error}</p>
-          <p className="text-red-400 text-xs mt-2">
-            Note: Make sure the feedback table exists in Supabase and RLS policies allow reading.
-          </p>
+          <p className="text-red-300 text-sm font-medium mb-2">{error}</p>
+          <div className="text-red-400 text-xs space-y-1">
+            <p><strong>Quick Fix:</strong></p>
+            <ol className="list-decimal list-inside space-y-1 ml-2">
+              <li>Go to your Supabase Dashboard → SQL Editor</li>
+              <li>Open the file: <code className="bg-red-900/30 px-1 rounded">supabase-feedback-setup-complete.sql</code></li>
+              <li>Copy and paste the entire SQL script</li>
+              <li>Click "Run" to execute it</li>
+              <li>Refresh this dashboard</li>
+            </ol>
+          </div>
         </div>
       )}
 
