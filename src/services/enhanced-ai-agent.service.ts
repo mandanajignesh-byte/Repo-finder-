@@ -121,10 +121,8 @@ class EnhancedAIAgentService {
           name: 'search_repos_by_need',
           arguments: {
             goal,
-            tech_stack: context.techStack
-              ? [context.techStack]
-              : preferences?.techStack || [],
-            difficulty: context.experienceLevel || preferences?.experienceLevel || 'intermediate',
+            tech_stack: context.techStack ? [context.techStack] : undefined,
+            difficulty: context.experienceLevel,
             limit: 10,
           },
         });
@@ -235,13 +233,12 @@ Based on this query, decide which tools to use and in what order. Return a JSON 
       }));
 
       // Default: if no tools planned, use search
+      // Only use what's explicitly in the user query - no preferences
       if (toolCalls.length === 0) {
         toolCalls.push({
           name: 'search_repos_by_need',
           arguments: {
             goal: userQuery,
-            tech_stack: preferences?.techStack || [],
-            difficulty: preferences?.experienceLevel || 'intermediate',
             limit: 10,
           },
         });
@@ -253,14 +250,12 @@ Based on this query, decide which tools to use and in what order. Return a JSON 
       };
     } catch (error) {
       console.error('Error in planning:', error);
-      // Fallback: simple search
+      // Fallback: simple search - only use user query, no preferences
       return {
         toolCalls: [{
           name: 'search_repos_by_need',
           arguments: {
             goal: userQuery,
-            tech_stack: preferences?.techStack || [],
-            difficulty: preferences?.experienceLevel || 'intermediate',
             limit: 10,
           },
         }],
@@ -424,30 +419,24 @@ Return JSON:
 
   /**
    * Build planning prompt
+   * No longer includes user preferences - only uses what user explicitly asks for
    */
   private buildPlanningPrompt(preferences?: UserPreferences): string {
     const toolsDescription = AI_AGENT_TOOLS.map(tool => 
       `- ${tool.name}: ${tool.description}`
     ).join('\n');
 
-    let prompt = `You are RepoVerse's intelligent GitHub universe navigator. Your job is to help users find the perfect repositories.
+    let prompt = `You are RepoVerse's intelligent GitHub universe navigator. Your job is to help users find the perfect repositories by searching GitHub directly.
 
 You have access to these powerful tools:
 ${toolsDescription}
 
-User context:
-${preferences ? `
-- Tech stack: ${preferences.techStack?.join(', ') || 'Not specified'}
-- Experience: ${preferences.experienceLevel || 'intermediate'}
-- Goals: ${preferences.goals?.join(', ') || 'Not specified'}
-- Interests: ${preferences.interests?.join(', ') || 'Not specified'}
-` : '- No preferences set'}
-
 Your strategy:
 1. Analyze the user's query to understand their intent
 2. Choose the right tools (1-3 tools usually sufficient)
-3. Consider the user's preferences and experience level
+3. Extract explicit requirements from the user's query (tech stack, goals, etc.)
 4. Plan tool execution order (some tools depend on others)
+5. Only use information explicitly mentioned in the user's query - do not use profile preferences
 
 Return a JSON object with your plan.`;
 
@@ -456,25 +445,18 @@ Return a JSON object with your plan.`;
 
   /**
    * Build synthesis prompt
+   * No longer includes user preferences - only uses what user explicitly asked for
    */
   private buildSynthesisPrompt(preferences?: UserPreferences): string {
-    let prompt = `You are RepoVerse's intelligent GitHub universe navigator. You've executed tools and gathered repository data.
+    let prompt = `You are RepoVerse's intelligent GitHub universe navigator. You've executed tools and gathered repository data by searching GitHub directly.
 
-Your job is to synthesize a helpful, personalized response that:
-1. Explains WHY each recommendation fits the user's needs
+Your job is to synthesize a helpful response that:
+1. Explains WHY each recommendation fits the user's explicit needs (from their query)
 2. Highlights tradeoffs (e.g., "This is production-ready but complex")
-3. Considers the user's experience level
-4. Provides actionable next steps
-5. Is honest about limitations or alternatives
+3. Provides actionable next steps
+4. Is honest about limitations or alternatives
 
-User context:
-${preferences ? `
-- Tech stack: ${preferences.techStack?.join(', ') || 'Not specified'}
-- Experience: ${preferences.experienceLevel || 'intermediate'}
-- Goals: ${preferences.goals?.join(', ') || 'Not specified'}
-` : '- No preferences set'}
-
-Be specific, helpful, and personalized. Don't just list repos - explain the journey.`;
+Be specific and helpful. Don't just list repos - explain the journey based on what the user explicitly asked for.`;
 
     return prompt;
   }
@@ -514,18 +496,7 @@ Be specific, helpful, and personalized. Don't just list repos - explain the jour
 
     const context: FeatureRequestContext = { ...base };
 
-    // 1) Apply preferences as gentle defaults
-    if (!context.techStack && preferences?.techStack?.length) {
-      context.techStack = preferences.techStack[0];
-    }
-
-    if (!context.experienceLevel && preferences?.experienceLevel) {
-      context.experienceLevel = preferences.experienceLevel as ExperienceLevel;
-    }
-
-    if (!context.goalType && preferences?.goals?.length) {
-      context.goalType = 'ship-feature-fast';
-    }
+    // No longer using preferences as defaults - only use what's explicitly provided
 
     // 2) Infer from free-text query
     const lower = userQuery.toLowerCase();
@@ -759,8 +730,6 @@ Be specific, helpful, and personalized. Don't just list repos - explain the jour
       name: 'search_repos_by_need',
       arguments: {
         goal: userQuery,
-        tech_stack: preferences?.techStack || [],
-        difficulty: preferences?.experienceLevel || 'intermediate',
         limit: 5,
       },
     });

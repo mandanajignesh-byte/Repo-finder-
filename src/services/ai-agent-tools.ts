@@ -196,19 +196,22 @@ export class ToolExecutor {
 
   /**
    * Search repos by user need
+   * Only uses explicitly provided parameters - no profile interests/preferences
    */
   private async searchReposByNeed(args: any): Promise<ToolResult> {
     const { goal, tech_stack, difficulty, limit = 10 } = args;
 
     // Build a GitHub search query directly from the user's goal and tech stack.
     // This intentionally bypasses Supabase/cluster data and hits the GitHub Search API.
+    // Only uses what the user explicitly asked for - no profile preferences.
     const keywords: string[] = [];
 
     if (goal && typeof goal === 'string') {
       keywords.push(goal);
     }
 
-    const stack = (tech_stack as string[] | undefined) || this.preferences.techStack || [];
+    // Only use tech_stack if explicitly provided - no fallback to preferences
+    const stack = (tech_stack as string[] | undefined) || [];
     if (stack.length > 0) {
       keywords.push(...stack);
     }
@@ -217,8 +220,8 @@ export class ToolExecutor {
     let searchQuery = keywords.join(' ').trim() || 'stars:>50';
     searchQuery += ' stars:>20 stars:<50000';
 
-    // Map difficulty to minimum stars (very rough heuristic)
-    const diff = (difficulty || this.preferences.experienceLevel || 'intermediate') as string;
+    // Only use difficulty if explicitly provided - no fallback to preferences
+    const diff = (difficulty as string | undefined);
     if (diff === 'beginner') {
       searchQuery += ' language:javascript';
     }
@@ -230,18 +233,13 @@ export class ToolExecutor {
       usePagination: false,
     });
 
-    // Optionally score/filter using our enhanced recommendation service for better ordering
-    const scored = repos.map((repo: Repository) => ({
-      ...repo,
-      fitScore: enhancedRecommendationService.calculateContentScore(repo, this.preferences),
-    }));
-
-    const sorted = scored.sort((a, b) => (b.fitScore || 0) - (a.fitScore || 0));
+    // Sort by stars only - no preference-based scoring
+    const sorted = repos.sort((a, b) => (b.stars || 0) - (a.stars || 0));
 
     return {
       success: true,
       data: sorted.slice(0, limit),
-      reasoning: `Searched GitHub for "${searchQuery}" based on goal "${goal}" and tech stack ${JSON.stringify(stack)}; ranked by content fit and stars.`,
+      reasoning: `Searched GitHub for "${searchQuery}" based on goal "${goal}"${stack.length > 0 ? ` and tech stack ${JSON.stringify(stack)}` : ''}; ranked by stars.`,
     };
   }
 
@@ -257,12 +255,11 @@ export class ToolExecutor {
       const repos = await clusterService.getBestOfCluster(cluster.name, 100, [], this.userId);
       const repo = repos.find(r => r.id === repo_id || r.fullName === repo_id);
       if (repo) {
-        // Calculate fit score
-        const fitScore = enhancedRecommendationService.calculateContentScore(repo, this.preferences);
+        // Return repo without preference-based scoring
         return {
           success: true,
-          data: { ...repo, fitScore },
-          reasoning: `Found repository in ${cluster.name} cluster with fit score: ${fitScore}`,
+          data: repo,
+          reasoning: `Found repository in ${cluster.name} cluster`,
         };
       }
     }
@@ -272,11 +269,10 @@ export class ToolExecutor {
       const repos = await githubService.searchRepos(repo_id, { perPage: 1 });
       if (repos.length > 0) {
         const repo = repos[0];
-        const fitScore = enhancedRecommendationService.calculateContentScore(repo, this.preferences);
         return {
           success: true,
-          data: { ...repo, fitScore },
-          reasoning: `Found repository via GitHub search with fit score: ${fitScore}`,
+          data: repo,
+          reasoning: `Found repository via GitHub search`,
         };
       }
     } catch (error) {
@@ -334,14 +330,15 @@ export class ToolExecutor {
 
   /**
    * Generate learning path
+   * Only uses explicitly provided parameters - no profile preferences
    */
   private async getLearningPath(args: any): Promise<ToolResult> {
     const { tech_stack, time_budget, experience_level } = args;
     
+    // Only use explicitly provided parameters - no fallback to preferences
     const pathPreferences: UserPreferences = {
-      ...this.preferences,
-      techStack: tech_stack || this.preferences.techStack || [],
-      experienceLevel: experience_level || this.preferences.experienceLevel || 'intermediate',
+      techStack: (tech_stack as string[] | undefined) || [],
+      experienceLevel: (experience_level as string | undefined) || 'intermediate',
       goals: ['learning-new-tech'],
       projectTypes: ['tutorial', 'course'],
     };
