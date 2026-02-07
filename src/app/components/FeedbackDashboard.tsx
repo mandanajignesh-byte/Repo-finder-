@@ -208,14 +208,6 @@ export function FeedbackDashboard() {
           ))}
         </div>
       )}
-
-      {/* Info Note */}
-      <div className="mt-6 p-3 bg-gray-800/30 border border-gray-700/50 rounded-lg">
-        <p className="text-gray-400 text-xs">
-          <strong className="text-gray-300">Note:</strong> To view all feedback, make sure your Supabase RLS policies allow reading from the feedback table. 
-          You may need to update the policy in Supabase SQL Editor to allow viewing all feedback entries.
-        </p>
-      </div>
     </SignatureCard>
   );
 }

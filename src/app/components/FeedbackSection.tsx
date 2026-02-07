@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 export function FeedbackSection() {
-  const { preferences, loaded } = useUserPreferences;
+  const { preferences, loaded } = useUserPreferences();
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -27,8 +27,8 @@ export function FeedbackSection() {
       }
 
       try {
-        // Check if onboarding is completed in preferences
-        if (preferences.onboardingCompleted) {
+        // Check if onboarding is completed in preferences (with null check)
+        if (preferences?.onboardingCompleted) {
           setHasCompletedOnboarding(true);
           setIsCheckingOnboarding(false);
           return;
@@ -50,7 +50,7 @@ export function FeedbackSection() {
     };
 
     checkOnboardingStatus();
-  }, [preferences.onboardingCompleted, loaded]);
+  }, [preferences?.onboardingCompleted, loaded]);
 
   const handleSubmit = async () => {
     if (!feedback.trim()) {
