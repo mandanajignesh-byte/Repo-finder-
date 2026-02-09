@@ -68,35 +68,42 @@ export function DiscoveryScreen() {
   }, []);
 
   // Load random repos from database when no preferences exist
+  // OPTIMIZATION: Start loading immediately, show first batch fast
   const loadRandomRepos = useCallback(async (append = false) => {
     try {
       setIsLoadingMore(true);
       
-      // Get user ID first
+      // OPTIMIZATION: Get user ID and cluster data in parallel for faster loading
       const { supabaseService } = await import('@/services/supabase.service');
-      const actualUserId = await supabaseService.getOrCreateUserId();
       
-      // Get seen repo IDs
-      const allSeenRepoIds = await supabaseService.getAllSeenRepoIds(actualUserId);
+      // Start all async operations in parallel
+      const [actualUserId, clustersResult] = await Promise.all([
+        supabaseService.getOrCreateUserId(),
+        supabase.from('cluster_metadata').select('cluster_name').eq('is_active', true)
+      ]);
       
-      // Get a random active cluster
-      const { data: clusters } = await supabase
-        .from('cluster_metadata')
-        .select('cluster_name')
-        .eq('is_active', true);
+      // Get seen repo IDs (can happen in parallel with cluster selection)
+      const allSeenRepoIdsPromise = supabaseService.getAllSeenRepoIds(actualUserId);
+      
+      const { data: clusters } = clustersResult;
       
       if (!clusters || clusters.length === 0) {
         console.error('No active clusters found');
+        setIsLoadingMore(false);
         return;
       }
       
       // Pick a random cluster
       const randomCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
       
-      // Get repos from random cluster
+      // Get seen repo IDs (now we have it)
+      const allSeenRepoIds = await allSeenRepoIdsPromise;
+      
+      // OPTIMIZATION: Get smaller initial batch for faster display
+      const initialBatchSize = append ? 20 : 10;
       const randomRepos = await clusterService.getBestOfCluster(
         randomCluster,
-        20,
+        initialBatchSize,
         allSeenRepoIds,
         actualUserId
       );
@@ -106,6 +113,7 @@ export function DiscoveryScreen() {
         const MAX_STARS = 30000;
         const filteredRepos = randomRepos.filter(r => r && r.id && r.stars <= MAX_STARS);
         
+        // OPTIMIZATION: Show first batch immediately, load more in background if needed
         if (append) {
           setCards(prev => {
             const existingIds = new Set(prev.map(c => c.id));
@@ -113,10 +121,30 @@ export function DiscoveryScreen() {
             return [...prev, ...newRepos];
           });
         } else {
+          // Show first batch immediately
           setCards(filteredRepos);
+          setIsLoadingMore(false); // Allow user to start interacting immediately
+          
+          // Load more repos in background if we got fewer than 10
+          if (filteredRepos.length < 10) {
+            clusterService.getBestOfCluster(
+              randomCluster,
+              20,
+              [...allSeenRepoIds, ...filteredRepos.map(r => r.id)],
+              actualUserId
+            ).then(additionalRepos => {
+              const validAdditional = additionalRepos
+                .filter(r => r && r.id && r.stars <= MAX_STARS)
+                .filter(r => !filteredRepos.some(existing => existing.id === r.id));
+              
+              if (validAdditional.length > 0) {
+                setCards(prev => [...prev, ...validAdditional]);
+              }
+            }).catch(err => console.error('Error loading additional repos:', err));
+          }
         }
         
-        // Track views in background
+        // Track views in background (non-blocking)
         Promise.all(
           filteredRepos
             .filter(repo => repo && repo.id)
@@ -127,10 +155,11 @@ export function DiscoveryScreen() {
               }).catch(err => console.error(`Error tracking view:`, err))
             )
         ).catch(err => console.error('Error in batch view tracking:', err));
+      } else {
+        setIsLoadingMore(false);
       }
     } catch (error) {
       console.error('Error loading random repos:', error);
-    } finally {
       setIsLoadingMore(false);
     }
   }, [cards.length]);
@@ -473,19 +502,32 @@ export function DiscoveryScreen() {
   // Track previous preferences to detect changes
   const prevPreferencesRef = useRef<string>('');
 
-  // Load repos when preferences are loaded
-  // If onboarding completed, load personalized repos; otherwise load random repos
+  // OPTIMIZATION: Start loading repos immediately without waiting for preferences
+  // This ensures content appears as fast as possible
   useEffect(() => {
-    if (loaded && cards.length === 0 && !loading) {
-      if (preferences.onboardingCompleted) {
+    // Start loading immediately if we don't have cards yet
+    if (cards.length === 0 && !loading && !isLoadingMore) {
+      // Check localStorage for onboarding status immediately (don't wait for Supabase sync)
+      const localPrefs = (() => {
+        try {
+          const stored = localStorage.getItem('github_repo_app_preferences');
+          return stored ? JSON.parse(stored) : null;
+        } catch {
+          return null;
+        }
+      })();
+      
+      const hasCompletedOnboarding = localPrefs?.onboardingCompleted || preferences.onboardingCompleted;
+      
+      if (hasCompletedOnboarding) {
         // Load personalized repos if onboarding completed
         loadPersonalizedRepos();
       } else {
-        // Load random repos for first-time visitors
+        // Load random repos immediately for first-time visitors (fastest path)
         loadRandomRepos();
       }
     }
-  }, [loaded, preferences.onboardingCompleted, cards.length, loading, loadPersonalizedRepos, loadRandomRepos]);
+  }, [cards.length, loading, isLoadingMore, preferences.onboardingCompleted, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reload repos when preferences change significantly (e.g., from profile screen)
   useEffect(() => {
@@ -989,9 +1031,19 @@ export function DiscoveryScreen() {
       <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
         {cards.length === 0 ? (
           isLoadingMore || loading ? (
-            // Skeleton loading state for faster perceived performance
+            // Skeleton loading state for faster perceived performance with animated scale effect
             <div className="relative w-full max-w-md" style={{ minHeight: '400px' }}>
-              <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh]">
+              <motion.div 
+                className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh]"
+                animate={{
+                  scale: [1, 1.02, 1],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
                 <SignatureCard className="h-full p-6 md:p-8 flex flex-col" showLayers={false} showParticles={false}>
                   <div className="flex flex-col gap-4 animate-pulse">
                     {/* Avatar and name skeleton */}
@@ -1012,7 +1064,7 @@ export function DiscoveryScreen() {
                     </div>
                   </div>
                 </SignatureCard>
-              </div>
+              </motion.div>
               {/* Loading indicator overlay */}
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
                 <div className="flex items-center gap-2 text-gray-400 text-sm">

@@ -77,11 +77,12 @@ function AppContent() {
   }, [location.pathname, showSplash, analyticsLoaded]);
 
   useEffect(() => {
-    // Show splash screen for minimal time - just enough for initial render
-    // Reduced to 500ms for faster perceived load time
+    // OPTIMIZATION: Show splash screen for minimal time - just enough for initial render
+    // Reduced to 300ms for even faster perceived load time
+    // Users see content structure immediately
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, []);
