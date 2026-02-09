@@ -989,13 +989,36 @@ export function DiscoveryScreen() {
       <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
         {cards.length === 0 ? (
           isLoadingMore || loading ? (
-            <div className="flex flex-col items-center justify-center gap-3 md:gap-4 text-center px-4">
-              <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-gray-400" />
-              <div className="space-y-1.5 md:space-y-2">
-                <p className="text-white text-base md:text-lg font-medium">Loading recommendations…</p>
-                <p className="text-gray-400 text-xs md:text-sm max-w-md mx-auto">
-                  {loadingTip}
-                </p>
+            // Skeleton loading state for faster perceived performance
+            <div className="relative w-full max-w-md" style={{ minHeight: '400px' }}>
+              <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh]">
+                <SignatureCard className="h-full p-6 md:p-8 flex flex-col" showLayers={false} showParticles={false}>
+                  <div className="flex flex-col gap-4 animate-pulse">
+                    {/* Avatar and name skeleton */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-700"></div>
+                      <div className="h-4 w-24 bg-gray-700 rounded"></div>
+                    </div>
+                    <div className="h-8 w-3/4 bg-gray-700 rounded"></div>
+                    {/* Description skeleton */}
+                    <div className="space-y-2">
+                      <div className="h-4 w-full bg-gray-700 rounded"></div>
+                      <div className="h-4 w-5/6 bg-gray-700 rounded"></div>
+                    </div>
+                    {/* Tags skeleton */}
+                    <div className="flex gap-2">
+                      <div className="h-6 w-16 bg-gray-700 rounded-full"></div>
+                      <div className="h-6 w-20 bg-gray-700 rounded-full"></div>
+                    </div>
+                  </div>
+                </SignatureCard>
+              </div>
+              {/* Loading indicator overlay */}
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
+                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading recommendations…</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -1015,6 +1038,7 @@ export function DiscoveryScreen() {
                     onSwipe={handleSwipeComplete}
                     onSave={() => handleSave(cards[0])}
                     triggerSwipe={triggerSwipe}
+                    isFirstCard={true}
                   />
                 )}
               </AnimatePresence>
@@ -1041,9 +1065,10 @@ interface SwipeableCardProps {
   onSwipe: (direction: 'left' | 'right') => void;
   onSave?: () => void;
   triggerSwipe?: 'left' | 'right' | null;
+  isFirstCard?: boolean; // Mark first card for LCP optimization
 }
 
-const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, triggerSwipe }: SwipeableCardProps) {
+const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, triggerSwipe, isFirstCard = false }: SwipeableCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const opacity = useMotionValue(1);
@@ -1387,7 +1412,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
           padding: '0 16px 0 0',
         }}
       >
-        <RepoCard repo={repo} style={{ height: '100%', maxHeight: '100%' }} onSave={onSave} />
+        <RepoCard repo={repo} style={{ height: '100%', maxHeight: '100%' }} onSave={onSave} isFirstCard={isFirstCard} />
         
         {/* Skip indicator (left swipe) */}
             <motion.div

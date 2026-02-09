@@ -13,9 +13,10 @@ interface RepoCardProps {
   repo: Repository;
   style?: React.CSSProperties;
   onSave?: () => void;
+  isFirstCard?: boolean; // Mark first card for LCP optimization
 }
 
-export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCardProps) {
+export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCard = false }: RepoCardProps) {
   const scrollableRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
@@ -230,6 +231,11 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave }: RepoCard
                     src={repo.owner.avatarUrl} 
                     alt={repo.owner.login}
                     className="w-6 h-6 rounded-full"
+                    width="24"
+                    height="24"
+                    loading={isFirstCard ? "eager" : "lazy"}
+                    fetchPriority={isFirstCard ? "high" : "auto"}
+                    decoding="async"
                   />
                 )}
                 <span className="text-sm font-mono" style={{ color: '#8E8E93' }}>{repo.owner?.login || ''}</span>
