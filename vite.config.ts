@@ -25,11 +25,32 @@ export default defineConfig({
     // Optimize build for performance
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Separate vendor chunks for better caching
-          'react-vendor': ['react', 'react-dom'],
-          'motion-vendor': ['motion/react'],
-          'supabase-vendor': ['@supabase/supabase-js'],
+        manualChunks: (id) => {
+          // Separate vendor chunks for better caching and parallel loading
+          if (id.includes('node_modules')) {
+            // React core
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor';
+            }
+            // Animation library (heavy)
+            if (id.includes('motion')) {
+              return 'motion-vendor';
+            }
+            // Supabase
+            if (id.includes('@supabase')) {
+              return 'supabase-vendor';
+            }
+            // UI libraries
+            if (id.includes('@radix-ui') || id.includes('@mui') || id.includes('lucide-react')) {
+              return 'ui-vendor';
+            }
+            // Other large dependencies
+            if (id.includes('recharts') || id.includes('react-markdown') || id.includes('date-fns')) {
+              return 'utils-vendor';
+            }
+            // Everything else
+            return 'vendor';
+          }
         },
       },
     },
@@ -37,5 +58,7 @@ export default defineConfig({
     minify: 'esbuild',
     // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
+    // Enable source maps for production debugging (optional - can disable for smaller builds)
+    sourcemap: false,
   },
 })

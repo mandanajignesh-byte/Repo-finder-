@@ -3,14 +3,13 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
-import { DiscoveryScreen } from '@/app/components/DiscoveryScreen';
 import { BottomNavigation } from '@/app/components/BottomNavigation';
 import { RepositoryRedirect } from '@/app/components/RepositoryRedirect';
 import { Loader2 } from 'lucide-react';
-import { initGA, trackPageView } from '@/utils/analytics';
 import { updateSEO, getSEOForRoute } from '@/utils/seo';
 
-// Lazy load heavy components for code splitting
+// Lazy load ALL heavy components for code splitting - including DiscoveryScreen
+const DiscoveryScreen = lazy(() => import('@/app/components/DiscoveryScreen').then(m => ({ default: m.DiscoveryScreen })));
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
 const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
 const ProfileScreen = lazy(() => import('@/app/components/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
@@ -29,15 +28,37 @@ const LoadingFallback = () => (
 function AppContent() {
   const location = useLocation();
   const [showSplash, setShowSplash] = useState(true);
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
 
-  // Initialize Google Analytics on mount
+  // Defer analytics initialization until after initial render for faster load
   useEffect(() => {
-    initGA();
-  }, []);
+    // Use requestIdleCallback if available, otherwise setTimeout
+    const loadAnalytics = async () => {
+      const { initGA, trackPageView } = await import('@/utils/analytics');
+      initGA();
+      setAnalyticsLoaded(true);
+      
+      // Track initial page view after analytics is loaded
+      const path = location.pathname;
+      const seoData = getSEOForRoute(path);
+      const pageTitle = seoData.title || `RepoVerse - ${path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2)}`;
+      trackPageView(path, pageTitle);
+    };
+
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(() => {
+        loadAnalytics();
+      }, { timeout: 2000 });
+    } else {
+      setTimeout(() => {
+        loadAnalytics();
+      }, 1000);
+    }
+  }, [location.pathname]);
 
   // Update SEO and track page views on route change
   useEffect(() => {
-    if (!showSplash) {
+    if (!showSplash && analyticsLoaded) {
       const path = location.pathname;
       const seoData = getSEOForRoute(path);
       
@@ -47,17 +68,20 @@ function AppContent() {
         url: window.location.href,
       });
       
-      // Track page view in Google Analytics
-      const pageTitle = seoData.title || `RepoVerse - ${path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2)}`;
-      trackPageView(path, pageTitle);
+      // Track page view in Google Analytics (only if analytics is loaded)
+      import('@/utils/analytics').then(({ trackPageView }) => {
+        const pageTitle = seoData.title || `RepoVerse - ${path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2)}`;
+        trackPageView(path, pageTitle);
+      });
     }
-  }, [location.pathname, showSplash]);
+  }, [location.pathname, showSplash, analyticsLoaded]);
 
   useEffect(() => {
-    // Show splash screen for 1 second (reduced from 2.5s for faster loading)
+    // Show splash screen for minimal time - just enough for initial render
+    // Reduced to 500ms for faster perceived load time
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -89,7 +113,14 @@ function AppContent() {
         <div className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Navigate to="/discover" replace />} />
-            <Route path="/discover" element={<DiscoveryScreen />} />
+            <Route 
+              path="/discover" 
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <DiscoveryScreen />
+                </Suspense>
+              } 
+            />
             <Route path="/r/:owner/:repo" element={<RepositoryRedirect />} />
             <Route 
               path="/trending" 
