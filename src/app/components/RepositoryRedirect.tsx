@@ -73,26 +73,8 @@ export function RepositoryRedirect() {
 
   return (
     <div className="h-full bg-black flex flex-col pb-20 md:pb-16 relative overflow-hidden">
-      {/* Header */}
-      <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-1 md:mb-0">
-        <div>
-          <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>
-            Repository
-          </h1>
-          <p className="text-xs md:text-sm text-gray-400 mt-1">
-            Direct link view for this repo. You can share this URL like a YouTube video link.
-          </p>
-        </div>
-        <Link
-          to="/discover"
-          className="text-xs md:text-sm text-gray-300 hover:text-white transition-colors"
-        >
-          ← Back to Explore
-        </Link>
-      </div>
-
       {/* Centered repo card with fixed height (same proportions as Explore swipe card) */}
-      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-4 pb-20 md:pb-24 z-10 min-h-0">
+      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-6 md:pt-10 pb-20 md:pb-24 z-10 min-h-0">
         <div className="relative w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh]">
           <RepoCard
             repo={repository}
