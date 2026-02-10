@@ -91,13 +91,14 @@ export function RepositoryRedirect() {
         </Link>
       </div>
 
-      {/* Centered repo card */}
+      {/* Centered repo card with fixed height (same proportions as Explore swipe card) */}
       <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-4 pb-20 md:pb-24 z-10 min-h-0">
-        <div
-          className="relative w-full max-w-md"
-          style={{ minHeight: '400px', marginTop: '0.5rem', marginBottom: '0.5rem' }}
-        >
-          <RepoCard repo={repository} isFirstCard={true} />
+        <div className="relative w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh]">
+          <RepoCard
+            repo={repository}
+            isFirstCard={true}
+            style={{ height: '100%', maxHeight: '100%' }}
+          />
         </div>
       </div>
     </div>
