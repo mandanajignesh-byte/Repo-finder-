@@ -51,22 +51,6 @@ export function DiscoveryScreen() {
   // Don't show onboarding immediately - let users try the site first
   // Onboarding will be triggered after 4-5 swipes if not completed
 
-  // Check if there's a shared repo from URL redirect
-  useEffect(() => {
-    const sharedRepoData = sessionStorage.getItem('sharedRepo');
-    if (sharedRepoData) {
-      try {
-        const repo = JSON.parse(sharedRepoData) as Repository;
-        // Add repo to cards at the beginning
-        setCards(prev => [repo, ...prev]);
-        sessionStorage.removeItem('sharedRepo'); // Clean up
-      } catch (err) {
-        console.error('Error parsing shared repo:', err);
-        sessionStorage.removeItem('sharedRepo'); // Clean up on error
-      }
-    }
-  }, []);
-
   // Load random repos from database when no preferences exist
   // OPTIMIZATION: Start loading immediately, show first batch fast
   const loadRandomRepos = useCallback(async (append = false) => {
