@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { githubService } from '@/services/github.service';
 import { Repository } from '@/lib/types';
-import { Loader2, Heart, Bookmark, X, Trash2 } from 'lucide-react';
+import { Loader2, Heart, Bookmark, X, Trash2, Compass } from 'lucide-react';
 import { motion } from 'motion/react';
 import { RepoCard } from './RepoCard';
 import { SignatureCard } from './SignatureCard';
@@ -311,13 +311,61 @@ export function RepositoryRedirect() {
       </div>
 
       {/* Centered repo card with fixed height (same proportions as Explore swipe card) */}
-      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
+      <div className="flex-1 relative flex items-center justify-center max-w-4xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-12 pb-20 md:pb-24 z-10 min-h-0 gap-4 md:gap-6">
         <div className="relative w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh]">
           <RepoCard
             repo={repository}
             isFirstCard={true}
             style={{ height: '100%', maxHeight: '100%' }}
           />
+        </div>
+        
+        {/* Explore more button - beside the card */}
+        <div className="hidden md:flex flex-col items-center justify-center">
+          <Link
+            to="/discover"
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-base font-semibold transition-all duration-200"
+            style={{
+              backgroundColor: '#FFFFFF',
+              color: '#0F0F12',
+              borderRadius: '999px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 255, 255, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1.0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <Compass className="w-5 h-5" />
+            <span>Explore More</span>
+          </Link>
+        </div>
+        
+        {/* Mobile: Show button below card */}
+        <div className="md:hidden absolute bottom-8 left-1/2 -translate-x-1/2">
+          <Link
+            to="/discover"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold transition-all duration-200"
+            style={{
+              backgroundColor: '#FFFFFF',
+              color: '#0F0F12',
+              borderRadius: '999px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 255, 255, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1.0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <Compass className="w-4 h-4" />
+            <span>Explore More</span>
+          </Link>
         </div>
       </div>
     </div>
