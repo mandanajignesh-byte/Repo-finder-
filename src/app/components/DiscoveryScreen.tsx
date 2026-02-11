@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { X, Bookmark, Heart, XCircle, Loader2, Trash2 } from 'lucide-react';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'motion/react';
 import { RepoCard } from './RepoCard';
@@ -15,8 +16,11 @@ import { supabase } from '@/lib/supabase';
 import { trackRepoInteraction, trackOnboarding, trackNavigation } from '@/utils/analytics';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { isPWAInstalled } from '@/utils/pwa';
+import { githubService } from '@/services/github.service';
 
 export function DiscoveryScreen() {
+  const { owner, repo } = useParams<{ owner?: string; repo?: string }>();
+  const navigate = useNavigate();
   const { preferences, updatePreferences, loaded } = useUserPreferences();
   const { repos, loading, error, refresh } = useRepositories();
   const [cards, setCards] = useState<Repository[]>([]);
@@ -514,8 +518,56 @@ export function DiscoveryScreen() {
   // This ensures content appears as fast as possible
   // CRITICAL: Load repos IMMEDIATELY on page load, BEFORE onboarding
   // This ensures users see repos right away, then onboarding shows after swipes
+  // Also handles /r/owner/repo routes - loads that specific repo in explore page
   useEffect(() => {
-    // Start loading immediately if we don't have cards yet
+    // If URL has /r/owner/repo, load that specific repo in explore page
+    if (owner && repo && cards.length === 0 && !loading && !isLoadingMore) {
+      const loadSharedRepo = async () => {
+        try {
+          setIsLoadingMore(true);
+          const fullName = `${owner}/${repo}`;
+          const repoData = await githubService.getRepo(fullName);
+          
+          if (repoData) {
+            // Load the shared repo as the first card
+            setCards([repoData]);
+            // Also load more repos in the background for swiping
+            const localPrefs = (() => {
+              try {
+                const stored = localStorage.getItem('github_repo_app_preferences');
+                return stored ? JSON.parse(stored) : null;
+              } catch {
+                return null;
+              }
+            })();
+            const hasCompletedOnboarding = localPrefs?.onboardingCompleted || preferences.onboardingCompleted;
+            
+            if (hasCompletedOnboarding) {
+              loadPersonalizedRepos(true); // Append more repos
+            } else {
+              loadRandomRepos(true); // Append more repos
+            }
+            
+            // Update URL to /discover (but keep the repo loaded) - seamless transition
+            navigate('/discover', { replace: true });
+          } else {
+            // Repo not found, redirect to discover
+            navigate('/discover', { replace: true });
+          }
+        } catch (error) {
+          console.error('Error loading shared repo:', error);
+          // On error, redirect to discover
+          navigate('/discover', { replace: true });
+        } finally {
+          setIsLoadingMore(false);
+        }
+      };
+      
+      loadSharedRepo();
+      return;
+    }
+    
+    // Normal flow: Start loading immediately if we don't have cards yet
     if (cards.length === 0 && !loading && !isLoadingMore && loaded) {
       // Check localStorage for onboarding status immediately (don't wait for Supabase sync)
       const localPrefs = (() => {
@@ -538,7 +590,7 @@ export function DiscoveryScreen() {
         loadRandomRepos();
       }
     }
-  }, [cards.length, loading, isLoadingMore, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
+  }, [cards.length, loading, isLoadingMore, preferences.onboardingCompleted, loaded, owner, repo, navigate, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reload repos when preferences change significantly (e.g., from profile screen)
   // IMPORTANT: Only reload if onboarding is completed AND user has cards (not during initial load)

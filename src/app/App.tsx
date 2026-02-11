@@ -122,7 +122,15 @@ function AppContent() {
                 </Suspense>
               } 
             />
-            <Route path="/r/:owner/:repo" element={<RepositoryRedirect />} />
+            {/* /r/owner/repo routes also use DiscoveryScreen - it will load that repo in explore page */}
+            <Route 
+              path="/r/:owner/:repo" 
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <DiscoveryScreen />
+                </Suspense>
+              } 
+            />
             <Route 
               path="/trending" 
               element={
