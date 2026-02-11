@@ -442,6 +442,7 @@ export function DiscoveryScreen() {
   }, [preferences]);
 
   // Check if PWA is installed on mount and periodically
+  // Also track PWA installs/opens
   useEffect(() => {
     const checkPWAStatus = () => {
       const installed = isPWAInstalled();
@@ -454,6 +455,9 @@ export function DiscoveryScreen() {
     
     // Check immediately
     checkPWAStatus();
+    
+    // Track PWA install/open (only if running as standalone PWA)
+    trackPWAOpenOnce();
     
     // Check periodically (in case user installs while using the app)
     const interval = setInterval(checkPWAStatus, 5000); // Check every 5 seconds
