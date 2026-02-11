@@ -27,6 +27,10 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
   const [readmeLoading, setReadmeLoading] = useState(false);
   const [readmeError, setReadmeError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  
+  // Track touch start position to detect gesture direction
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isScrollingRef = useRef(false);
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -124,13 +128,74 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
             scrollbarWidth: 'thin',
             scrollbarColor: '#4B5563 #1F2937',
             WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-y',
+            touchAction: 'pan-x pan-y', // Allow both horizontal (swipe) and vertical (scroll) gestures
             overscrollBehavior: 'contain',
             maxHeight: scrollableHeight ? `${scrollableHeight}px` : 'calc(100% - 200px)', // Fallback: reserve space for footer
             height: scrollableHeight ? `${scrollableHeight}px` : 'auto',
           }}
+          onTouchStart={(e) => {
+            // Record touch start position to detect gesture direction
+            const touch = e.touches[0];
+            touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+            isScrollingRef.current = false;
+          }}
+          onTouchMove={(e) => {
+            if (!touchStartRef.current) return;
+            
+            const touch = e.touches[0];
+            const deltaX = Math.abs(touch.clientX - touchStartRef.current.x);
+            const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+            
+            // If vertical movement is greater than horizontal, user is scrolling
+            // Only disable drag if actually scrolling vertically
+            if (deltaY > deltaX && deltaY > 10) {
+              isScrollingRef.current = true;
+              const parent = e.currentTarget.closest('[data-swipeable-card]');
+              if (parent) {
+                parent.dispatchEvent(new CustomEvent('disableDrag'));
+                
+                // Clear existing timer
+                if (scrollEndTimerRef.current) {
+                  clearTimeout(scrollEndTimerRef.current);
+                }
+                
+                // Set a timer to re-enable drag after scrolling stops
+                scrollEndTimerRef.current = setTimeout(() => {
+                  if (parent) {
+                    parent.dispatchEvent(new CustomEvent('enableDrag'));
+                  }
+                  scrollEndTimerRef.current = null;
+                }, 150);
+              }
+            } else if (deltaX > deltaY && deltaX > 10) {
+              // Horizontal swipe detected - don't disable drag, let swipe happen
+              isScrollingRef.current = false;
+            }
+          }}
+          onTouchEnd={() => {
+            // Reset touch tracking
+            touchStartRef.current = null;
+            
+            // Re-enable drag when touch ends (if we were scrolling)
+            if (isScrollingRef.current) {
+              const parent = document.querySelector('[data-swipeable-card]');
+              if (parent) {
+                // Clear existing timer
+                if (scrollEndTimerRef.current) {
+                  clearTimeout(scrollEndTimerRef.current);
+                }
+                // Re-enable after a short delay
+                setTimeout(() => {
+                  if (parent) {
+                    parent.dispatchEvent(new CustomEvent('enableDrag'));
+                  }
+                }, 100);
+              }
+              isScrollingRef.current = false;
+            }
+          }}
           onWheel={(e) => {
-            // Allow native wheel scrolling - don't stop propagation to allow scrolling
+            // Allow native wheel scrolling - disable drag while scrolling
             const parent = e.currentTarget.closest('[data-swipeable-card]');
             if (parent) {
               parent.dispatchEvent(new CustomEvent('disableDrag'));
@@ -146,9 +211,8 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                   parent.dispatchEvent(new CustomEvent('enableDrag'));
                 }
                 scrollEndTimerRef.current = null;
-              }, 150); // Re-enable after 150ms of no scrolling
+              }, 150);
             }
-            // Let the scroll happen naturally
           }}
           onScroll={() => {
             // Keep drag disabled while scrolling
@@ -167,43 +231,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                   parent.dispatchEvent(new CustomEvent('enableDrag'));
                 }
                 scrollEndTimerRef.current = null;
-              }, 150); // Re-enable after 150ms of no scrolling
-            }
-          }}
-          onTouchMove={(e) => {
-            // Allow touch scrolling
-            const parent = e.currentTarget.closest('[data-swipeable-card]');
-            if (parent) {
-              parent.dispatchEvent(new CustomEvent('disableDrag'));
-              
-              // Clear existing timer
-              if (scrollEndTimerRef.current) {
-                clearTimeout(scrollEndTimerRef.current);
-              }
-              
-              // Set a timer to re-enable drag after scrolling stops
-              scrollEndTimerRef.current = setTimeout(() => {
-                if (parent) {
-                  parent.dispatchEvent(new CustomEvent('enableDrag'));
-                }
-                scrollEndTimerRef.current = null;
-              }, 150); // Re-enable after 150ms of no scrolling
-            }
-          }}
-          onTouchEnd={() => {
-            // Re-enable drag when touch ends
-            const parent = document.querySelector('[data-swipeable-card]');
-            if (parent) {
-              // Clear existing timer
-              if (scrollEndTimerRef.current) {
-                clearTimeout(scrollEndTimerRef.current);
-              }
-              // Re-enable immediately when touch ends
-              setTimeout(() => {
-                if (parent) {
-                  parent.dispatchEvent(new CustomEvent('enableDrag'));
-                }
-              }, 100);
+              }, 150);
             }
           }}
         >
