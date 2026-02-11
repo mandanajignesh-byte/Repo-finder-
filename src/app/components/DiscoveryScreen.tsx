@@ -17,6 +17,7 @@ import { trackRepoInteraction, trackOnboarding, trackNavigation } from '@/utils/
 import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { isPWAInstalled } from '@/utils/pwa';
 import { githubService } from '@/services/github.service';
+import { trackPWAOpenOnce } from '@/utils/pwa-analytics';
 
 export function DiscoveryScreen() {
   const { owner, repo } = useParams<{ owner?: string; repo?: string }>();

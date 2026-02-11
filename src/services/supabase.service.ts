@@ -794,6 +794,33 @@ class SupabaseService {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
+
+  /**
+   * Track PWA install/open
+   * Records when a user opens the app as an installed PWA (standalone mode)
+   */
+  async trackPWAInstall(deviceInfo?: Record<string, any>): Promise<void> {
+    try {
+      const userId = await this.getOrCreateUserId();
+
+      const { error } = await supabase
+        .from('pwa_installs')
+        .upsert(
+          {
+            user_id: userId,
+            device_info: deviceInfo || {},
+            last_opened_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
+
+      if (error) {
+        console.error('Error tracking PWA install:', error);
+      }
+    } catch (error) {
+      console.error('Error in trackPWAInstall:', error);
+    }
+  }
 }
 
 export const supabaseService = new SupabaseService();
