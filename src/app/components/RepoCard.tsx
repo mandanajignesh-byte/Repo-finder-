@@ -129,14 +129,6 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
             maxHeight: scrollableHeight ? `${scrollableHeight}px` : 'calc(100% - 200px)', // Fallback: reserve space for footer
             height: scrollableHeight ? `${scrollableHeight}px` : 'auto',
           }}
-          onPointerDown={(e) => {
-            // Prevent drag from starting on scrollable content
-            e.stopPropagation();
-            const parent = e.currentTarget.closest('[data-swipeable-card]');
-            if (parent) {
-              parent.dispatchEvent(new CustomEvent('disableDrag'));
-            }
-          }}
           onWheel={(e) => {
             // Allow native wheel scrolling - don't stop propagation to allow scrolling
             const parent = e.currentTarget.closest('[data-swipeable-card]');
@@ -176,13 +168,6 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                 }
                 scrollEndTimerRef.current = null;
               }, 150); // Re-enable after 150ms of no scrolling
-            }
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-            const parent = e.currentTarget.closest('[data-swipeable-card]');
-            if (parent) {
-              parent.dispatchEvent(new CustomEvent('disableDrag'));
             }
           }}
           onTouchMove={(e) => {
