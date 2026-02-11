@@ -659,13 +659,23 @@ export function DiscoveryScreen() {
         setIsPWAInstalledState(installed);
         
         if (!installed) {
-          // Check if user hasn't dismissed it before
-          const dismissed = localStorage.getItem('pwa-install-dismissed');
-          // Check if install prompt is available
-          import('@/utils/pwa').then(({ isInstallPromptAvailable }) => {
-            const promptAvailable = isInstallPromptAvailable();
-            if (!dismissed && promptAvailable) {
-              setShowPWAInstallPrompt(true);
+          import('@/utils/pwa').then(({ isInstallPromptAvailable, shouldShowIOSInstructions, isIOS }) => {
+            const iosDevice = isIOS();
+            const iosInstructions = shouldShowIOSInstructions();
+            
+            if (iosDevice && iosInstructions) {
+              // iOS: Show instructions if not dismissed
+              const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
+              if (!dismissed) {
+                setShowPWAInstallPrompt(true);
+              }
+            } else {
+              // Android: Show install prompt if available
+              const dismissed = localStorage.getItem('pwa-install-dismissed');
+              const promptAvailable = isInstallPromptAvailable();
+              if (!dismissed && promptAvailable) {
+                setShowPWAInstallPrompt(true);
+              }
             }
           });
         }
@@ -719,13 +729,23 @@ export function DiscoveryScreen() {
         setIsPWAInstalledState(installed);
         
         if (!installed) {
-          // Check if user hasn't dismissed it before
-          const dismissed = localStorage.getItem('pwa-install-dismissed');
-          // Check if install prompt is available
-          import('@/utils/pwa').then(({ isInstallPromptAvailable }) => {
-            const promptAvailable = isInstallPromptAvailable();
-            if (!dismissed && promptAvailable) {
-              setShowPWAInstallPrompt(true);
+          import('@/utils/pwa').then(({ isInstallPromptAvailable, shouldShowIOSInstructions, isIOS }) => {
+            const iosDevice = isIOS();
+            const iosInstructions = shouldShowIOSInstructions();
+            
+            if (iosDevice && iosInstructions) {
+              // iOS: Show instructions if not dismissed
+              const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
+              if (!dismissed) {
+                setShowPWAInstallPrompt(true);
+              }
+            } else {
+              // Android: Show install prompt if available
+              const dismissed = localStorage.getItem('pwa-install-dismissed');
+              const promptAvailable = isInstallPromptAvailable();
+              if (!dismissed && promptAvailable) {
+                setShowPWAInstallPrompt(true);
+              }
             }
           });
         }

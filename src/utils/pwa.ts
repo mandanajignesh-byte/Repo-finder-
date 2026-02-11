@@ -52,11 +52,36 @@ export function isPWAInstalled(): boolean {
 }
 
 /**
- * Check if browser supports PWA installation
+ * Detect if user is on iOS device
+ */
+export function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/**
+ * Detect if user is on iOS Safari (not Chrome/Firefox on iOS)
+ */
+export function isIOSSafari(): boolean {
+  if (!isIOS()) return false;
+  // Safari on iOS doesn't have Chrome/Firefox in user agent
+  const ua = navigator.userAgent.toLowerCase();
+  return !ua.includes('crios') && !ua.includes('fxios') && !ua.includes('edgios');
+}
+
+/**
+ * Check if browser supports PWA installation (Android Chrome/Edge)
  */
 export function canInstallPWA(): boolean {
-  // Check for beforeinstallprompt event support
+  // Check for beforeinstallprompt event support (Android only)
   return 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+/**
+ * Check if we should show iOS install instructions
+ */
+export function shouldShowIOSInstructions(): boolean {
+  return isIOS() && !isPWAInstalled();
 }
 
 /**
