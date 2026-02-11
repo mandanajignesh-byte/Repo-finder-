@@ -803,12 +803,21 @@ class SupabaseService {
     try {
       const userId = await this.getOrCreateUserId();
 
+      // Extract device type and location from deviceInfo for dedicated columns
+      const deviceType = deviceInfo?.deviceType || null;
+      const location = deviceInfo?.location || {};
+      const country = location?.country || null;
+      const city = location?.city || null;
+
       const { error } = await supabase
         .from('pwa_installs')
         .upsert(
           {
             user_id: userId,
             device_info: deviceInfo || {},
+            device_type: deviceType,
+            country: country,
+            city: city,
             last_opened_at: new Date().toISOString(),
           },
           { onConflict: 'user_id' }
