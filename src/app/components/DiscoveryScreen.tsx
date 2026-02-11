@@ -524,14 +524,18 @@ export function DiscoveryScreen() {
     if (owner && repo && cards.length === 0 && !loading && !isLoadingMore) {
       const loadSharedRepo = async () => {
         try {
-          setIsLoadingMore(true);
           const fullName = `${owner}/${repo}`;
           const repoData = await githubService.getRepo(fullName);
           
           if (repoData) {
-            // Load the shared repo as the first card
+            // Load the shared repo as the first card immediately
             setCards([repoData]);
+            
+            // Update URL to /discover (but keep the repo loaded) - seamless transition
+            navigate('/discover', { replace: true });
+            
             // Also load more repos in the background for swiping
+            // Don't set isLoadingMore here - let the load functions handle it
             const localPrefs = (() => {
               try {
                 const stored = localStorage.getItem('github_repo_app_preferences');
@@ -542,14 +546,14 @@ export function DiscoveryScreen() {
             })();
             const hasCompletedOnboarding = localPrefs?.onboardingCompleted || preferences.onboardingCompleted;
             
-            if (hasCompletedOnboarding) {
-              loadPersonalizedRepos(true); // Append more repos
-            } else {
-              loadRandomRepos(true); // Append more repos
-            }
-            
-            // Update URL to /discover (but keep the repo loaded) - seamless transition
-            navigate('/discover', { replace: true });
+            // Small delay to ensure cards state is updated before loading more
+            setTimeout(() => {
+              if (hasCompletedOnboarding) {
+                loadPersonalizedRepos(true); // Append more repos
+              } else {
+                loadRandomRepos(true); // Append more repos
+              }
+            }, 100);
           } else {
             // Repo not found, redirect to discover
             navigate('/discover', { replace: true });
@@ -558,8 +562,6 @@ export function DiscoveryScreen() {
           console.error('Error loading shared repo:', error);
           // On error, redirect to discover
           navigate('/discover', { replace: true });
-        } finally {
-          setIsLoadingMore(false);
         }
       };
       
