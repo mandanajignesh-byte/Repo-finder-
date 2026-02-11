@@ -728,24 +728,35 @@ export function DiscoveryScreen() {
         setIsPWAInstalledState(installed);
         
         if (!installed) {
+          // Non-blocking PWA check - wrap in try-catch to prevent errors from blocking UI
           import('@/utils/pwa').then(({ isInstallPromptAvailable, shouldShowIOSInstructions, isIOS }) => {
-            const iosDevice = isIOS();
-            const iosInstructions = shouldShowIOSInstructions();
-            
-            if (iosDevice && iosInstructions) {
-              // iOS: Show instructions if not dismissed (show to all users)
-              const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
-              if (!dismissed) {
-                setShowPWAInstallPrompt(true);
+            try {
+              const iosDevice = isIOS();
+              const iosInstructions = shouldShowIOSInstructions();
+              
+              if (iosDevice && iosInstructions) {
+                // iOS: Show instructions if not dismissed (show to all users)
+                const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
+                if (!dismissed) {
+                  console.log('[PWA] Showing iOS install instructions');
+                  setShowPWAInstallPrompt(true);
+                }
+              } else {
+                // Android: Show install prompt if available (show to all users)
+                const dismissed = localStorage.getItem('pwa-install-dismissed');
+                const promptAvailable = isInstallPromptAvailable();
+                if (!dismissed && promptAvailable) {
+                  console.log('[PWA] Showing Android install prompt');
+                  setShowPWAInstallPrompt(true);
+                }
               }
-            } else {
-              // Android: Show install prompt if available (show to all users)
-              const dismissed = localStorage.getItem('pwa-install-dismissed');
-              const promptAvailable = isInstallPromptAvailable();
-              if (!dismissed && promptAvailable) {
-                setShowPWAInstallPrompt(true);
-              }
+            } catch (error) {
+              console.error('[PWA] Error checking install prompt:', error);
+              // Don't block UI if PWA check fails
             }
+          }).catch((error) => {
+            console.error('[PWA] Error importing PWA utils:', error);
+            // Don't block UI if import fails
           });
         }
       }
@@ -802,24 +813,35 @@ export function DiscoveryScreen() {
         setIsPWAInstalledState(installed);
         
         if (!installed) {
+          // Non-blocking PWA check - wrap in try-catch to prevent errors from blocking UI
           import('@/utils/pwa').then(({ isInstallPromptAvailable, shouldShowIOSInstructions, isIOS }) => {
-            const iosDevice = isIOS();
-            const iosInstructions = shouldShowIOSInstructions();
-            
-            if (iosDevice && iosInstructions) {
-              // iOS: Show instructions if not dismissed (show to all users)
-              const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
-              if (!dismissed) {
-                setShowPWAInstallPrompt(true);
+            try {
+              const iosDevice = isIOS();
+              const iosInstructions = shouldShowIOSInstructions();
+              
+              if (iosDevice && iosInstructions) {
+                // iOS: Show instructions if not dismissed (show to all users)
+                const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
+                if (!dismissed) {
+                  console.log('[PWA] Showing iOS install instructions');
+                  setShowPWAInstallPrompt(true);
+                }
+              } else {
+                // Android: Show install prompt if available (show to all users)
+                const dismissed = localStorage.getItem('pwa-install-dismissed');
+                const promptAvailable = isInstallPromptAvailable();
+                if (!dismissed && promptAvailable) {
+                  console.log('[PWA] Showing Android install prompt');
+                  setShowPWAInstallPrompt(true);
+                }
               }
-            } else {
-              // Android: Show install prompt if available (show to all users)
-              const dismissed = localStorage.getItem('pwa-install-dismissed');
-              const promptAvailable = isInstallPromptAvailable();
-              if (!dismissed && promptAvailable) {
-                setShowPWAInstallPrompt(true);
-              }
+            } catch (error) {
+              console.error('[PWA] Error checking install prompt:', error);
+              // Don't block UI if PWA check fails
             }
+          }).catch((error) => {
+            console.error('[PWA] Error importing PWA utils:', error);
+            // Don't block UI if import fails
           });
         }
       }
