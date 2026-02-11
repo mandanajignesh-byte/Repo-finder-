@@ -302,8 +302,10 @@ export function DiscoveryScreen() {
             const newRepos = recommended.filter(r => r && r.id && !existingIds.has(r.id));
             return [...prev, ...newRepos];
           });
+          setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
         } else {
           setCards(recommended);
+          setIsLoadingMore(false);
         }
         
         // Track all displayed repos as "viewed" in background (non-blocking)
@@ -349,8 +351,10 @@ export function DiscoveryScreen() {
                 const newRepos = filteredFallbackRepos.filter(r => r && r.id && !existingIds.has(r.id));
                 return [...prev, ...newRepos];
               });
+              setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
             } else {
               setCards(filteredFallbackRepos);
+              setIsLoadingMore(false);
             }
             
             // Track views in background (non-blocking)
@@ -390,8 +394,10 @@ export function DiscoveryScreen() {
         }));
         if (append) {
           setCards(prev => [...prev, ...reposWithScores]);
+          setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
         } else {
           setCards(reposWithScores);
+          setIsLoadingMore(false);
         }
       }
     } catch (error) {
@@ -417,8 +423,10 @@ export function DiscoveryScreen() {
         }));
         if (append) {
           setCards(prev => [...prev, ...reposWithScores]);
+          setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
         } else {
           setCards(reposWithScores);
+          setIsLoadingMore(false);
         }
       } catch (fallbackError) {
         console.error('Failed to load repos as fallback:', fallbackError);
