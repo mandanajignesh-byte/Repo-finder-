@@ -100,7 +100,55 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // For static assets and pages - cache-first strategy
+  // For HTML pages - network-first strategy (always get fresh HTML)
+  if (request.mode === 'navigate' || (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'))) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // If network succeeds, cache and return
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(RUNTIME_CACHE)
+              .then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            return response;
+          }
+          // If network fails, try cache
+          return caches.match(request)
+            .then((cachedResponse) => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // Last resort: return index.html
+              return caches.match('/index.html');
+            });
+        })
+        .catch(() => {
+          // Network failed, try cache
+          return caches.match(request)
+            .then((cachedResponse) => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // Last resort: return index.html
+              return caches.match('/index.html')
+                .then((indexHtml) => {
+                  if (indexHtml) {
+                    return indexHtml;
+                  }
+                  // Ultimate fallback
+                  return new Response('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>RepoVerse</title><meta http-equiv="refresh" content="0;url=/"></head><body>Loading...</body></html>', {
+                    headers: { 'Content-Type': 'text/html' }
+                  });
+                });
+            });
+        })
+    );
+    return;
+  }
+  
+  // For static assets (JS, CSS, images) - cache-first strategy
   event.respondWith(
     caches.match(request)
       .then((cachedResponse) => {
@@ -128,11 +176,8 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // Network failed, return offline page for navigation requests
-            if (request.mode === 'navigate') {
-              return caches.match('/index.html');
-            }
-            return new Response('Offline', { status: 503 });
+            // Network failed for static assets
+            return new Response('Asset not available offline', { status: 503 });
           });
       })
   );
