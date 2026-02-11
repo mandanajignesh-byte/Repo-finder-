@@ -629,26 +629,16 @@ export function DiscoveryScreen() {
     }
   }, [cards[0]?.id]);
 
-  // Update browser URL to /r/owner/repo when current card changes (YouTube-style)
-  // Use window.history.replaceState to update URL without triggering route change
+  // Keep URL as /discover when exploring (don't change to /r/owner/repo)
+  // Only update document title for better UX, but keep URL consistent
   useEffect(() => {
     if (cards[0] && cards[0].fullName) {
-      // Extract owner and repo from fullName (format: "owner/repo")
-      const [owner, repo] = cards[0].fullName.split('/');
-      if (owner && repo) {
-        const newPath = `/r/${owner}/${repo}`;
-        // Update URL without triggering React Router route change (like YouTube)
-        // This keeps DiscoveryScreen rendered while URL updates
-        window.history.replaceState(null, '', newPath);
-        // Update document title for better UX
-        document.title = `${cards[0].fullName} - RepoVerse`;
-      }
-    } else if (cards.length === 0 && !isLoadingMore && !loading) {
-      // If no cards and not loading, reset URL to /discover
-      window.history.replaceState(null, '', '/discover');
+      // Update document title only (don't change URL)
+      document.title = `${cards[0].fullName} - RepoVerse`;
+    } else {
       document.title = 'RepoVerse - Discover';
     }
-  }, [cards[0]?.id, cards[0]?.fullName, cards.length, isLoadingMore, loading]);
+  }, [cards[0]?.fullName]);
 
   const handleSkip = useCallback(async (repo?: Repository) => {
     const repoToSkip = repo || cards[0];
