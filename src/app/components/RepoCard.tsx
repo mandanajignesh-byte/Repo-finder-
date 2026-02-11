@@ -27,10 +27,6 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
   const [readmeLoading, setReadmeLoading] = useState(false);
   const [readmeError, setReadmeError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
-  
-  // Track touch start position to detect gesture direction
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const isScrollingRef = useRef(false);
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();

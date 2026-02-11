@@ -1632,7 +1632,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
         opacity: isExiting ? opacity : opacityTransform, // Use animated opacity when exiting, transform when dragging
         cursor: dragEnabled && !isExiting ? 'grab' : 'default',
         willChange: 'transform, opacity', // GPU acceleration hint
-        touchAction: 'pan-x', // Allow horizontal panning (swipe) on touch devices
+        touchAction: 'pan-x pan-y', // Allow both horizontal (swipe) and vertical (scroll) gestures
       }}
       className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-md h-[400px] md:h-[600px] max-h-[70vh] md:max-h-[80vh] z-20 select-none"
       dragDirectionLock={false} // Allow more freedom for touch gestures
