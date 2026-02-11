@@ -666,8 +666,9 @@ export function DiscoveryScreen() {
     // Increment swipe count and check if onboarding should be shown
     setSwipeCount(prev => {
       const newCount = prev + 1;
-      // Show PWA install prompt after 2-3 swipes if not installed
-      if (newCount >= 2 && newCount <= 3) {
+      // Show PWA install prompt after 1-2 swipes (BEFORE onboarding)
+      // This ensures users see install prompt first, then onboarding later
+      if (newCount >= 1 && newCount <= 2) {
         // Double-check PWA status before showing prompt
         const installed = isPWAInstalled();
         setIsPWAInstalledState(installed);
@@ -694,8 +695,9 @@ export function DiscoveryScreen() {
           });
         }
       }
-      // Show onboarding after 4-5 swipes if not completed
-      if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
+      // Show onboarding after 5-6 swipes (AFTER PWA prompt)
+      // This ensures PWA install prompt shows first, then onboarding appears later
+      if (newCount >= 5 && !preferences.onboardingCompleted && loaded) {
         setShowOnboarding(true);
         trackOnboarding('started');
       }
@@ -736,8 +738,9 @@ export function DiscoveryScreen() {
     // Increment swipe count and check if onboarding should be shown
     setSwipeCount(prev => {
       const newCount = prev + 1;
-      // Show PWA install prompt after 2-3 swipes if not installed
-      if (newCount >= 2 && newCount <= 3) {
+      // Show PWA install prompt after 1-2 swipes (BEFORE onboarding)
+      // This ensures users see install prompt first, then onboarding later
+      if (newCount >= 1 && newCount <= 2) {
         // Double-check PWA status before showing prompt
         const installed = isPWAInstalled();
         setIsPWAInstalledState(installed);
@@ -764,8 +767,9 @@ export function DiscoveryScreen() {
           });
         }
       }
-      // Show onboarding after 4-5 swipes if not completed
-      if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
+      // Show onboarding after 5-6 swipes (AFTER PWA prompt)
+      // This ensures PWA install prompt shows first, then onboarding appears later
+      if (newCount >= 5 && !preferences.onboardingCompleted && loaded) {
         setShowOnboarding(true);
         trackOnboarding('started');
       }
