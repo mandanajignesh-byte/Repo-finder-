@@ -234,7 +234,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                     width="24"
                     height="24"
                     loading={isFirstCard ? "eager" : "lazy"}
-                    fetchPriority={isFirstCard ? "high" : "auto"}
+                    fetchpriority={isFirstCard ? "high" : "auto"}
                     decoding="async"
                   />
                 )}

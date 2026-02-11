@@ -1,0 +1,52 @@
+{
+  "name": "RepoVerse - Navigate the GitHub Universe",
+  "short_name": "RepoVerse",
+  "description": "Discover and explore the best GitHub repositories. Swipe through trending repos, get AI-powered recommendations, and find your next project.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0B0F",
+  "theme_color": "#0B0B0F",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer", "productivity", "education"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Discover Repos",
+      "short_name": "Discover",
+      "description": "Explore trending repositories",
+      "url": "/discover",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Trending",
+      "short_name": "Trending",
+      "description": "View trending repositories",
+      "url": "/trending",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/discover",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

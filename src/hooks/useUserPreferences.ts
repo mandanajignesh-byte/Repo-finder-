@@ -45,9 +45,9 @@ export function useUserPreferences() {
           const prefsChanged = JSON.stringify(supabasePrefs) !== JSON.stringify(currentPrefs);
           
           if (prefsChanged) {
-            setPreferences(supabasePrefs);
-            // Also save to localStorage as backup
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(supabasePrefs));
+          setPreferences(supabasePrefs);
+          // Also save to localStorage as backup
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(supabasePrefs));
           }
         } else {
           // Sync current localStorage preferences to Supabase in background
@@ -59,7 +59,7 @@ export function useUserPreferences() {
       } catch (error) {
         console.error('Error syncing preferences with Supabase:', error);
         // Continue with localStorage preferences - non-blocking
-      }
+          }
     };
 
     // Sync in background without blocking

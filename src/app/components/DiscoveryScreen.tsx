@@ -13,6 +13,8 @@ import { repoPoolService } from '@/services/repo-pool.service';
 import { clusterService } from '@/services/cluster.service';
 import { supabase } from '@/lib/supabase';
 import { trackRepoInteraction, trackOnboarding, trackNavigation } from '@/utils/analytics';
+import { PWAInstallPrompt } from './PWAInstallPrompt';
+import { isPWAInstalled } from '@/utils/pwa';
 
 export function DiscoveryScreen() {
   const { preferences, updatePreferences, loaded } = useUserPreferences();
@@ -27,6 +29,8 @@ export function DiscoveryScreen() {
   const [isSwiping, setIsSwiping] = useState(false);
   const [triggerSwipe, setTriggerSwipe] = useState<'left' | 'right' | null>(null);
   const [swipeCount, setSwipeCount] = useState(0); // Track swipe count for delayed onboarding
+  const [showPWAInstallPrompt, setShowPWAInstallPrompt] = useState(false);
+  const [isPWAInstalledState, setIsPWAInstalledState] = useState(false);
 
   // Short one-line tips about using GitHub repos, shown during loading states
   const loadingTips = [
@@ -423,6 +427,26 @@ export function DiscoveryScreen() {
     }
   }, [preferences]);
 
+  // Check if PWA is installed on mount and periodically
+  useEffect(() => {
+    const checkPWAStatus = () => {
+      const installed = isPWAInstalled();
+      setIsPWAInstalledState(installed);
+      // If PWA is installed, hide the prompt
+      if (installed) {
+        setShowPWAInstallPrompt(false);
+      }
+    };
+    
+    // Check immediately
+    checkPWAStatus();
+    
+    // Check periodically (in case user installs while using the app)
+    const interval = setInterval(checkPWAStatus, 5000); // Check every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
   // Load saved and liked repos from Supabase on mount (deferred for performance)
   useEffect(() => {
     const loadRepos = async () => {
@@ -517,37 +541,58 @@ export function DiscoveryScreen() {
   useEffect(() => {
     if (!loaded || !preferences.onboardingCompleted) return;
     
-    // Create a hash of key preferences
+    // Create a hash of ALL key preferences including clusters
     const prefHash = JSON.stringify({
+      primaryCluster: preferences.primaryCluster,
+      secondaryClusters: preferences.secondaryClusters?.sort().join(','),
       techStack: preferences.techStack?.sort().join(','),
       goals: preferences.goals?.sort().join(','),
       projectTypes: preferences.projectTypes?.sort().join(','),
       popularityWeight: preferences.popularityWeight,
       experienceLevel: preferences.experienceLevel,
+      activityPreference: preferences.activityPreference,
+      documentationImportance: preferences.documentationImportance,
+      licensePreference: preferences.licensePreference?.sort().join(','),
+      repoSize: preferences.repoSize?.sort().join(','),
     });
 
-    // Only reload if preferences actually changed and we have cards loaded
-    if (prefHash !== prevPreferencesRef.current && cards.length > 0 && !loading && !isLoadingMore) {
+    // Only reload if preferences actually changed
+    if (prefHash !== prevPreferencesRef.current) {
       prevPreferencesRef.current = prefHash;
-      // Debounce to avoid too many reloads
-      const timer = setTimeout(() => {
-        loadPersonalizedRepos(false); // Reload from scratch with new preferences
-      }, 1000);
+      
+      // Clear the repo pool to force rebuild with new preferences
+      const clearAndReload = async () => {
+        try {
+          await repoPoolService.clearPool();
+          // Clear current cards to show loading state
+          setCards([]);
+          // Reload repos with new preferences
+          await loadPersonalizedRepos(false);
+        } catch (error) {
+          console.error('Error reloading repos after preference change:', error);
+          // Fallback: just reload without clearing pool
+          loadPersonalizedRepos(false);
+        }
+      };
+      
+      // Debounce to avoid too many reloads (but shorter delay for better UX)
+      const timer = setTimeout(clearAndReload, 300);
       return () => clearTimeout(timer);
-    } else if (prefHash !== prevPreferencesRef.current) {
-      prevPreferencesRef.current = prefHash;
     }
   }, [
     loaded,
     preferences.onboardingCompleted,
+    preferences.primaryCluster,
+    preferences.secondaryClusters?.join(','),
     preferences.techStack?.join(','),
     preferences.goals?.join(','),
     preferences.projectTypes?.join(','),
     preferences.popularityWeight,
     preferences.experienceLevel,
-    cards.length,
-    loading,
-    isLoadingMore,
+    preferences.activityPreference,
+    preferences.documentationImportance,
+    preferences.licensePreference?.join(','),
+    preferences.repoSize?.join(','),
     loadPersonalizedRepos,
   ]);
 
@@ -607,6 +652,24 @@ export function DiscoveryScreen() {
     // Increment swipe count and check if onboarding should be shown
     setSwipeCount(prev => {
       const newCount = prev + 1;
+      // Show PWA install prompt after 2-3 swipes if not installed
+      if (newCount >= 2 && newCount <= 3) {
+        // Double-check PWA status before showing prompt
+        const installed = isPWAInstalled();
+        setIsPWAInstalledState(installed);
+        
+        if (!installed) {
+          // Check if user hasn't dismissed it before
+          const dismissed = localStorage.getItem('pwa-install-dismissed');
+          // Check if install prompt is available
+          import('@/utils/pwa').then(({ isInstallPromptAvailable }) => {
+            const promptAvailable = isInstallPromptAvailable();
+            if (!dismissed && promptAvailable) {
+              setShowPWAInstallPrompt(true);
+            }
+          });
+        }
+      }
       // Show onboarding after 4-5 swipes if not completed
       if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
         setShowOnboarding(true);
@@ -649,6 +712,24 @@ export function DiscoveryScreen() {
     // Increment swipe count and check if onboarding should be shown
     setSwipeCount(prev => {
       const newCount = prev + 1;
+      // Show PWA install prompt after 2-3 swipes if not installed
+      if (newCount >= 2 && newCount <= 3) {
+        // Double-check PWA status before showing prompt
+        const installed = isPWAInstalled();
+        setIsPWAInstalledState(installed);
+        
+        if (!installed) {
+          // Check if user hasn't dismissed it before
+          const dismissed = localStorage.getItem('pwa-install-dismissed');
+          // Check if install prompt is available
+          import('@/utils/pwa').then(({ isInstallPromptAvailable }) => {
+            const promptAvailable = isInstallPromptAvailable();
+            if (!dismissed && promptAvailable) {
+              setShowPWAInstallPrompt(true);
+            }
+          });
+        }
+      }
       // Show onboarding after 4-5 swipes if not completed
       if (newCount >= 4 && !preferences.onboardingCompleted && loaded) {
         setShowOnboarding(true);
@@ -1113,6 +1194,12 @@ export function DiscoveryScreen() {
           </>
         )}
       </div>
+
+      {/* PWA Install Prompt - Shows after 2-3 swipes if not installed */}
+      <PWAInstallPrompt 
+        show={showPWAInstallPrompt} 
+        onDismiss={() => setShowPWAInstallPrompt(false)} 
+      />
     </div>
   );
 }

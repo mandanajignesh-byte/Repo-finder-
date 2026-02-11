@@ -84,12 +84,15 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Update preferences
+      // Update preferences (this will trigger DiscoveryScreen to reload repos)
       await updatePreferences(editedPrefs);
       
       // Clear and rebuild repo pool with new preferences
+      // This ensures the pool matches the new preferences immediately
       await repoPoolService.clearPool();
       await repoPoolService.buildPool(editedPrefs as UserPreferences);
+      
+      console.log('✅ Preferences saved and repo pool rebuilt with new preferences');
       
       setIsEditing(false);
       setShowSuccess(true);

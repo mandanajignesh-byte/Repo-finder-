@@ -35,7 +35,7 @@ function AppContent() {
     // Use requestIdleCallback if available, otherwise setTimeout
     const loadAnalytics = async () => {
       const { initGA, trackPageView } = await import('@/utils/analytics');
-      initGA();
+    initGA();
       setAnalyticsLoaded(true);
       
       // Track initial page view after analytics is loaded
@@ -70,8 +70,8 @@ function AppContent() {
       
       // Track page view in Google Analytics (only if analytics is loaded)
       import('@/utils/analytics').then(({ trackPageView }) => {
-        const pageTitle = seoData.title || `RepoVerse - ${path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2)}`;
-        trackPageView(path, pageTitle);
+      const pageTitle = seoData.title || `RepoVerse - ${path === '/' ? 'Discover' : path.slice(1).charAt(0).toUpperCase() + path.slice(2)}`;
+      trackPageView(path, pageTitle);
       });
     }
   }, [location.pathname, showSplash, analyticsLoaded]);

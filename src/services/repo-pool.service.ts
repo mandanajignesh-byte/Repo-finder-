@@ -13,7 +13,7 @@ import { clusterService } from './cluster.service';
 import { repoQualityService } from './repo-quality.service';
 import { supabase } from '@/lib/supabase';
 
-const POOL_SIZE = 60; // CRITICAL: Reduced to 60 repos (was 100, originally 150) for 40% faster initial loading
+const POOL_SIZE = 120; // Increased to 120 repos to handle users who have seen many repos (30+). After filtering seen repos, we'll still have 80-90 repos available.
 const POOL_CACHE_KEY = 'github_repo_app_repo_pool';
 const POOL_CACHE_TIMESTAMP_KEY = 'github_repo_app_repo_pool_timestamp';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -63,7 +63,7 @@ class RepoPoolService {
         supabaseService.getAllSeenRepoIds(userId),
         primaryCluster ? clusterService.getBestOfCluster(
           primaryCluster,
-          50, // OPTIMIZED: Reduced to 50 (was 60) for faster initial loading
+          100, // Increased to 100 to ensure enough repos after filtering seen repos (users may have seen 30+)
           [], // Will filter with allSeenRepoIds after we get it
           userId
         ) : Promise.resolve([]),
@@ -94,7 +94,7 @@ class RepoPoolService {
         // OPTIMIZATION: Fetch all secondary clusters in parallel instead of sequentially
         const remainingNeeded = POOL_SIZE - clusterRepos.length;
         const reposPerCluster = Math.ceil(remainingNeeded / preferences.secondaryClusters.length);
-        
+          
         const secondaryClusterPromises = preferences.secondaryClusters.map(cluster =>
           clusterService.getBestOfCluster(
             cluster,
@@ -102,8 +102,8 @@ class RepoPoolService {
             excludeIds,
             userId
           )
-        );
-        
+          );
+          
         const allSecondaryRepos = await Promise.all(secondaryClusterPromises);
         
         // Combine and deduplicate all secondary repos
@@ -111,17 +111,17 @@ class RepoPoolService {
           .flat()
           .filter(r => r && r.id);
         
-        const combined = [...clusterRepos, ...validSecondaryRepos];
-        clusterRepos = Array.from(
-          new Map(combined.map(r => [r.id, r])).values()
+          const combined = [...clusterRepos, ...validSecondaryRepos];
+          clusterRepos = Array.from(
+            new Map(combined.map(r => [r.id, r])).values()
         ).slice(0, POOL_SIZE); // Limit to pool size
         
         console.log(`📊 After secondary clusters (parallel): ${clusterRepos.length} repos`);
       }
       
       // PRIORITY 3: If no primary cluster, use tag-based search
-      // CRITICAL: Reduced threshold from 50 to 30 to avoid unnecessary queries
-      if (clusterRepos.length < 30) {
+      // Increased threshold to 60 to ensure we have enough repos in pool
+      if (clusterRepos.length < 60) {
         console.log('🔍 Building comprehensive tags for tag-based search...');
         const uniqueTags = this.buildComprehensiveTags(preferences);
         
@@ -129,7 +129,7 @@ class RepoPoolService {
           // OPTIMIZED: Reduced to 60 (was 80) for faster loading
           const tagRepos = await clusterService.getReposByTags(
             uniqueTags,
-            60,
+            100, // Increased to match larger pool size
             [...allSeenRepoIds, ...clusterRepos.map(r => r.id)],
             userId
           );
@@ -145,15 +145,15 @@ class RepoPoolService {
       }
       
       // PRIORITY 4: Fallback to detected primary cluster (for backward compatibility)
-      // CRITICAL: Reduced threshold from 50 to 30 to avoid unnecessary queries
-      if (clusterRepos.length < 30) {
+      // Increased threshold to 60 to ensure we have enough repos in pool
+      if (clusterRepos.length < 60) {
         const detectedPrimary = clusterService.detectPrimaryCluster(preferences);
         console.log(`⚠️ Only ${clusterRepos.length} repos, trying detected primary cluster: ${detectedPrimary}`);
         
-        // CRITICAL: Reduced to 60 (was 100, originally 200) for 40% faster loading
+        // Increased to 100 to ensure enough repos after filtering seen repos
         const fallbackRepos = await clusterService.getBestOfCluster(
           detectedPrimary,
-          60,
+          100,
           [...allSeenRepoIds, ...clusterRepos.map(r => r.id)],
           userId
         );
@@ -213,7 +213,7 @@ class RepoPoolService {
       if (clusters && clusters.length > 0) {
         const fallbackRepos = await clusterService.getBestOfCluster(
           clusters[0].cluster_name,
-          50,
+          100, // Increased to match larger pool size
           allSeenRepoIds,
           userId
         );
