@@ -112,6 +112,7 @@ export function DiscoveryScreen() {
             const newRepos = filteredRepos.filter(r => r && r.id && !existingIds.has(r.id));
             return [...prev, ...newRepos];
           });
+          setIsLoadingMore(false); // CRITICAL: Reset loading state when appending
         } else {
           // Show first batch immediately
           setCards(filteredRepos);
