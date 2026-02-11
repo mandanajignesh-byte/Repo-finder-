@@ -720,7 +720,9 @@ export function DiscoveryScreen() {
       const newCount = prev + 1;
       // Show PWA install prompt after 1-2 swipes (BEFORE onboarding)
       // This ensures users see install prompt first, then onboarding later
-      if (newCount >= 1 && newCount <= 2) {
+      // Show PWA install prompt after 5-10 swipes (BEFORE onboarding)
+      // Show to ALL users (old and new) - no user check
+      if (newCount >= 5 && newCount <= 10) {
         // Double-check PWA status before showing prompt
         const installed = isPWAInstalled();
         setIsPWAInstalledState(installed);
@@ -731,13 +733,13 @@ export function DiscoveryScreen() {
             const iosInstructions = shouldShowIOSInstructions();
             
             if (iosDevice && iosInstructions) {
-              // iOS: Show instructions if not dismissed
+              // iOS: Show instructions if not dismissed (show to all users)
               const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
               if (!dismissed) {
                 setShowPWAInstallPrompt(true);
               }
             } else {
-              // Android: Show install prompt if available
+              // Android: Show install prompt if available (show to all users)
               const dismissed = localStorage.getItem('pwa-install-dismissed');
               const promptAvailable = isInstallPromptAvailable();
               if (!dismissed && promptAvailable) {
@@ -792,7 +794,9 @@ export function DiscoveryScreen() {
       const newCount = prev + 1;
       // Show PWA install prompt after 1-2 swipes (BEFORE onboarding)
       // This ensures users see install prompt first, then onboarding later
-      if (newCount >= 1 && newCount <= 2) {
+      // Show PWA install prompt after 5-10 swipes (BEFORE onboarding)
+      // Show to ALL users (old and new) - no user check
+      if (newCount >= 5 && newCount <= 10) {
         // Double-check PWA status before showing prompt
         const installed = isPWAInstalled();
         setIsPWAInstalledState(installed);
@@ -803,13 +807,13 @@ export function DiscoveryScreen() {
             const iosInstructions = shouldShowIOSInstructions();
             
             if (iosDevice && iosInstructions) {
-              // iOS: Show instructions if not dismissed
+              // iOS: Show instructions if not dismissed (show to all users)
               const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
               if (!dismissed) {
                 setShowPWAInstallPrompt(true);
               }
             } else {
-              // Android: Show install prompt if available
+              // Android: Show install prompt if available (show to all users)
               const dismissed = localStorage.getItem('pwa-install-dismissed');
               const promptAvailable = isInstallPromptAvailable();
               if (!dismissed && promptAvailable) {
