@@ -1209,29 +1209,40 @@ export function DiscoveryScreen() {
           {!isPWAInstalledState && (
             <button
               onClick={async () => {
-                const { isIOS, shouldShowIOSInstructions, promptInstallPWA, isInstallPromptAvailable } = await import('@/utils/pwa');
-                const iosDevice = isIOS();
-                const iosInstructions = shouldShowIOSInstructions();
-                
-                if (iosDevice && iosInstructions) {
-                  // iOS: Show instructions
-                  const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
-                  if (!dismissed) {
-                    setShowPWAInstallPrompt(true);
-                  }
-                } else {
-                  // Android: Try to prompt install
-                  const promptAvailable = isInstallPromptAvailable();
-                  if (promptAvailable) {
-                    const success = await promptInstallPWA();
-                    if (!success) {
-                      // If prompt failed, show manual instructions
+                try {
+                  console.log('[PWA] Manual install button clicked');
+                  const { isIOS, shouldShowIOSInstructions, promptInstallPWA, isInstallPromptAvailable } = await import('@/utils/pwa');
+                  const iosDevice = isIOS();
+                  const iosInstructions = shouldShowIOSInstructions();
+                  
+                  if (iosDevice && iosInstructions) {
+                    // iOS: Show instructions
+                    const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
+                    if (!dismissed) {
+                      console.log('[PWA] Showing iOS instructions');
                       setShowPWAInstallPrompt(true);
                     }
                   } else {
-                    // Show manual instructions
-                    setShowPWAInstallPrompt(true);
+                    // Android: Try to prompt install
+                    const promptAvailable = isInstallPromptAvailable();
+                    console.log('[PWA] Android prompt available:', promptAvailable);
+                    if (promptAvailable) {
+                      const success = await promptInstallPWA();
+                      console.log('[PWA] Install prompt result:', success);
+                      if (!success) {
+                        // If prompt failed, show manual instructions
+                        setShowPWAInstallPrompt(true);
+                      }
+                    } else {
+                      // Show manual instructions
+                      console.log('[PWA] Prompt not available, showing instructions');
+                      setShowPWAInstallPrompt(true);
+                    }
                   }
+                } catch (error) {
+                  console.error('[PWA] Error in manual install button:', error);
+                  // Show instructions as fallback
+                  setShowPWAInstallPrompt(true);
                 }
               }}
               className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-300"
