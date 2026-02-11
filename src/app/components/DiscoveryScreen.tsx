@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Bookmark, Heart, XCircle, Loader2, Trash2 } from 'lucide-react';
+import { X, Bookmark, Heart, XCircle, Loader2, Trash2, Download } from 'lucide-react';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'motion/react';
 import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
@@ -1175,10 +1175,45 @@ export function DiscoveryScreen() {
 
   return (
     <div className="h-full bg-black flex flex-col pb-20 md:pb-16 relative overflow-hidden">
-      {/* Header with bookmark and heart */}
+      {/* Header with bookmark, heart, and install button */}
       <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-1 md:mb-0">
         <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Explore</h1>
         <div className="flex items-center gap-3">
+          {/* PWA Install Button - Show if not installed */}
+          {!isPWAInstalledState && (
+            <button
+              onClick={async () => {
+                const { isIOS, shouldShowIOSInstructions, promptInstallPWA, isInstallPromptAvailable } = await import('@/utils/pwa');
+                const iosDevice = isIOS();
+                const iosInstructions = shouldShowIOSInstructions();
+                
+                if (iosDevice && iosInstructions) {
+                  // iOS: Show instructions
+                  const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
+                  if (!dismissed) {
+                    setShowPWAInstallPrompt(true);
+                  }
+                } else {
+                  // Android: Try to prompt install
+                  const promptAvailable = isInstallPromptAvailable();
+                  if (promptAvailable) {
+                    const success = await promptInstallPWA();
+                    if (!success) {
+                      // If prompt failed, show manual instructions
+                      setShowPWAInstallPrompt(true);
+                    }
+                  } else {
+                    // Show manual instructions
+                    setShowPWAInstallPrompt(true);
+                  }
+                }
+              }}
+              className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-300"
+              title="Add to Home Screen"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={() => {
               setShowLiked(true);
