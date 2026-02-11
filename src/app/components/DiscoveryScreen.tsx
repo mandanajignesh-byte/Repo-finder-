@@ -512,9 +512,11 @@ export function DiscoveryScreen() {
 
   // OPTIMIZATION: Start loading repos immediately without waiting for preferences
   // This ensures content appears as fast as possible
+  // CRITICAL: Load repos IMMEDIATELY on page load, BEFORE onboarding
+  // This ensures users see repos right away, then onboarding shows after swipes
   useEffect(() => {
     // Start loading immediately if we don't have cards yet
-    if (cards.length === 0 && !loading && !isLoadingMore) {
+    if (cards.length === 0 && !loading && !isLoadingMore && loaded) {
       // Check localStorage for onboarding status immediately (don't wait for Supabase sync)
       const localPrefs = (() => {
         try {
@@ -531,15 +533,27 @@ export function DiscoveryScreen() {
         // Load personalized repos if onboarding completed
         loadPersonalizedRepos();
       } else {
-        // Load random repos immediately for first-time visitors (fastest path)
+        // ALWAYS load random repos immediately for first-time visitors
+        // This ensures repos show BEFORE onboarding appears (onboarding shows after 4-5 swipes)
         loadRandomRepos();
       }
     }
-  }, [cards.length, loading, isLoadingMore, preferences.onboardingCompleted, loadPersonalizedRepos, loadRandomRepos]);
+  }, [cards.length, loading, isLoadingMore, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reload repos when preferences change significantly (e.g., from profile screen)
+  // IMPORTANT: Only reload if onboarding is completed AND user has cards (not during initial load)
+  // Skip reload if user skipped onboarding (no preferences set) - they should see random repos
   useEffect(() => {
-    if (!loaded || !preferences.onboardingCompleted) return;
+    if (!loaded || !preferences.onboardingCompleted || cards.length === 0) return;
+    
+    // Skip reload if user skipped onboarding (no preferences means they want random repos)
+    const hasNoPreferences = !preferences.primaryCluster && 
+                             (!preferences.techStack || preferences.techStack.length === 0) &&
+                             (!preferences.goals || preferences.goals.length === 0);
+    if (hasNoPreferences) {
+      // User skipped onboarding - don't reload, let them continue with random repos
+      return;
+    }
     
     // Create a hash of ALL key preferences including clusters
     const prefHash = JSON.stringify({
@@ -898,18 +912,25 @@ export function DiscoveryScreen() {
     return (
       <OnboardingQuestionnaire
         onComplete={handleOnboardingComplete}
-        onSkip={() => {
+        onSkip={async () => {
           // Track onboarding skipped
           trackOnboarding('skipped');
           
           // Mark onboarding as completed but don't set preferences
           // User will continue seeing random repos
-          updatePreferences({ onboardingCompleted: true });
+          await updatePreferences({ onboardingCompleted: true });
           setShowOnboarding(false);
-          // Continue loading random repos if no cards
+          
+          // CRITICAL: Always ensure repos continue loading after skipping onboarding
+          // If no cards, load fresh. If some cards, load more to keep the flow going
           if (cards.length === 0) {
-            loadRandomRepos();
+            // No cards: load fresh batch
+            loadRandomRepos(false);
+          } else if (cards.length < 5) {
+            // Few cards: load more to keep swiping
+            loadRandomRepos(true);
           }
+          // If we have enough cards (5+), just continue - repos will auto-load when low
         }}
       />
     );
