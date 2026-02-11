@@ -390,6 +390,51 @@ class GitHubService {
           trending: this.calculateTrendingScore(repo.stars, since),
         })) as TrendingRepo[];
       }
+
+      // Try to fetch from database first (if available)
+      try {
+        const { supabaseService } = await import('./supabase.service');
+        const dbRepos = await supabaseService.getTrendingRepos({
+          timeRange: since,
+          language: options?.language,
+          excludeWellKnown: options?.excludeWellKnown !== false,
+          limit: options?.perPage || 100,
+        });
+
+        if (dbRepos && dbRepos.length > 0) {
+          console.log(`Using ${dbRepos.length} trending repos from database for ${since} (${cacheDateKey})`);
+          
+          // Convert database format to TrendingRepo format
+          const trendingRepos: TrendingRepo[] = dbRepos.map((dbRepo: any) => ({
+            id: dbRepo.repo_id,
+            name: dbRepo.repo_name,
+            fullName: dbRepo.repo_full_name,
+            description: dbRepo.repo_description || '',
+            tags: dbRepo.repo_tags || [],
+            stars: dbRepo.repo_stars || 0,
+            forks: dbRepo.repo_forks || 0,
+            lastUpdated: dbRepo.repo_updated_at || dbRepo.repo_pushed_at || '',
+            language: dbRepo.repo_language || undefined,
+            url: dbRepo.repo_url,
+            owner: {
+              login: dbRepo.repo_owner_login || '',
+              avatarUrl: dbRepo.repo_owner_avatar_url || '',
+            },
+            topics: dbRepo.repo_topics || [],
+            trending: dbRepo.trending_score || this.calculateTrendingScore(dbRepo.repo_stars || 0, since),
+            rank: dbRepo.rank || 0,
+          }));
+
+          // Cache the results
+          const dailyTTL = 24 * 60 * 60 * 1000; // 24 hours
+          this.setCache(cacheKey, trendingRepos.map(({ trending, rank, ...repo }) => repo), dailyTTL);
+          
+          return trendingRepos;
+        }
+      } catch (dbError) {
+        console.log('Database fetch failed, falling back to API:', dbError);
+        // Continue to API fallback
+      }
       
       const date = new Date();
       

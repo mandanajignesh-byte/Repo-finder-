@@ -725,6 +725,75 @@ class SupabaseService {
       return [];
     }
   }
+
+  /**
+   * Get trending repos from database
+   */
+  async getTrendingRepos(options?: {
+    timeRange?: 'daily' | 'weekly' | 'monthly';
+    language?: string;
+    excludeWellKnown?: boolean;
+    limit?: number;
+  }): Promise<any[]> {
+    try {
+      const timeRange = options?.timeRange || 'daily';
+      const language = options?.language;
+      const excludeWellKnown = options?.excludeWellKnown !== false; // Default to true
+      const limit = options?.limit || 100;
+
+      // Calculate date key
+      const today = new Date();
+      let dateKey: string;
+      
+      if (timeRange === 'daily') {
+        dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      } else if (timeRange === 'weekly') {
+        const weekNumber = this.getWeekNumber(today);
+        dateKey = `${today.getFullYear()}-W${weekNumber}`;
+      } else {
+        dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      // Build query
+      let query = supabase
+        .from('trending_repos')
+        .select('*')
+        .eq('time_range', timeRange)
+        .eq('date_key', dateKey)
+        .eq('exclude_well_known', excludeWellKnown)
+        .order('rank', { ascending: true })
+        .limit(limit);
+
+      if (language) {
+        query = query.eq('language', language);
+      } else {
+        query = query.is('language', null);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching trending repos from database:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in getTrendingRepos:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Helper: Get week number for a date
+   */
+  private getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
 }
 
 export const supabaseService = new SupabaseService();
