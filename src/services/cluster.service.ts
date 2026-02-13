@@ -6,6 +6,7 @@
 
 import { Repository, UserPreferences } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { formatTimeAgo } from '@/utils/date.utils';
 
 export interface Cluster {
   name: string;
@@ -79,9 +80,17 @@ class ClusterService {
       }
 
       // Filter excluded and convert to Repository format
+      // Normalize lastUpdated from pushed_at (more accurate than updated_at)
       let repos = (data || [])
         .filter((row: any) => !excluded.has(row.repo_data.id))
-        .map((row: any) => row.repo_data as Repository);
+        .map((row: any) => {
+          const repo = row.repo_data as Repository;
+          // Recalculate lastUpdated from pushed_at if available (more accurate than updated_at)
+          if (repo.pushed_at) {
+            repo.lastUpdated = formatTimeAgo(repo.pushed_at);
+          }
+          return repo;
+        });
 
       // Apply user-specific shuffling if userId provided
       if (userId && repos.length > 0) {
@@ -245,7 +254,14 @@ class ClusterService {
 
       let repos = (data || [])
         .filter((row: any) => !excluded.has(row.repo_data.id))
-        .map((row: any) => row.repo_data as Repository);
+        .map((row: any) => {
+          const repo = row.repo_data as Repository;
+          // Recalculate lastUpdated from pushed_at if available (more accurate than updated_at)
+          if (repo.pushed_at) {
+            repo.lastUpdated = formatTimeAgo(repo.pushed_at);
+          }
+          return repo;
+        });
 
       // Apply additional sorting for hidden-gems
       if (strategy === 'hidden-gems') {

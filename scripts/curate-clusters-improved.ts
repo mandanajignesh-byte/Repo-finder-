@@ -501,7 +501,7 @@ function transformGitHubRepo(apiRepo: any, clusterName?: string): Repository {
     tags: uniqueTags,
     stars: apiRepo.stargazers_count || 0,
     forks: apiRepo.forks_count || 0,
-    lastUpdated: formatTimeAgo(apiRepo.updated_at),
+    lastUpdated: formatTimeAgo(apiRepo.pushed_at || apiRepo.updated_at),
     language: apiRepo.language || undefined,
     url: apiRepo.html_url,
     owner: {

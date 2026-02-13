@@ -662,25 +662,36 @@ class SupabaseService {
       if (!data || !data.repos) return null;
 
       // Convert JSONB back to Repository objects
-      return (data.repos as any[]).map((repo: any) => ({
-        id: repo.id,
-        name: repo.name,
-        fullName: repo.fullName,
-        description: repo.description || '',
-        tags: repo.tags || [],
-        stars: repo.stars || 0,
-        forks: repo.forks || 0,
-        lastUpdated: repo.lastUpdated || '',
-        language: repo.language,
-        url: repo.url,
-        owner: repo.owner || {
-          login: repo.fullName?.split('/')[0] || '',
-          avatarUrl: '',
-        },
-        license: repo.license,
-        topics: repo.topics || [],
-        fitScore: repo.fitScore,
-      }));
+      // Import formatTimeAgo dynamically to avoid circular dependencies
+      const { formatTimeAgo } = await import('@/utils/date.utils');
+      
+      return (data.repos as any[]).map((repo: any) => {
+        // Recalculate lastUpdated from pushed_at if available (more accurate than updated_at)
+        let lastUpdated = repo.lastUpdated || '';
+        if (repo.pushed_at) {
+          lastUpdated = formatTimeAgo(repo.pushed_at);
+        }
+        
+        return {
+          id: repo.id,
+          name: repo.name,
+          fullName: repo.fullName,
+          description: repo.description || '',
+          tags: repo.tags || [],
+          stars: repo.stars || 0,
+          forks: repo.forks || 0,
+          lastUpdated,
+          language: repo.language,
+          url: repo.url,
+          owner: repo.owner || {
+            login: repo.fullName?.split('/')[0] || '',
+            avatarUrl: '',
+          },
+          license: repo.license,
+          topics: repo.topics || [],
+          fitScore: repo.fitScore,
+        };
+      });
     } catch (error) {
       console.error('Error in getRepoPool:', error);
       return null;
