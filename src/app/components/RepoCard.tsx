@@ -1,4 +1,4 @@
-import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2, Copy, Check } from 'lucide-react';
+import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2 } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
 import { useRef, useEffect, useState, memo } from 'react';
@@ -26,20 +26,6 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
   const [readme, setReadme] = useState<string | null>(null);
   const [readmeLoading, setReadmeLoading] = useState(false);
   const [readmeError, setReadmeError] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
-
-  const handleCopyLink = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const success = await shareService.copyPlatformLink(repo);
-    if (success) {
-      setLinkCopied(true);
-      showToast('Link copied to clipboard!');
-      trackShare('copy', 'repo', repo.id);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } else {
-      showToast('Failed to copy link');
-    }
-  };
   
   useEffect(() => {
     const calculateHeight = () => {
@@ -382,37 +368,8 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
             )}
           </div>
           
-          {/* Platform Share Link - Visible and Copyable */}
-          <div className="pt-2 md:pt-3 border-t border-gray-800">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0 bg-gray-900/50 rounded-lg px-3 py-2 border border-gray-700">
-                <p className="text-[10px] md:text-xs text-gray-400 mb-0.5">Shareable Link</p>
-                <div className="flex items-center gap-2 min-w-0">
-                  <span 
-                    className="text-xs md:text-sm text-gray-200 font-mono truncate flex-1"
-                    title={shareService.generatePlatformShareLink(repo)}
-                  >
-                    {shareService.generatePlatformShareLink(repo)}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={handleCopyLink}
-                onPointerDown={(e) => e.stopPropagation()}
-                className="flex-shrink-0 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors flex items-center justify-center"
-                title="Copy link"
-              >
-                {linkCopied ? (
-                  <Check className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Copy className="w-4 h-4 text-gray-300" />
-                )}
-              </button>
-            </div>
-          </div>
-          
           {/* GitHub link and Share button */}
-          <div className="flex items-center gap-3 md:gap-4 flex-wrap pt-2">
+          <div className="flex items-center gap-3 md:gap-4 flex-wrap pt-1">
             {repo.url && (
               <a
                 href={repo.url}
@@ -452,7 +409,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
           
           {/* Save button - integrated in card */}
           {onSave && (
-            <div className="pt-3 md:pt-4">
+            <div className="pt-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();

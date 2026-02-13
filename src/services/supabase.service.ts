@@ -503,9 +503,9 @@ class SupabaseService {
       // OPTIMIZATION: Run all queries in parallel instead of sequentially for 3x faster loading
       const [interactionsResult, savedResult, likedResult] = await Promise.all([
         supabase
-          .from(TABLES.user_interactions)
-          .select('repo_id')
-          .eq('user_id', userId)
+        .from(TABLES.user_interactions)
+        .select('repo_id')
+        .eq('user_id', userId)
           .in('action', ['save', 'like', 'skip', 'view']),
         supabase
           .from(TABLES.saved_repos)
@@ -513,7 +513,7 @@ class SupabaseService {
           .eq('user_id', userId),
         supabase
           .from(TABLES.liked_repos)
-          .select('repo_id')
+        .select('repo_id')
           .eq('user_id', userId),
       ]);
 

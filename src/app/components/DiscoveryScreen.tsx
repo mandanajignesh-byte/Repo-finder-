@@ -114,7 +114,7 @@ export function DiscoveryScreen() {
             return [...prev, ...newRepos];
           });
           setIsLoadingMore(false); // CRITICAL: Reset loading state when appending
-        } else {
+      } else {
           // Show first batch immediately
           setCards(filteredRepos);
           setIsLoadingMore(false); // Allow user to start interacting immediately
@@ -133,7 +133,7 @@ export function DiscoveryScreen() {
               
               if (validAdditional.length > 0) {
                 setCards(prev => [...prev, ...validAdditional]);
-              }
+      }
             }).catch(err => console.error('Error loading additional repos:', err));
           }
         }
@@ -172,7 +172,7 @@ export function DiscoveryScreen() {
       // 2. Load saved/liked repos (can happen in parallel)
       // 3. Get seen repo IDs (needed for filtering) - NOW IN PARALLEL!
       const [, allSeenRepoIds, savedAndLiked] = await Promise.all([
-        // Build or get repo pool (pre-fetched 100+ repos)
+      // Build or get repo pool (pre-fetched 100+ repos)
         repoPoolService.buildPool(preferences),
         
         // Get seen repo IDs in parallel (was sequential before - this was a bottleneck!)
@@ -471,19 +471,19 @@ export function DiscoveryScreen() {
       // Defer loading to avoid blocking initial render
       if (window.requestIdleCallback) {
         window.requestIdleCallback(async () => {
-          try {
-            const { supabaseService } = await import('@/services/supabase.service');
-            const userId = await supabaseService.getOrCreateUserId();
-            
+      try {
+        const { supabaseService } = await import('@/services/supabase.service');
+        const userId = await supabaseService.getOrCreateUserId();
+        
             // Load saved and liked repos in parallel
             const [saved, liked] = await Promise.all([
               supabaseService.getSavedRepositories(userId),
               supabaseService.getLikedRepositories(userId),
             ]);
             
-            if (saved.length > 0) {
-              setSavedRepos(saved);
-            }
+        if (saved.length > 0) {
+          setSavedRepos(saved);
+        }
             if (liked.length > 0) {
               setLikedRepos(liked);
             }
@@ -509,14 +509,14 @@ export function DiscoveryScreen() {
             if (saved.length > 0) {
               setSavedRepos(saved);
             }
-            if (liked.length > 0) {
-              setLikedRepos(liked);
-            }
-          } catch (error) {
-            console.error('Error loading repos from Supabase:', error);
-            // Fallback to localStorage
-            interactionService.getSavedRepos();
-            interactionService.getLikedRepos();
+        if (liked.length > 0) {
+          setLikedRepos(liked);
+        }
+      } catch (error) {
+        console.error('Error loading repos from Supabase:', error);
+        // Fallback to localStorage
+        interactionService.getSavedRepos();
+        interactionService.getLikedRepos();
           }
         }, 500);
       }
@@ -599,12 +599,12 @@ export function DiscoveryScreen() {
       
       if (hasCompletedOnboarding) {
         // Load personalized repos if onboarding completed
-        loadPersonalizedRepos();
+      loadPersonalizedRepos();
       } else {
         // ALWAYS load random repos immediately for first-time visitors
         // This ensures repos show BEFORE onboarding appears (onboarding shows after 4-5 swipes)
         loadRandomRepos();
-      }
+    }
     }
   }, [cards.length, loading, isLoadingMore, preferences.onboardingCompleted, loaded, owner, repo, navigate, loadPersonalizedRepos, loadRandomRepos]);
 
@@ -682,7 +682,7 @@ export function DiscoveryScreen() {
   useEffect(() => {
     if (cards.length < 5 && !isLoadingMore && !loading && loaded) {
       if (preferences.onboardingCompleted) {
-        loadPersonalizedRepos(true);
+      loadPersonalizedRepos(true);
       } else {
         loadRandomRepos(true);
       }
@@ -1041,7 +1041,7 @@ export function DiscoveryScreen() {
         
         {savedRepos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-              <SignatureCard className="p-8 text-center">
+            <SignatureCard className="p-8 text-center">
               <Bookmark className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-300">No saved repos yet.</p>
               <p className="text-gray-400 text-sm mt-2">Click the Save button to save repositories!</p>
@@ -1071,12 +1071,12 @@ export function DiscoveryScreen() {
                     <div className="flex flex-wrap gap-2">
                       {repo.tags && repo.tags.length > 0 ? (
                         repo.tags.map((tag: string) => (
-                          <span
-                            key={tag}
-                            className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
-                          >
-                            {tag}
-                          </span>
+                        <span
+                          key={tag}
+                          className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
+                        >
+                          {tag}
+                        </span>
                         ))
                       ) : (
                         <span className="text-gray-400 text-xs">No tags</span>
@@ -1139,12 +1139,12 @@ export function DiscoveryScreen() {
                     <div className="flex flex-wrap gap-2">
                       {repo.tags && repo.tags.length > 0 ? (
                         repo.tags.map((tag: string) => (
-                          <span
-                            key={tag}
-                            className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
-                          >
-                            {tag}
-                          </span>
+                        <span
+                          key={tag}
+                          className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
+                        >
+                          {tag}
+                        </span>
                         ))
                       ) : (
                         <span className="text-gray-400 text-xs">No tags</span>
@@ -1213,7 +1213,7 @@ export function DiscoveryScreen() {
         <div className="flex items-center gap-3">
           {/* PWA Install Button - Show if not installed */}
           {!isPWAInstalledState && (
-            <button
+          <button
               onClick={async () => {
                 try {
                   console.log('[PWA] Manual install button clicked');
@@ -1333,8 +1333,8 @@ export function DiscoveryScreen() {
                   <span>Loading recommendations…</span>
                 </div>
               </div>
-            </div>
-          ) : (
+          </div>
+        ) : (
             <div className="flex flex-col items-center justify-center gap-3 md:gap-4 text-center px-4">
               <p className="text-gray-400 text-base md:text-lg">No more recommendations right now.</p>
               <p className="text-gray-500 text-xs md:text-sm">Adjust your preferences or try again later.</p>
@@ -1345,14 +1345,14 @@ export function DiscoveryScreen() {
             <div className="relative w-full max-w-md" style={{ minHeight: '400px', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
               <AnimatePresence mode="wait">
                 {cards[0] && (
-                  <SwipeableCard
+            <SwipeableCard
                     key={cards[0].id}
-                    repo={cards[0]}
+              repo={cards[0]}
                     onSwipe={handleSwipeComplete}
                     onSave={() => handleSave(cards[0])}
                     triggerSwipe={triggerSwipe}
                     isFirstCard={true}
-                  />
+            />
                 )}
               </AnimatePresence>
             </div>
@@ -1363,8 +1363,8 @@ export function DiscoveryScreen() {
                 <div className="flex items-center gap-2 text-gray-400 text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Exploring deeper into the galaxy...</span>
-                </div>
-              </div>
+            </div>
+          </div>
             )}
           </>
         )}
@@ -1438,7 +1438,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
 
     const xValue = x.get();
     
-    // Swipe left = skip, swipe right = like
+      // Swipe left = skip, swipe right = like
     if (xValue < -swipeThreshold) {
       setIsExiting(true);
       // Animate card off screen to the left (skip) - slower and smoother
@@ -1509,8 +1509,8 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
     };
     const handleEnableDrag = () => {
       // Re-enable drag immediately since we now properly detect scroll end
-      isScrollingRef.current = false;
-      setDragEnabled(true);
+        isScrollingRef.current = false;
+        setDragEnabled(true);
     };
     
     cardRef.current.addEventListener('disableDrag', handleDisableDrag);
@@ -1594,7 +1594,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
   const maxDrag = useMemo(() => {
     return typeof window !== 'undefined' ? window.innerWidth * 2 : 1000;
   }, []);
-  
+
   return (
     <motion.div
       ref={cardRef}
@@ -1646,17 +1646,17 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
         // Only prevent if user is clearly trying to scroll (we'll detect this in onDrag)
         if (!isTouchDevice) {
           // Desktop: check if drag started on scrollable content
-          const target = event.target as HTMLElement;
-          const scrollable = target.closest('.scrollable-content');
-          
-          if (scrollable) {
-            // Cancel drag immediately - user is trying to scroll
-            setDragEnabled(false);
-            isScrollingRef.current = true;
-            x.set(0);
-            y.set(0);
-            return false;
-          }
+        const target = event.target as HTMLElement;
+        const scrollable = target.closest('.scrollable-content');
+        
+        if (scrollable) {
+          // Cancel drag immediately - user is trying to scroll
+          setDragEnabled(false);
+          isScrollingRef.current = true;
+          x.set(0);
+          y.set(0);
+          return false;
+        }
         }
         
         // Reset scroll state and ensure drag is enabled
@@ -1693,12 +1693,12 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
           // Require much more vertical movement (8:1 ratio) and higher threshold
           if (deltaY > deltaX * 8 && deltaY > 80) {
             // User is clearly scrolling vertically
-            isScrollingRef.current = true;
-            setDragEnabled(false);
-            x.set(0);
-            y.set(0);
-            return;
-          }
+          isScrollingRef.current = true;
+          setDragEnabled(false);
+          x.set(0);
+          y.set(0);
+          return;
+        }
           
           // On touch, any horizontal movement should enable swipe
           if (deltaX > 3) {
@@ -1724,7 +1724,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
     >
       <div 
         className="relative h-full w-full rounded-[24px]" 
-        style={{ 
+        style={{
           height: '100%', 
           maxHeight: '100%', 
           overflow: 'visible', 
@@ -1734,7 +1734,7 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
         <RepoCard repo={repo} style={{ height: '100%', maxHeight: '100%' }} onSave={onSave} isFirstCard={isFirstCard} />
         
         {/* Skip indicator (left swipe) */}
-            <motion.div
+        <motion.div
           className="absolute top-12 left-8 flex items-center gap-2 pointer-events-none z-30"
           style={{ opacity: skipOpacity }}
         >

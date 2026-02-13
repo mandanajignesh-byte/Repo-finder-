@@ -455,7 +455,7 @@ class GitHubService {
       // For daily, look for repos pushed in last 24 hours with good star count
       const minStars = since === 'daily' ? 20 : since === 'weekly' ? 50 : 100;
       let query1 = `pushed:>${dateStr} stars:>${minStars}`;
-      
+
       if (options?.language) {
         query1 += ` language:${options.language}`;
       }

@@ -10,7 +10,9 @@
     "fetch-trending:daily": "npx tsx scripts/fetch-and-store-trending.ts daily",
     "fetch-trending:weekly": "npx tsx scripts/fetch-and-store-trending.ts weekly",
     "cleanup-trending": "npx tsx scripts/cleanup-old-trending.ts",
-    "curate-clusters": "npx tsx scripts/curate-clusters-improved.ts"
+    "curate-clusters": "npx tsx scripts/curate-clusters-improved.ts",
+    "cleanup-stale-repos": "npx tsx scripts/cleanup-stale-repos.ts",
+    "calculate-scores": "npx tsx scripts/calculate-repo-scores.ts"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

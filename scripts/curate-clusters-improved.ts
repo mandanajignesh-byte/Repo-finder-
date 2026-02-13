@@ -261,9 +261,25 @@ function validateRepoQuality(repo: any, minStars: number): { passed: boolean; sc
     return { passed: false, score: 0, reason: 'Too few stars' };
   }
 
-  // Must have description
-  if (!repo.description || repo.description.length < 20) {
-    return { passed: false, score: 0, reason: 'No description' };
+  // Must have description (but be very lenient for repos with topics or stars)
+  const hasTopics = repo.topics && repo.topics.length > 0;
+  const hasManyTopics = hasTopics && repo.topics.length >= 3;
+  const isPopular = repo.stargazers_count >= 200;
+  const isVeryPopular = repo.stargazers_count >= 1000;
+  
+  // Allow repos without description if they have many topics or are very popular
+  if (!repo.description || repo.description.trim().length === 0) {
+    if (hasManyTopics || isVeryPopular) {
+      // Allow popular repos or repos with many topics even without description
+    } else {
+      return { passed: false, score: 0, reason: 'No description' };
+    }
+  } else {
+    // If description exists, require minimum length (very lenient)
+    const minDescLength = (hasTopics || isPopular) ? 5 : 15;
+    if (repo.description.trim().length < minDescLength && !hasManyTopics && !isVeryPopular) {
+      return { passed: false, score: 0, reason: 'No description' };
+    }
   }
 
   const descLower = (repo.description || '').toLowerCase();
@@ -313,24 +329,31 @@ function validateRepoQuality(repo: any, minStars: number): { passed: boolean; sc
     return { passed: false, score: 0, reason: 'Mega-corporate repo (not tutorial)' };
   }
 
-  // EXCLUDE: Repos that are just wrappers or integrations (unless they're libraries)
+  // EXCLUDE: Repos that are just wrappers or integrations (unless they're libraries or have topics/stars)
   const wrapperKeywords = ['wrapper for', 'integration for', 'plugin for', 'extension for'];
   const isLibrary = descLower.includes('library') || descLower.includes('package') || descLower.includes('sdk') || descLower.includes('module');
-  if (wrapperKeywords.some(keyword => fullText.includes(keyword)) && !isLibrary && repo.stargazers_count < 500) {
+  const hasWrapperKeyword = wrapperKeywords.some(keyword => fullText.includes(keyword));
+  
+  // Only reject wrappers if they're small AND have no topics AND aren't libraries
+  if (hasWrapperKeyword && !isLibrary && repo.stargazers_count < 200 && !hasTopics) {
     return { passed: false, score: 0, reason: 'Simple wrapper/integration' };
   }
 
-  // REQUIRE: Must have code-related indicators
+  // REQUIRE: Must have code-related indicators (be very lenient - if it has stars or topics, it's probably useful)
   const codeIndicators = [
     'library', 'framework', 'sdk', 'package', 'module',
     'tutorial', 'course', 'learn', 'guide', 'example',
     'boilerplate', 'starter', 'template',
     'api', 'cli', 'tool', 'utility',
-    'component', 'plugin', 'extension'
+    'component', 'plugin', 'extension',
+    'code', 'programming', 'developer', 'dev',
+    'app', 'application', 'project', 'demo', 'sample'
   ];
   const hasCodeIndicator = codeIndicators.some(indicator => fullText.includes(indicator));
   
-  if (!hasCodeIndicator && repo.stargazers_count < 500) {
+  // Only reject if: no code indicators AND low stars AND no/few topics
+  // If it has 100+ stars OR 2+ topics, it's probably useful to developers
+  if (!hasCodeIndicator && repo.stargazers_count < 100 && (!hasTopics || repo.topics.length < 2)) {
     return { passed: false, score: 0, reason: 'No clear code-related purpose' };
   }
 
@@ -487,6 +510,10 @@ function transformGitHubRepo(apiRepo: any, clusterName?: string): Repository {
     },
     license: apiRepo.license?.name,
     topics: apiRepo.topics || [],
+    // Store original GitHub API date fields for cleanup scripts and scoring
+    pushed_at: apiRepo.pushed_at,
+    updated_at: apiRepo.updated_at,
+    created_at: apiRepo.created_at,
   };
 }
 
@@ -499,6 +526,127 @@ function formatTimeAgo(dateString: string): string {
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
   if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
   return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+}
+
+/**
+ * Calculate popularity score (0-100)
+ */
+function calculatePopularityScore(repo: any): number {
+  const stars = repo.stars || repo.stargazers_count || 0;
+  const forks = repo.forks || repo.forks_count || 0;
+  const starsScore = Math.min(100, Math.log10(stars + 1) * 20);
+  const forksScore = Math.min(50, Math.log10(forks + 1) * 10);
+  return Math.round(starsScore * 0.7 + forksScore * 0.3);
+}
+
+/**
+ * Calculate activity score (0-100)
+ */
+function calculateActivityScore(repo: any): number {
+  const lastCommitStr = repo.pushed_at || repo.updated_at;
+  if (!lastCommitStr) return 0;
+  
+  try {
+    const lastCommitDate = new Date(lastCommitStr);
+    if (isNaN(lastCommitDate.getTime())) return 50;
+    
+    const now = new Date();
+    const daysSinceCommit = (now.getTime() - lastCommitDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceCommit <= 7) return 100;
+    if (daysSinceCommit <= 30) return 90;
+    if (daysSinceCommit <= 90) return 70;
+    if (daysSinceCommit <= 180) return 50;
+    if (daysSinceCommit <= 365) return 30;
+    return 10;
+  } catch {
+    return 50;
+  }
+}
+
+/**
+ * Calculate freshness score (0-100)
+ */
+function calculateFreshnessScore(repo: any): number {
+  const createdAtStr = repo.created_at;
+  if (!createdAtStr) return 50;
+  
+  try {
+    const createdAt = new Date(createdAtStr);
+    if (isNaN(createdAt.getTime())) return 50;
+    
+    const now = new Date();
+    const daysSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceCreation <= 30) return 100;
+    if (daysSinceCreation <= 90) return 90;
+    if (daysSinceCreation <= 180) return 70;
+    if (daysSinceCreation <= 365) return 50;
+    if (daysSinceCreation <= 730) return 30;
+    return 10;
+  } catch {
+    return 50;
+  }
+}
+
+/**
+ * Calculate quality score (0-100)
+ */
+function calculateQualityScore(repo: any): number {
+  let score = 0;
+  let maxScore = 0;
+  
+  const description = repo.description || '';
+  const fullText = `${description} ${(repo.tags || []).join(' ')}`.toLowerCase();
+  const topics = repo.topics || [];
+  
+  if (description.length >= 50) score += 20;
+  else if (description.length >= 20) score += 15;
+  else if (description.length >= 10) score += 10;
+  maxScore += 20;
+  
+  if (topics.length >= 5) score += 20;
+  else if (topics.length >= 3) score += 15;
+  else if (topics.length >= 1) score += 10;
+  maxScore += 20;
+  
+  if (repo.license) score += 15;
+  maxScore += 15;
+  
+  if (fullText.includes('readme')) score += 15;
+  maxScore += 15;
+  
+  if (fullText.includes('documentation') || fullText.includes('docs')) score += 15;
+  maxScore += 15;
+  
+  if (fullText.includes('test') || fullText.includes('ci')) score += 10;
+  maxScore += 10;
+  
+  if (fullText.includes('demo') || fullText.includes('live')) score += 5;
+  maxScore += 5;
+  
+  return Math.round((score / maxScore) * 100);
+}
+
+/**
+ * Calculate trending score (0-100) - placeholder until daily updates
+ */
+function calculateTrendingScore(repo: any): number {
+  const popularity = calculatePopularityScore(repo);
+  const activity = calculateActivityScore(repo);
+  return Math.round((popularity * 0.6 + activity * 0.4));
+}
+
+/**
+ * Calculate base score (combined precomputed score)
+ */
+function calculateBaseScore(popularity: number, activity: number, freshness: number, quality: number): number {
+  return Math.round(
+    popularity * 0.12 +
+    activity * 0.10 +
+    freshness * 0.05 +
+    quality * 0.05
+  );
 }
 
 async function curateCluster(
@@ -541,22 +689,26 @@ async function curateCluster(
 
   console.log(`  📦 Total unique repos: ${allRepos.length}`);
 
-  // Transform and quality filter
-  const transformed = allRepos.map(repo => transformGitHubRepo(repo, clusterName));
-  const qualityRepos = transformed.filter(repo => {
+  // Quality filter BEFORE transformation (validateRepoQuality expects GitHub API format)
+  const qualityFiltered = allRepos.filter(repo => {
     const quality = validateRepoQuality(repo, 50);
     if (!quality.passed) {
-      console.log(`    ❌ Filtered: ${repo.fullName} - ${quality.reason}`);
+      console.log(`    ❌ Filtered: ${repo.full_name} - ${quality.reason}`);
     }
     return quality.passed;
   });
 
-  console.log(`  ✅ ${qualityRepos.length} repos passed quality filter`);
+  console.log(`  ✅ ${qualityFiltered.length} repos passed quality filter`);
+
+  // Transform only quality-filtered repos
+  const transformed = qualityFiltered.map(repo => transformGitHubRepo(repo, clusterName));
 
   // Score and rank repos
-  const scored = qualityRepos
+  const scored = transformed
     .map(repo => {
-      const quality = validateRepoQuality(repo, 50);
+      // Calculate quality score from original GitHub API repo
+      const originalRepo = qualityFiltered.find(r => r.id.toString() === repo.id);
+      const quality = originalRepo ? validateRepoQuality(originalRepo, 50) : { score: 50 };
       const tagMatches = config.tags.filter(tag =>
         repo.tags.some(rTag => rTag.toLowerCase().includes(tag.toLowerCase())) ||
         repo.topics?.some(topic => topic.toLowerCase().includes(tag.toLowerCase()))
@@ -596,12 +748,26 @@ async function curateCluster(
         ])
       ].slice(0, 15);
 
+      // Calculate all scores for this repo
+      const popularity = calculatePopularityScore(item.repo);
+      const activity = calculateActivityScore(item.repo);
+      const freshness = calculateFreshnessScore(item.repo);
+      const quality = calculateQualityScore(item.repo);
+      const trending = calculateTrendingScore(item.repo);
+      const baseScore = calculateBaseScore(popularity, activity, freshness, quality);
+
       return {
         cluster_name: clusterName,
         repo_id: item.repo.id,
         repo_data: item.repo,
         tags: allTags,
-        quality_score: item.qualityScore,
+        quality_score: item.qualityScore, // Keep old quality_score for backward compatibility
+        quality_score_new: quality,
+        popularity_score: popularity,
+        activity_score: activity,
+        freshness_score: freshness,
+        trending_score: trending,
+        base_score: baseScore,
         rotation_priority: Math.floor(Math.random() * 100),
         updated_at: new Date().toISOString(),
       };
