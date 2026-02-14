@@ -89,7 +89,8 @@ async function cleanupStaleRepos() {
     const { data: repos, error: fetchError } = await supabaseClient
       .from('repo_clusters')
       .select('id, repo_id, cluster_name, repo_data')
-      .range(offset, offset + batchSize - 1);
+      .range(offset, offset + batchSize - 1)
+      .order('id');
 
     if (fetchError) {
       console.error('❌ Error fetching repos:', fetchError);
@@ -115,11 +116,12 @@ async function cleanupStaleRepos() {
         continue;
       }
 
-      // First, try to use stored date fields (faster)
-      let lastCommitDateStr = repoData?.pushed_at || repoData?.updated_at;
+      // First, try to use stored pushed_at field (more accurate than updated_at)
+      // Only use pushed_at - this represents actual last commit, not just any update
+      let lastCommitDateStr = repoData?.pushed_at;
       let needsGitHubFetch = false;
 
-      // If no stored date fields, fetch from GitHub API
+      // If no stored pushed_at field, fetch from GitHub API
       if (!lastCommitDateStr) {
         needsGitHubFetch = true;
         const githubRepo = await fetchRepoFromGitHub(repoFullName, githubToken);
@@ -131,7 +133,8 @@ async function cleanupStaleRepos() {
           continue;
         }
 
-        lastCommitDateStr = githubRepo.pushed_at || githubRepo.updated_at;
+        // Only use pushed_at from GitHub API (last actual commit)
+        lastCommitDateStr = githubRepo.pushed_at;
         
         // Rate limiting: GitHub API allows 60 requests/hour without token, 5000/hour with token
         // Add small delay between requests
