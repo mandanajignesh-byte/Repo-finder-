@@ -545,8 +545,8 @@ export function DiscoveryScreen() {
             // Load the shared repo as the first card immediately
             setCards([repoData]);
             
-            // Update URL to /discover (but keep the repo loaded) - seamless transition
-            navigate('/discover', { replace: true });
+            // Keep the URL as /r/owner/repo (don't navigate to /discover)
+            // This allows users to share and bookmark specific repos
             
             // Also load more repos in the background for swiping
             // Don't set isLoadingMore here - let the load functions handle it
@@ -697,16 +697,36 @@ export function DiscoveryScreen() {
     }
   }, [cards[0]?.id]);
 
-  // Keep URL as /discover when exploring (don't change to /r/owner/repo)
-  // Only update document title for better UX, but keep URL consistent
+  // Update URL to reflect current repo (YouTube-like behavior)
+  // Each repo gets its own URL that updates when swiping
   useEffect(() => {
     if (cards[0] && cards[0].fullName) {
-      // Update document title only (don't change URL)
-      document.title = `${cards[0].fullName} - RepoVerse`;
-    } else {
+      const [ownerName, repoName] = cards[0].fullName.split('/');
+      if (ownerName && repoName) {
+        const newPath = `/r/${ownerName}/${repoName}`;
+        const currentPath = window.location.pathname;
+        // Only update URL if it's different (avoid unnecessary navigation)
+        // This ensures URL updates when swiping, but doesn't interfere with shared links
+        if (currentPath !== newPath) {
+          navigate(newPath, { replace: true });
+        }
+        document.title = `${cards[0].fullName} - RepoVerse`;
+      }
+    } else if (cards.length === 0) {
+      // No cards - only navigate to /discover if we're not loading a shared repo
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith('/r/') && (owner || repo)) {
+        // Keep the shared repo URL while loading
+        document.title = 'RepoVerse - Loading...';
+        return;
+      }
+      // Navigate to /discover only if we're not already there
+      if (currentPath !== '/discover') {
+        navigate('/discover', { replace: true });
+      }
       document.title = 'RepoVerse - Discover';
     }
-  }, [cards[0]?.fullName]);
+  }, [cards[0]?.fullName, cards.length, navigate, owner, repo]);
 
   const handleSkip = useCallback(async (repo?: Repository) => {
     const repoToSkip = repo || cards[0];
