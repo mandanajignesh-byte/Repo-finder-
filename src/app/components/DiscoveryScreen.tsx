@@ -31,6 +31,8 @@ export function DiscoveryScreen() {
   const [showLiked, setShowLiked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoadingSharedRepo, setIsLoadingSharedRepo] = useState(false);
+  const [sharedRepoError, setSharedRepoError] = useState<string | null>(null);
   const [isSwiping, setIsSwiping] = useState(false);
   const [triggerSwipe, setTriggerSwipe] = useState<'left' | 'right' | null>(null);
   const [swipeCount, setSwipeCount] = useState(0); // Track swipe count for delayed onboarding
@@ -534,22 +536,75 @@ export function DiscoveryScreen() {
   // This ensures users see repos right away, then onboarding shows after swipes
   // Also handles /r/owner/repo routes - loads that specific repo in explore page
   useEffect(() => {
-    // If URL has /r/owner/repo, load that specific repo in explore page
-    if (owner && repo && cards.length === 0 && !loading && !isLoadingMore) {
+    // If URL has /r/owner/repo, load that specific repo FIRST before anything else
+    if (owner && repo && cards.length === 0 && !loading && !isLoadingMore && !isLoadingSharedRepo) {
       const loadSharedRepo = async () => {
+        setIsLoadingSharedRepo(true);
+        setSharedRepoError(null);
+        
         try {
           const fullName = `${owner}/${repo}`;
-          const repoData = await githubService.getRepo(fullName);
+          let repoData: Repository | null = null;
+          
+          // STEP 1: Try to fetch from database first (faster, no rate limits)
+          // Query repo_clusters table and filter by fullName in the repo_data JSONB field
+          try {
+            const { data, error } = await supabase
+              .from('repo_clusters')
+              .select('repo_data')
+              .limit(100); // Get a batch to search through
+            
+            if (!error && data && data.length > 0) {
+              // Find repo by fullName in the repo_data JSONB
+              const foundRepo = data.find((row: any) => {
+                const repo = row.repo_data;
+                return repo?.fullName === fullName || repo?.full_name === fullName;
+              });
+              
+              if (foundRepo?.repo_data) {
+                repoData = foundRepo.repo_data as Repository;
+                // Ensure fullName is set correctly
+                if (!repoData.fullName && (repoData as any).full_name) {
+                  repoData.fullName = (repoData as any).full_name;
+                }
+                // Recalculate lastUpdated from pushed_at if available
+                if (repoData.pushed_at) {
+                  const { formatTimeAgo } = await import('@/utils/date.utils');
+                  repoData.lastUpdated = formatTimeAgo(repoData.pushed_at);
+                }
+                console.log(`✅ Found repo ${fullName} in database`);
+              }
+            }
+          } catch (dbError) {
+            console.log(`Database lookup failed (will try GitHub API):`, dbError);
+          }
+          
+          // STEP 2: Fall back to GitHub API if not in database
+          if (!repoData) {
+            try {
+              repoData = await githubService.getRepo(fullName);
+              console.log(`✅ Fetched repo ${fullName} from GitHub API`);
+            } catch (apiError: any) {
+              // Check if it's a 404 (repo doesn't exist) vs other errors
+              if (apiError?.message?.includes('404') || apiError?.message?.includes('Not Found')) {
+                setSharedRepoError(`Repository "${fullName}" not found`);
+              } else {
+                setSharedRepoError(`Failed to load repository. ${apiError?.message || 'Please try again later.'}`);
+              }
+              setIsLoadingSharedRepo(false);
+              return;
+            }
+          }
           
           if (repoData) {
             // Load the shared repo as the first card immediately
             setCards([repoData]);
+            setIsLoadingSharedRepo(false);
             
             // Keep the URL as /r/owner/repo (don't navigate to /discover)
             // This allows users to share and bookmark specific repos
             
-            // Also load more repos in the background for swiping
-            // Don't set isLoadingMore here - let the load functions handle it
+            // Load more repos in the background for swiping (after a small delay)
             const localPrefs = (() => {
               try {
                 const stored = localStorage.getItem('github_repo_app_preferences');
@@ -567,15 +622,15 @@ export function DiscoveryScreen() {
               } else {
                 loadRandomRepos(true); // Append more repos
               }
-            }, 100);
+            }, 300);
           } else {
-            // Repo not found, redirect to discover
-            navigate('/discover', { replace: true });
+            setSharedRepoError(`Repository "${fullName}" not found`);
+            setIsLoadingSharedRepo(false);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error loading shared repo:', error);
-          // On error, redirect to discover
-          navigate('/discover', { replace: true });
+          setSharedRepoError(`Failed to load repository. ${error?.message || 'Please try again later.'}`);
+          setIsLoadingSharedRepo(false);
         }
       };
       
@@ -584,7 +639,8 @@ export function DiscoveryScreen() {
     }
     
     // Normal flow: Start loading immediately if we don't have cards yet
-    if (cards.length === 0 && !loading && !isLoadingMore && loaded) {
+    // BUT: Don't load if we're currently loading a shared repo
+    if (cards.length === 0 && !loading && !isLoadingMore && !isLoadingSharedRepo && loaded && !owner && !repo) {
       // Check localStorage for onboarding status immediately (don't wait for Supabase sync)
       const localPrefs = (() => {
         try {
@@ -606,7 +662,7 @@ export function DiscoveryScreen() {
         loadRandomRepos();
     }
     }
-  }, [cards.length, loading, isLoadingMore, preferences.onboardingCompleted, loaded, owner, repo, navigate, loadPersonalizedRepos, loadRandomRepos]);
+  }, [cards.length, loading, isLoadingMore, isLoadingSharedRepo, preferences.onboardingCompleted, loaded, owner, repo, navigate, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reload repos when preferences change significantly (e.g., from profile screen)
   // IMPORTANT: Only reload if onboarding is completed AND user has cards (not during initial load)
@@ -1186,6 +1242,59 @@ export function DiscoveryScreen() {
             ))}
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Loading state for shared repo
+  if (isLoadingSharedRepo && cards.length === 0) {
+    return (
+      <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          <p className="text-gray-400">Loading repository...</p>
+          <p className="text-gray-500 text-sm text-center max-w-md px-4">
+            {owner && repo ? `Fetching ${owner}/${repo}...` : loadingTip}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state for shared repo
+  if (sharedRepoError && cards.length === 0) {
+    return (
+      <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
+        <div className="flex flex-col items-center gap-4 p-4 max-w-md text-center">
+          <XCircle className="w-12 h-12 text-red-400" />
+          <p className="text-gray-300 mb-2">{sharedRepoError}</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setSharedRepoError(null);
+                setIsLoadingSharedRepo(false);
+                navigate('/discover', { replace: true });
+              }}
+              className="px-4 py-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors"
+            >
+              Go to Discover
+            </button>
+            {owner && repo && (
+              <button
+                onClick={() => {
+                  setSharedRepoError(null);
+                  setIsLoadingSharedRepo(false);
+                  setCards([]);
+                  // Trigger reload by clearing state
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
