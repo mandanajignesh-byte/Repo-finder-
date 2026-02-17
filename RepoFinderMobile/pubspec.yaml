@@ -1,0 +1,68 @@
+name: repofinder_mobile
+description: GitHub Repository Discovery Mobile App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Networking
+  http: ^1.1.0
+  dio: ^5.4.0
+  
+  # Supabase
+  supabase_flutter: ^2.0.0
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  cached_network_image: ^3.3.0
+  flutter_svg: ^2.0.9
+  shimmer: ^3.0.0
+  
+  # Navigation
+  go_router: ^13.0.0
+  
+  # Utils
+  intl: ^0.18.1
+  url_launcher: ^6.2.2
+  share_plus: ^7.2.1
+  flutter_dotenv: ^5.1.0
+  
+  # Gestures & Animations
+  flutter_swipe_action_cell: ^2.0.0
+  
+  # Markdown
+  flutter_markdown: ^0.6.18
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # Fonts - Using Inter Variable Font (supports all weights in one file)
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: fonts/Inter-VariableFont_opsz,wght.ttf
+          weight: 400  # Regular
+        - asset: fonts/Inter-VariableFont_opsz,wght.ttf
+          weight: 500  # Medium
+        - asset: fonts/Inter-VariableFont_opsz,wght.ttf
+          weight: 600  # SemiBold
+  
+  # Assets
+  assets:
+    - .env

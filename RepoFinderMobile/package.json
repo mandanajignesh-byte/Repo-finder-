@@ -1,0 +1,21 @@
+{
+  "name": "repoverse-ingestion",
+  "version": "1.0.0",
+  "description": "Repository ingestion script for Repoverse",
+  "main": "ingest-repos.js",
+  "scripts": {
+    "ingest": "node ingest-repos.js",
+    "ingest:trending": "node ingest-trending.js",
+    "ingest:underrated": "node ingest-underrated.js",
+    "ingest:keywords": "node ingest-by-keywords.js",
+    "ingest:clusters": "node ingest-by-cluster-targets.js",
+    "ingest:pipeline": "node ingest-pipeline.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
