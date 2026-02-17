@@ -12,7 +12,11 @@
     "cleanup-trending": "npx tsx scripts/cleanup-old-trending.ts",
     "curate-clusters": "npx tsx scripts/curate-clusters-improved.ts",
     "cleanup-stale-repos": "npx tsx scripts/cleanup-stale-repos.ts",
-    "calculate-scores": "npx tsx scripts/calculate-repo-scores.ts"
+    "calculate-scores": "npx tsx scripts/calculate-repo-scores.ts",
+    "ingest-repos": "npx tsx scripts/ingest-repos.ts",
+    "ingest-comprehensive": "npx tsx scripts/ingest-repos-comprehensive.ts",
+    "update-repos": "npx tsx scripts/update-existing-repos.ts",
+    "fetch-readmes": "npx tsx scripts/fetch-readmes.ts"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
