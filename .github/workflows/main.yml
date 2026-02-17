@@ -18,11 +18,14 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: RepoFinderMobile/package.json
       
       - name: Install dependencies
+        working-directory: RepoFinderMobile
         run: npm install
       
       - name: Update daily trending repos
+        working-directory: RepoFinderMobile
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -31,6 +34,7 @@ jobs:
       
       - name: Update weekly trending repos (on Mondays)
         if: github.event.schedule == '0 2 * * *' && github.run_attempt == 1
+        working-directory: RepoFinderMobile
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
