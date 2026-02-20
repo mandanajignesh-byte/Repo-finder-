@@ -24,8 +24,8 @@ jobs:
       - name: Update Trending Repos
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GH_API_TOKENS }}
         run: |
           node << 'EOF'
           const { createClient } = require('@supabase/supabase-js');
@@ -92,7 +92,6 @@ jobs:
             
             const repos = await fetchGitHubTrending(periodType);
             
-            // Use yesterday for daily, 7 days ago for weekly
             const targetDate = new Date();
             targetDate.setDate(targetDate.getDate() - (periodType === 'daily' ? 1 : 7));
             const periodDate = targetDate.toISOString().split('T')[0];
@@ -103,21 +102,18 @@ jobs:
             const filteredRepos = repos.filter(repo => !BLOCKED_REPOS.has(repo.full_name));
             console.log(`✅ After filtering: ${filteredRepos.length} repos`);
 
-            // Delete old data (>3 days)
             await supabase
               .from('trending_repos')
               .delete()
               .eq('period_type', periodType)
               .lt('period_date', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
-            // Delete existing data for this date
             await supabase
               .from('trending_repos')
               .delete()
               .eq('period_type', periodType)
               .eq('period_date', periodDate);
 
-            // Insert new data
             const trendingData = filteredRepos.slice(0, 50).map((repo, index) => ({
               repo_id: repo.id,
               period_type: periodType,
@@ -134,7 +130,6 @@ jobs:
               else console.log(`✅ Inserted ${trendingData.length} repos for ${periodDate}`);
             }
 
-            // Upsert repos to repos_master
             for (const repo of filteredRepos.slice(0, 50)) {
               await supabase.from('repos_master').upsert({
                 github_id: repo.id,
