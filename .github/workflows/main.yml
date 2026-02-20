@@ -2,45 +2,175 @@ name: Update Daily Trending Repos
 
 on:
   schedule:
-    # Runs daily at 2 AM UTC (adjust timezone as needed)
-    - cron: '0 2 * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   update-trending:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: RepoFinderMobile/package.json
-      
+          node-version: '20'
+
       - name: Install dependencies
-        working-directory: RepoFinderMobile
-        run: npm install
-      
-      - name: Update daily trending repos
-        working-directory: RepoFinderMobile
+        run: npm install @supabase/supabase-js node-fetch
+
+      - name: Update Trending Repos
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GH_API_TOKENS: ${{ secrets.GH_API_TOKENS }}
-        run: node update-trending-repos.js --period=daily
-      
-      - name: Update weekly trending repos (on Mondays)
-        if: github.event.schedule == '0 2 * * *' && github.run_attempt == 1
-        working-directory: RepoFinderMobile
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GH_API_TOKENS: ${{ secrets.GH_API_TOKENS }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DAY_OF_WEEK=$(date +%u)
-          if [ "$DAY_OF_WEEK" == "1" ]; then
-            node update-trending-repos.js --period=weekly
-          fi
+          node << 'EOF'
+          const { createClient } = require('@supabase/supabase-js');
+
+          const supabase = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_KEY
+          );
+
+          const BLOCKED_REPOS = new Set([
+            'facebook/react', 'facebook/react-native', 'microsoft/vscode',
+            'microsoft/TypeScript', 'google/material-design-icons', 'vuejs/vue',
+            'angular/angular', 'nodejs/node', 'tensorflow/tensorflow',
+            'pytorch/pytorch', 'kubernetes/kubernetes', 'golang/go',
+            'rust-lang/rust', 'python/cpython', 'torvalds/linux',
+            'freeCodeCamp/freeCodeCamp', 'EbookFoundation/free-programming-books',
+            'sindresorhus/awesome', 'public-apis/public-apis', 'flutter/flutter',
+            'laravel/laravel', 'django/django', 'rails/rails', 'vercel/next.js',
+            'spring-projects/spring-boot', 'elastic/elasticsearch', 'redis/redis',
+            'ohmyzsh/ohmyzsh', 'github/gitignore', 'home-assistant/core',
+            'grafana/grafana', 'prometheus/prometheus', 'ansible/ansible',
+            'hashicorp/terraform', 'helm/helm', 'apache/kafka'
+          ]);
+
+          const LANGUAGE_CATEGORIES = {
+            'python': 'ai-ml', 'jupyter notebook': 'ai-ml',
+            'typescript': 'web-dev', 'javascript': 'web-dev', 'vue': 'web-dev',
+            'html': 'web-dev', 'css': 'web-dev',
+            'go': 'devops', 'shell': 'devops', 'dockerfile': 'devops',
+            'rust': 'systems', 'c': 'systems', 'c++': 'systems',
+            'java': 'backend', 'ruby': 'backend', 'php': 'backend',
+            'kotlin': 'mobile', 'swift': 'mobile', 'dart': 'mobile'
+          };
+
+          function getCategory(language) {
+            if (!language) return 'general';
+            return LANGUAGE_CATEGORIES[language.toLowerCase()] || 'general';
+          }
+
+          async function fetchGitHubTrending(since = 'daily') {
+            const dateRange = since === 'daily' ? 1 : 7;
+            const date = new Date();
+            date.setDate(date.getDate() - dateRange);
+            const dateStr = date.toISOString().split('T')[0];
+
+            const response = await fetch(
+              `https://api.github.com/search/repositories?q=created:>${dateStr}+stars:>50&sort=stars&order=desc&per_page=100`,
+              {
+                headers: {
+                  'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                  'Accept': 'application/vnd.github.v3+json',
+                  'User-Agent': 'TrendingRepoBot'
+                }
+              }
+            );
+
+            if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+            const data = await response.json();
+            return data.items || [];
+          }
+
+          async function processTrending(periodType) {
+            console.log(`\n📊 Processing ${periodType} trending repos...`);
+            
+            const repos = await fetchGitHubTrending(periodType);
+            
+            // Use yesterday for daily, 7 days ago for weekly
+            const targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() - (periodType === 'daily' ? 1 : 7));
+            const periodDate = targetDate.toISOString().split('T')[0];
+
+            console.log(`📅 Period date: ${periodDate}`);
+            console.log(`🔍 Found ${repos.length} repos from GitHub API`);
+
+            const filteredRepos = repos.filter(repo => !BLOCKED_REPOS.has(repo.full_name));
+            console.log(`✅ After filtering: ${filteredRepos.length} repos`);
+
+            // Delete old data (>3 days)
+            await supabase
+              .from('trending_repos')
+              .delete()
+              .eq('period_type', periodType)
+              .lt('period_date', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+            // Delete existing data for this date
+            await supabase
+              .from('trending_repos')
+              .delete()
+              .eq('period_type', periodType)
+              .eq('period_date', periodDate);
+
+            // Insert new data
+            const trendingData = filteredRepos.slice(0, 50).map((repo, index) => ({
+              repo_id: repo.id,
+              period_type: periodType,
+              period_date: periodDate,
+              rank: index + 1,
+              trending_score: Math.max(0, 100 - index * 2),
+              star_velocity: repo.stargazers_count,
+              category: getCategory(repo.language)
+            }));
+
+            if (trendingData.length > 0) {
+              const { error } = await supabase.from('trending_repos').insert(trendingData);
+              if (error) console.error('❌ Error:', error.message);
+              else console.log(`✅ Inserted ${trendingData.length} repos for ${periodDate}`);
+            }
+
+            // Upsert repos to repos_master
+            for (const repo of filteredRepos.slice(0, 50)) {
+              await supabase.from('repos_master').upsert({
+                github_id: repo.id,
+                name: repo.name,
+                full_name: repo.full_name,
+                description: repo.description,
+                owner_login: repo.owner.login,
+                avatar_url: repo.owner.avatar_url,
+                language: repo.language,
+                stars: repo.stargazers_count,
+                forks: repo.forks_count,
+                watchers: repo.watchers_count,
+                open_issues: repo.open_issues_count,
+                topics: repo.topics || [],
+                license: repo.license?.spdx_id || null,
+                repo_url: repo.html_url,
+                homepage_url: repo.homepage,
+                created_at: repo.created_at,
+                updated_at: repo.updated_at,
+                pushed_at: repo.pushed_at,
+                archived: repo.archived || false
+              }, { onConflict: 'github_id' });
+            }
+          }
+
+          async function main() {
+            console.log('🚀 Starting trending repos update...');
+            try {
+              await processTrending('daily');
+              await processTrending('weekly');
+              console.log('\n✅ Complete!');
+            } catch (error) {
+              console.error('❌ Error:', error.message);
+              process.exit(1);
+            }
+          }
+
+          main();
+          EOF
