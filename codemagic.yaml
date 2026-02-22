@@ -102,18 +102,24 @@ workflows:
           flutter build ipa --release \
             --build-name=1.0.0 \
             --build-number=1
-          # Verify IPA was created
-          echo "Checking for IPA file..."
-          if [ -f "build/ios/ipa/*.ipa" ]; then
-            echo "✅ IPA file found"
-            ls -lh build/ios/ipa/*.ipa
+          # Verify IPA was created and show location
+          echo "🔍 Checking for IPA file..."
+          IPA_PATH=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
+          if [ -n "$IPA_PATH" ]; then
+            echo "✅ IPA file found at: $IPA_PATH"
+            ls -lh "$IPA_PATH"
+            # Copy to a known location for artifacts
+            mkdir -p ../artifacts
+            cp "$IPA_PATH" ../artifacts/ || true
+            echo "✅ IPA copied to artifacts directory"
           else
-            echo "⚠️  IPA file not found in expected location"
-            echo "Searching for IPA files..."
-            find . -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found"
+            echo "⚠️  IPA file not found"
+            echo "Searching in build directory..."
+            find build -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found in build directory"
           fi
     artifacts:
-      - build/ios/ipa/*.ipa
+      - artifacts/*.ipa
+      - RepoFinderMobile/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
       email:
