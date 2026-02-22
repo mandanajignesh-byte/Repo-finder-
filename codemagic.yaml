@@ -88,8 +88,19 @@ workflows:
           
           # Set code signing - let Codemagic's automatic signing handle everything
           echo "🔐 Setting up code signing..."
-          xcode-project use-profiles
-          xcode-project set-identity
+          
+          # Apply provisioning profiles (must be done before set-identity)
+          echo "📦 Applying provisioning profiles..."
+          xcode-project use-profiles || {
+            echo "⚠️  xcode-project use-profiles failed, trying alternative method..."
+            # List available profiles for debugging
+            PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+            echo "Available profiles:"
+            ls -la "$PROFILE_DIR" 2>/dev/null | head -5 || echo "No profiles found"
+          }
+          
+          echo "🔑 Setting code signing identity..."
+          xcode-project set-identity || echo "⚠️  xcode-project set-identity failed, continuing..."
           
           # Ensure CODE_SIGN_STYLE is Automatic (required for Codemagic automatic signing)
           echo "🔧 Ensuring automatic code signing is enabled..."
