@@ -37,11 +37,26 @@ workflows:
           cd RepoFinderMobile
           # Create .env file from Codemagic environment variables (required for build)
           echo "Creating .env file from environment variables..."
+          
+          # Get values from environment variables (try both VITE_ and non-VITE_ versions)
+          SUPABASE_URL_VALUE="${SUPABASE_URL:-${VITE_SUPABASE_URL:-}}"
+          SUPABASE_ANON_KEY_VALUE="${SUPABASE_ANON_KEY:-${VITE_SUPABASE_ANON_KEY:-}}"
+          
+          # Validate that we have the required values
+          if [ -z "$SUPABASE_URL_VALUE" ] || [ -z "$SUPABASE_ANON_KEY_VALUE" ]; then
+            echo "⚠️  WARNING: SUPABASE_URL or SUPABASE_ANON_KEY is empty!"
+            echo "   Make sure these are set in the app_env group in Codemagic."
+          fi
+          
+          # Create .env file
           cat > .env << EOF
-          SUPABASE_URL=${SUPABASE_URL:-${VITE_SUPABASE_URL:-}}
-          SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-${VITE_SUPABASE_ANON_KEY:-}}
+          SUPABASE_URL=$SUPABASE_URL_VALUE
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY_VALUE
           EOF
-          echo ".env file created with Supabase credentials"
+          
+          echo "✅ .env file created"
+          echo "   SUPABASE_URL: ${SUPABASE_URL_VALUE:0:30}..."
+          echo "   SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY_VALUE:0:30}..."
       - name: Get Flutter dependencies
         script: |
           cd RepoFinderMobile
@@ -54,20 +69,33 @@ workflows:
         script: |
           cd RepoFinderMobile
           # Explicitly set bundle ID in Xcode project (override any cached values)
-          echo "Setting bundle ID to com.repoverse.app..."
+          echo "🔧 Setting bundle ID to com.repoverse.app..."
           sed -i '' 's/com\.example\.repofinderMobile/com.repoverse.app/g' ios/Runner.xcodeproj/project.pbxproj || true
           sed -i '' 's/com\.example\.repofinderMobile\.RunnerTests/com.repoverse.app.RunnerTests/g' ios/Runner.xcodeproj/project.pbxproj || true
+          
           # Verify bundle ID is correct
-          echo "Verifying bundle ID..."
-          grep "PRODUCT_BUNDLE_IDENTIFIER" ios/Runner.xcodeproj/project.pbxproj | grep -v "RunnerTests" | head -3
+          echo "✅ Verifying bundle ID..."
+          BUNDLE_IDS=$(grep "PRODUCT_BUNDLE_IDENTIFIER" ios/Runner.xcodeproj/project.pbxproj | grep -v "RunnerTests" | head -3)
+          echo "$BUNDLE_IDS"
+          if echo "$BUNDLE_IDS" | grep -q "com.repoverse.app"; then
+            echo "✅ Bundle ID verified: com.repoverse.app"
+          else
+            echo "❌ ERROR: Bundle ID verification failed!"
+            exit 1
+          fi
+          
           # List available certificates for debugging
-          echo "Checking available certificates..."
+          echo "🔍 Checking available certificates..."
           security find-identity -v -p codesigning || true
+          
           # Set code signing to use distribution certificates
-          xcode-project use-profiles
-          xcode-project set-identity
+          echo "🔐 Setting up code signing..."
+          xcode-project use-profiles || echo "⚠️  Warning: xcode-project use-profiles failed, continuing..."
+          xcode-project set-identity || echo "⚠️  Warning: xcode-project set-identity failed, continuing..."
+          
           # Force distribution code signing for Release builds
           sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
+          echo "✅ Code signing setup complete"
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
