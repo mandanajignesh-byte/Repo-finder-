@@ -150,7 +150,13 @@ workflows:
         notify:
           success: true
           failure: false
-      # App Store Connect publishing (uncomment when ready to submit to TestFlight)
+      # App Store Connect publishing
+      # Uncomment and configure when ready to submit to TestFlight/App Store
+      # First, ensure App Store Connect API integration is set up in Codemagic settings
       # app_store_connect:
-      #   auth: integration
-      #   submit_to_testflight: true
+      #   auth: integration  # Uses the App Store Connect API key configured in Codemagic
+      #   submit_to_testflight: true  # Submit to TestFlight for beta testing
+      #   # submit_to_app_store: true  # Submit directly to App Store Review (optional)
+      #   # beta_groups:  # Optional: specific TestFlight groups
+      #   #   - "Internal Testing"
+      #   #   - "External Testing"
