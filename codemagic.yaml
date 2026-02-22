@@ -107,10 +107,16 @@ workflows:
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
-          # Build IPA - Codemagic's automatic code signing will handle profiles
+          # Verify profiles are available before building
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "🔍 Checking provisioning profiles..."
+          ls -la "$PROFILE_DIR" 2>/dev/null | head -3 || echo "Profile directory exists"
+          
+          # Build IPA - Use app-store export method explicitly
           flutter build ipa --release \
             --build-name=1.0.0 \
-            --build-number=1
+            --build-number=1 \
+            --export-method=app-store
           
           # Verify IPA was created and ensure it's accessible for artifacts
           echo "🔍 Checking for IPA file..."
