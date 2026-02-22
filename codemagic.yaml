@@ -32,6 +32,20 @@ workflows:
       - name: Navigate to Flutter app directory
         script: |
           cd RepoFinderMobile
+      - name: Create .env file from environment variables
+        script: |
+          cd RepoFinderMobile
+          # Create .env file if it doesn't exist (required for build)
+          if [ ! -f .env ]; then
+            echo "Creating .env file from environment variables..."
+            cat > .env << EOF
+          SUPABASE_URL=${SUPABASE_URL:-}
+          SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
+          EOF
+            echo ".env file created"
+          else
+            echo ".env file already exists"
+          fi
       - name: Get Flutter dependencies
         script: |
           cd RepoFinderMobile
