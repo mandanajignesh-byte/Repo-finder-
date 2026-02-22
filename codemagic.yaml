@@ -9,6 +9,7 @@ workflows:
       cocoapods: default
       groups:
         - app_store_credentials
+        - app_env
       vars:
         APP_ID: com.repoverse.app
         BUNDLE_ID: com.repoverse.app
@@ -35,17 +36,13 @@ workflows:
       - name: Create .env file from environment variables
         script: |
           cd RepoFinderMobile
-          # Create .env file if it doesn't exist (required for build)
-          if [ ! -f .env ]; then
-            echo "Creating .env file from environment variables..."
-            cat > .env << EOF
-          SUPABASE_URL=${SUPABASE_URL:-}
-          SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
+          # Create .env file from Codemagic environment variables (required for build)
+          echo "Creating .env file from environment variables..."
+          cat > .env << EOF
+          SUPABASE_URL=${SUPABASE_URL:-${VITE_SUPABASE_URL:-}}
+          SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-${VITE_SUPABASE_ANON_KEY:-}}
           EOF
-            echo ".env file created"
-          else
-            echo ".env file already exists"
-          fi
+          echo ".env file created with Supabase credentials"
       - name: Get Flutter dependencies
         script: |
           cd RepoFinderMobile
