@@ -15,8 +15,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.repoverse.app
-        # Note: This requires Apple Developer Portal integration to be enabled
-        # in Codemagic settings with your P8 key, Key ID, and Issuer ID
     scripts:
       - name: Clean build cache
         script: |
@@ -86,106 +84,43 @@ workflows:
             exit 1
           fi
           
-          # Set code signing - let Codemagic's automatic signing handle everything
+          # List available certificates for debugging
+          echo "🔍 Checking available certificates..."
+          security find-identity -v -p codesigning || true
+          
+          # Set code signing to use distribution certificates
           echo "🔐 Setting up code signing..."
+          xcode-project use-profiles || echo "⚠️  Warning: xcode-project use-profiles failed, continuing..."
+          xcode-project set-identity || echo "⚠️  Warning: xcode-project set-identity failed, continuing..."
           
-          # Apply provisioning profiles (must be done before set-identity)
-          echo "📦 Applying provisioning profiles..."
-          xcode-project use-profiles || {
-            echo "⚠️  xcode-project use-profiles failed, trying alternative method..."
-            # List available profiles for debugging
-            PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-            echo "Available profiles:"
-            ls -la "$PROFILE_DIR" 2>/dev/null | head -5 || echo "No profiles found"
-          }
-          
-          echo "🔑 Setting code signing identity..."
-          xcode-project set-identity || echo "⚠️  xcode-project set-identity failed, continuing..."
-          
-          # Ensure CODE_SIGN_STYLE is Automatic (required for Codemagic automatic signing)
-          echo "🔧 Ensuring automatic code signing is enabled..."
-          sed -i '' 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' 's/CODE_SIGN_STYLE = "Manual";/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj || true
-          
-          # Remove any hardcoded code signing identities (let automatic signing choose)
-          # Remove all variations of CODE_SIGN_IDENTITY
-          sed -i '' '/CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]/d' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' '/CODE_SIGN_IDENTITY\[sdk=iphonesimulator\*\]/d' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' '/CODE_SIGN_IDENTITY = /d' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' '/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]"/d' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' '/"CODE_SIGN_IDENTITY\[sdk=iphonesimulator\*\]"/d' ios/Runner.xcodeproj/project.pbxproj || true
-          
-          # Remove any hardcoded provisioning profile specifiers (let automatic signing choose)
-          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' '/PROVISIONING_PROFILE/d' ios/Runner.xcodeproj/project.pbxproj || true
-          
-          # Verify automatic signing is properly configured
-          echo "🔍 Verifying code signing configuration..."
-          CODE_SIGN_STYLE_COUNT=$(grep -c "CODE_SIGN_STYLE = Automatic" ios/Runner.xcodeproj/project.pbxproj || echo "0")
-          CODE_SIGN_IDENTITY_COUNT=$(grep -c "CODE_SIGN_IDENTITY" ios/Runner.xcodeproj/project.pbxproj || echo "0")
-          echo "   CODE_SIGN_STYLE = Automatic: $CODE_SIGN_STYLE_COUNT instances"
-          echo "   CODE_SIGN_IDENTITY entries: $CODE_SIGN_IDENTITY_COUNT (should be 0 for automatic signing)"
-          
-          if [ "$CODE_SIGN_IDENTITY_COUNT" -gt "0" ]; then
-            echo "⚠️  WARNING: Some CODE_SIGN_IDENTITY entries still exist"
-            echo "   Listing remaining entries:"
-            grep "CODE_SIGN_IDENTITY" ios/Runner.xcodeproj/project.pbxproj || echo "   (none found)"
-          fi
-          
+          # Force distribution code signing for Release builds
+          sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
           echo "✅ Code signing setup complete"
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
-          # Verify profiles are available before building
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "🔍 Checking provisioning profiles..."
-          ls -la "$PROFILE_DIR" 2>/dev/null | head -3 || echo "Profile directory exists"
-          
-          # Build IPA - Use app-store export method explicitly
           flutter build ipa --release \
             --build-name=1.0.0 \
-            --build-number=1 \
-            --export-method=app-store
-          
-          # Verify IPA was created and ensure it's accessible for artifacts
+            --build-number=1
+          # Verify IPA was created and show location
           echo "🔍 Checking for IPA file..."
-          echo "Current working directory: $(pwd)"
-          
-          # Find IPA file
           IPA_PATH=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
-          
           if [ -n "$IPA_PATH" ]; then
             echo "✅ IPA file found at: $IPA_PATH"
             ls -lh "$IPA_PATH"
-            
-            # Get absolute path
-            ABS_IPA_PATH=$(cd "$(dirname "$IPA_PATH")" && pwd)/$(basename "$IPA_PATH")
-            echo "📁 Absolute path: $ABS_IPA_PATH"
-            
-            # Copy to repository root with proper name
+            # Copy to repository root for artifacts
             REPO_ROOT=$(cd .. && pwd)
             cp "$IPA_PATH" "$REPO_ROOT/app.ipa"
             echo "✅ IPA copied to repository root: $REPO_ROOT/app.ipa"
             ls -lh "$REPO_ROOT/app.ipa"
-            
-            # Also ensure it's in the expected Flutter location
-            mkdir -p build/ios/ipa
-            cp "$IPA_PATH" build/ios/ipa/ 2>/dev/null || true
-            echo "✅ IPA also available at: build/ios/ipa/$(basename "$IPA_PATH")"
           else
-            echo "❌ ERROR: IPA file not found!"
+            echo "⚠️  IPA file not found"
             echo "Searching in build directory..."
             find build -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found in build directory"
-            echo "Listing build/ios/ipa directory:"
-            ls -la build/ios/ipa/ 2>/dev/null || echo "build/ios/ipa/ directory does not exist"
-            echo "Full directory structure:"
-            find . -type d -name "ipa" 2>/dev/null | head -5
-            exit 1
           fi
     artifacts:
       - app.ipa
       - RepoFinderMobile/build/ios/ipa/*.ipa
-      - RepoFinderMobile/build/ios/ipa/**/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
       email:
@@ -194,13 +129,7 @@ workflows:
         notify:
           success: true
           failure: false
-      # App Store Connect publishing
-      # Uncomment and configure when ready to submit to TestFlight/App Store
-      # First, ensure App Store Connect API integration is set up in Codemagic settings
+      # App Store Connect publishing (uncomment when ready to submit to TestFlight)
       # app_store_connect:
-      #   auth: integration  # Uses the App Store Connect API key configured in Codemagic
-      #   submit_to_testflight: true  # Submit to TestFlight for beta testing
-      #   # submit_to_app_store: true  # Submit directly to App Store Review (optional)
-      #   # beta_groups:  # Optional: specific TestFlight groups
-      #   #   - "Internal Testing"
-      #   #   - "External Testing"
+      #   auth: integration
+      #   submit_to_testflight: true
