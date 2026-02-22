@@ -8,7 +8,6 @@ workflows:
       xcode: latest
       cocoapods: default
       groups:
-        - app_store_credentials
         - app_env
       vars:
         APP_ID: com.repoverse.app
