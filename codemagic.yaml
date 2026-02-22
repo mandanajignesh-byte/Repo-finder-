@@ -86,22 +86,26 @@ workflows:
             exit 1
           fi
           
-          # Set code signing to use distribution certificates
+          # Set code signing - let Codemagic's automatic signing handle everything
           echo "🔐 Setting up code signing..."
           xcode-project use-profiles
           xcode-project set-identity
-          
-          # Force distribution code signing for Release builds
-          sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
           
           # Ensure CODE_SIGN_STYLE is Automatic (required for Codemagic automatic signing)
           echo "🔧 Ensuring automatic code signing is enabled..."
           sed -i '' 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj || true
           sed -i '' 's/CODE_SIGN_STYLE = "Manual";/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj || true
           
+          # Remove any hardcoded code signing identities (let automatic signing choose)
+          sed -i '' '/CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]/d' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' '/CODE_SIGN_IDENTITY = /d' ios/Runner.xcodeproj/project.pbxproj || true
+          
           # Remove any hardcoded provisioning profile specifiers (let automatic signing choose)
           sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' ios/Runner.xcodeproj/project.pbxproj || true
           sed -i '' '/PROVISIONING_PROFILE/d' ios/Runner.xcodeproj/project.pbxproj || true
+          
+          # Remove DEVELOPMENT_TEAM if hardcoded (Codemagic will set it automatically)
+          # But keep it if it's needed - actually, let's not remove it as it might be needed
           
           echo "✅ Code signing setup complete"
       - name: Build ipa for distribution
