@@ -95,44 +95,6 @@ workflows:
           sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
           
           echo "✅ Code signing setup complete"
-      - name: Verify and install provisioning profile
-        script: |
-          cd RepoFinderMobile
-          echo "🔍 Verifying provisioning profiles..."
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          
-          # List all profiles
-          echo "📋 All provisioning profiles:"
-          ls -la "$PROFILE_DIR" 2>/dev/null | head -10 || echo "No profiles found"
-          
-          # Find profile for com.repoverse.app
-          PROFILES=$(find "$PROFILE_DIR" -name "*.mobileprovision" 2>/dev/null)
-          TARGET_PROFILE=""
-          
-          if [ -n "$PROFILES" ]; then
-            for PROFILE in $PROFILES; do
-              if grep -q "com.repoverse.app" "$PROFILE" 2>/dev/null; then
-                echo "✅ Found profile for com.repoverse.app: $PROFILE"
-                TARGET_PROFILE="$PROFILE"
-                break
-              fi
-            done
-          fi
-          
-          if [ -z "$TARGET_PROFILE" ]; then
-            echo "⚠️  WARNING: No profile found for com.repoverse.app"
-            echo "   This might cause the export to fail."
-            echo "   Available profiles:"
-            for PROFILE in $PROFILES; do
-              echo "   - $PROFILE"
-            done
-          fi
-          
-          # Ensure xcode-project commands are run again to apply profiles
-          echo "🔐 Re-applying provisioning profiles..."
-          xcode-project use-profiles || echo "⚠️  xcode-project use-profiles failed"
-          xcode-project set-identity || echo "⚠️  xcode-project set-identity failed"
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
