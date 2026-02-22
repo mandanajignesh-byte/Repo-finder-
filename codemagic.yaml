@@ -29,6 +29,8 @@ workflows:
           cd RepoFinderMobile
           xcode-project use-profiles
           xcode-project set-identity
+          # Verify bundle ID is correct
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.repoverse.app" ios/Runner/Info.plist || true
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
