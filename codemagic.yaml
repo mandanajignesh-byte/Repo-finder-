@@ -16,6 +16,19 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.repoverse.app
     scripts:
+      - name: Clean build cache
+        script: |
+          cd RepoFinderMobile
+          echo "Cleaning Flutter build cache..."
+          flutter clean
+          # Remove Xcode derived data
+          rm -rf ~/Library/Developer/Xcode/DerivedData/* || true
+          # Remove CocoaPods cache
+          rm -rf ios/Pods || true
+          rm -rf ios/Podfile.lock || true
+          # Remove Flutter build artifacts
+          rm -rf build/ || true
+          echo "Cache cleaned successfully"
       - name: Navigate to Flutter app directory
         script: |
           cd RepoFinderMobile
