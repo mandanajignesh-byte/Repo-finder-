@@ -102,27 +102,46 @@ workflows:
           flutter build ipa --release \
             --build-name=1.0.0 \
             --build-number=1
-          # Verify IPA was created and copy to repository root for artifacts
+          
+          # Verify IPA was created and ensure it's accessible for artifacts
           echo "🔍 Checking for IPA file..."
+          echo "Current working directory: $(pwd)"
+          
+          # Find IPA file
           IPA_PATH=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
+          
           if [ -n "$IPA_PATH" ]; then
             echo "✅ IPA file found at: $IPA_PATH"
             ls -lh "$IPA_PATH"
-            # Copy to repository root so Codemagic can find it
-            cp "$IPA_PATH" ../app.ipa
-            echo "✅ IPA copied to repository root as app.ipa"
-            ls -lh ../app.ipa
+            
+            # Get absolute path
+            ABS_IPA_PATH=$(cd "$(dirname "$IPA_PATH")" && pwd)/$(basename "$IPA_PATH")
+            echo "📁 Absolute path: $ABS_IPA_PATH"
+            
+            # Copy to repository root with proper name
+            REPO_ROOT=$(cd .. && pwd)
+            cp "$IPA_PATH" "$REPO_ROOT/app.ipa"
+            echo "✅ IPA copied to repository root: $REPO_ROOT/app.ipa"
+            ls -lh "$REPO_ROOT/app.ipa"
+            
+            # Also ensure it's in the expected Flutter location
+            mkdir -p build/ios/ipa
+            cp "$IPA_PATH" build/ios/ipa/ 2>/dev/null || true
+            echo "✅ IPA also available at: build/ios/ipa/$(basename "$IPA_PATH")"
           else
-            echo "⚠️  IPA file not found"
+            echo "❌ ERROR: IPA file not found!"
             echo "Searching in build directory..."
             find build -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found in build directory"
-            echo "Current directory: $(pwd)"
             echo "Listing build/ios/ipa directory:"
             ls -la build/ios/ipa/ 2>/dev/null || echo "build/ios/ipa/ directory does not exist"
+            echo "Full directory structure:"
+            find . -type d -name "ipa" 2>/dev/null | head -5
+            exit 1
           fi
     artifacts:
       - app.ipa
       - RepoFinderMobile/build/ios/ipa/*.ipa
+      - RepoFinderMobile/build/ios/ipa/**/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
       email:
