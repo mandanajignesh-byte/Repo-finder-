@@ -97,8 +97,12 @@ workflows:
           sed -i '' 's/CODE_SIGN_STYLE = "Manual";/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj || true
           
           # Remove any hardcoded code signing identities (let automatic signing choose)
+          # Remove all variations of CODE_SIGN_IDENTITY
           sed -i '' '/CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]/d' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' '/CODE_SIGN_IDENTITY\[sdk=iphonesimulator\*\]/d' ios/Runner.xcodeproj/project.pbxproj || true
           sed -i '' '/CODE_SIGN_IDENTITY = /d' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' '/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]"/d' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' '/"CODE_SIGN_IDENTITY\[sdk=iphonesimulator\*\]"/d' ios/Runner.xcodeproj/project.pbxproj || true
           
           # Remove any hardcoded provisioning profile specifiers (let automatic signing choose)
           sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' ios/Runner.xcodeproj/project.pbxproj || true
