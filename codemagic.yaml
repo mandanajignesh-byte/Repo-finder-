@@ -120,6 +120,37 @@ workflows:
           fi
           
           echo "✅ Code signing setup complete"
+      - name: Verify provisioning profile before build
+        script: |
+          cd RepoFinderMobile
+          echo "🔍 Final verification before build..."
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "Profile directory: $PROFILE_DIR"
+          ls -la "$PROFILE_DIR" 2>/dev/null | head -10 || echo "No profiles found"
+          
+          # Check if profile for com.repoverse.app exists
+          PROFILES=$(find "$PROFILE_DIR" -name "*.mobileprovision" 2>/dev/null)
+          if [ -z "$PROFILES" ]; then
+            echo "❌ ERROR: No provisioning profiles found!"
+            echo "   Make sure Developer Portal integration is enabled and certificates are uploaded."
+            exit 1
+          fi
+          
+          FOUND_PROFILE=false
+          for PROFILE in $PROFILES; do
+            if grep -q "com.repoverse.app" "$PROFILE" 2>/dev/null; then
+              echo "✅ Found profile for com.repoverse.app: $PROFILE"
+              FOUND_PROFILE=true
+            fi
+          done
+          
+          if [ "$FOUND_PROFILE" = false ]; then
+            echo "⚠️  WARNING: No profile found for com.repoverse.app"
+            echo "   Available profiles:"
+            for PROFILE in $PROFILES; do
+              echo "   - $PROFILE"
+            done
+          fi
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
