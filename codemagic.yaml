@@ -45,11 +45,7 @@ workflows:
         notify:
           success: true
           failure: false
-      app_store_connect:
-        auth: integration
-        
-        # Optional: submit to TestFlight
-        # submit_to_testflight: true
-        # beta_groups: # Optional, defaults to External Testing
-        #   - group name 1
-        #   - group name 2
+      # App Store Connect publishing (uncomment when ready to submit to TestFlight)
+      # app_store_connect:
+      #   auth: integration
+      #   submit_to_testflight: true
