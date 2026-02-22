@@ -163,40 +163,7 @@ workflows:
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
-          # Final check: Ensure provisioning profile is available
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "🔍 Final profile check before build..."
-          PROFILES=$(find "$PROFILE_DIR" -name "*.mobileprovision" 2>/dev/null)
-          if [ -z "$PROFILES" ]; then
-            echo "❌ ERROR: No provisioning profiles found!"
-            echo "   This means Codemagic's automatic code signing isn't working."
-            echo "   Please verify:"
-            echo "   1. Apple Developer Portal integration is enabled in Codemagic"
-            echo "   2. P8 key, Key ID, and Issuer ID are correctly configured"
-            echo "   3. Certificate and provisioning profile exist in Codemagic"
-            exit 1
-          fi
-          
-          # Verify profile for our bundle ID exists
-          FOUND=false
-          for PROFILE in $PROFILES; do
-            if grep -q "com.repoverse.app" "$PROFILE" 2>/dev/null; then
-              echo "✅ Found profile for com.repoverse.app: $PROFILE"
-              FOUND=true
-            fi
-          done
-          
-          if [ "$FOUND" = false ]; then
-            echo "❌ ERROR: No profile found for com.repoverse.app!"
-            echo "   Available profiles:"
-            for PROFILE in $PROFILES; do
-              echo "   - $PROFILE"
-            done
-            exit 1
-          fi
-          
-          # Build IPA (Codemagic should handle code signing automatically)
-          echo "🚀 Building IPA..."
+          # Build IPA - Codemagic's automatic code signing will handle profiles
           flutter build ipa --release \
             --build-name=1.0.0 \
             --build-number=1
