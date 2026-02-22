@@ -7,9 +7,8 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
-      # Codemagic will auto-detect certificates for com.repoverse.app
-      # groups:
-      #   - app_store_credentials
+      groups:
+        - app_store_credentials
       vars:
         APP_ID: com.repoverse.app
         BUNDLE_ID: com.repoverse.app
