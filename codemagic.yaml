@@ -94,6 +94,15 @@ workflows:
           # Force distribution code signing for Release builds
           sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
           
+          # Ensure CODE_SIGN_STYLE is Automatic (required for Codemagic automatic signing)
+          echo "🔧 Ensuring automatic code signing is enabled..."
+          sed -i '' 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' 's/CODE_SIGN_STYLE = "Manual";/CODE_SIGN_STYLE = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj || true
+          
+          # Remove any hardcoded provisioning profile specifiers (let automatic signing choose)
+          sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' '/PROVISIONING_PROFILE/d' ios/Runner.xcodeproj/project.pbxproj || true
+          
           echo "✅ Code signing setup complete"
       - name: Build ipa for distribution
         script: |
