@@ -30,6 +30,13 @@ workflows:
       - name: Set up code signing settings on Xcode project
         script: |
           cd RepoFinderMobile
+          # Explicitly set bundle ID in Xcode project (override any cached values)
+          echo "Setting bundle ID to com.repoverse.app..."
+          sed -i '' 's/com\.example\.repofinderMobile/com.repoverse.app/g' ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' 's/com\.example\.repofinderMobile\.RunnerTests/com.repoverse.app.RunnerTests/g' ios/Runner.xcodeproj/project.pbxproj || true
+          # Verify bundle ID is correct
+          echo "Verifying bundle ID..."
+          grep "PRODUCT_BUNDLE_IDENTIFIER" ios/Runner.xcodeproj/project.pbxproj | grep -v "RunnerTests" | head -3
           # List available certificates for debugging
           echo "Checking available certificates..."
           security find-identity -v -p codesigning || true
