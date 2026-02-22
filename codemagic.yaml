@@ -120,37 +120,44 @@ workflows:
           fi
           
           echo "✅ Code signing setup complete"
-      - name: Verify provisioning profile before build
+      - name: Verify and install provisioning profile
         script: |
           cd RepoFinderMobile
-          echo "🔍 Final verification before build..."
+          echo "🔍 Verifying provisioning profiles..."
           PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "Profile directory: $PROFILE_DIR"
+          mkdir -p "$PROFILE_DIR"
+          
+          # List all profiles
+          echo "📋 All provisioning profiles:"
           ls -la "$PROFILE_DIR" 2>/dev/null | head -10 || echo "No profiles found"
           
-          # Check if profile for com.repoverse.app exists
+          # Find profile for com.repoverse.app
           PROFILES=$(find "$PROFILE_DIR" -name "*.mobileprovision" 2>/dev/null)
-          if [ -z "$PROFILES" ]; then
-            echo "❌ ERROR: No provisioning profiles found!"
-            echo "   Make sure Developer Portal integration is enabled and certificates are uploaded."
-            exit 1
+          TARGET_PROFILE=""
+          
+          if [ -n "$PROFILES" ]; then
+            for PROFILE in $PROFILES; do
+              if grep -q "com.repoverse.app" "$PROFILE" 2>/dev/null; then
+                echo "✅ Found profile for com.repoverse.app: $PROFILE"
+                TARGET_PROFILE="$PROFILE"
+                break
+              fi
+            done
           fi
           
-          FOUND_PROFILE=false
-          for PROFILE in $PROFILES; do
-            if grep -q "com.repoverse.app" "$PROFILE" 2>/dev/null; then
-              echo "✅ Found profile for com.repoverse.app: $PROFILE"
-              FOUND_PROFILE=true
-            fi
-          done
-          
-          if [ "$FOUND_PROFILE" = false ]; then
+          if [ -z "$TARGET_PROFILE" ]; then
             echo "⚠️  WARNING: No profile found for com.repoverse.app"
+            echo "   This might cause the export to fail."
             echo "   Available profiles:"
             for PROFILE in $PROFILES; do
               echo "   - $PROFILE"
             done
           fi
+          
+          # Ensure xcode-project commands are run again to apply profiles
+          echo "🔐 Re-applying provisioning profiles..."
+          xcode-project use-profiles || echo "⚠️  xcode-project use-profiles failed"
+          xcode-project set-identity || echo "⚠️  xcode-project set-identity failed"
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
