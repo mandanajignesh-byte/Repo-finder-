@@ -161,6 +161,32 @@ workflows:
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
+          # Ensure provisioning profile is available before build
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "🔍 Checking profiles before build..."
+          ls -la "$PROFILE_DIR" 2>/dev/null | head -5 || echo "No profiles in directory"
+          
+          # Find and set the provisioning profile UUID in ExportOptions.plist if it exists
+          if [ -f "ios/ExportOptions.plist" ]; then
+            PROFILES=$(find "$PROFILE_DIR" -name "*.mobileprovision" 2>/dev/null)
+            if [ -n "$PROFILES" ]; then
+              for PROFILE in $PROFILES; do
+                if grep -q "com.repoverse.app" "$PROFILE" 2>/dev/null; then
+                  # Extract UUID from profile
+                  UUID=$(grep -aA1 UUID "$PROFILE" | grep -o '[0-9A-F]\{8\}-[0-9A-F]\{4\}-[0-9A-F]\{4\}-[0-9A-F]\{4\}-[0-9A-F]\{12\}' | head -1)
+                  if [ -n "$UUID" ]; then
+                    echo "✅ Found profile UUID: $UUID"
+                    # Update ExportOptions.plist with UUID
+                    /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:com.repoverse.app $UUID" ios/ExportOptions.plist 2>/dev/null || \
+                    echo "⚠️  Could not update ExportOptions.plist"
+                  fi
+                  break
+                fi
+              done
+            fi
+          fi
+          
+          # Build IPA
           flutter build ipa --release \
             --build-name=1.0.0 \
             --build-number=1
