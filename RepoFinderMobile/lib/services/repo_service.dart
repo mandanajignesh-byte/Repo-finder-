@@ -119,7 +119,7 @@ class RepoService extends ChangeNotifier {
         final reposData = await _supabase
             .from('repos_master')
             .select()
-            .in('repo_id', repoIds)
+            .inFilter('repo_id', repoIds)
             .limit(limit);
         
         final repos = (reposData as List).map((json) {
@@ -236,7 +236,7 @@ class RepoService extends ChangeNotifier {
           var query = _supabase
               .from('repos_master')
               .select()
-              .in('repo_id', repoIds);
+              .inFilter('repo_id', repoIds);
           
           if (langConditions.isNotEmpty) {
             query = query.or(langConditions);
@@ -332,7 +332,7 @@ class RepoService extends ChangeNotifier {
       var query = _supabase
           .from('repos_master')
           .select()
-          .in('repo_id', repoIds);
+          .inFilter('repo_id', repoIds);
       
       if (cursor != null) {
         query = query.gt('repo_id', cursor);
@@ -411,7 +411,7 @@ class RepoService extends ChangeNotifier {
           final reposData = await _supabase
               .from('repos_master')
               .select()
-              .in('repo_id', repoIds)
+              .inFilter('repo_id', repoIds)
               .limit(limit);
           
           final repos = (reposData as List).map((json) {
@@ -549,7 +549,7 @@ class RepoService extends ChangeNotifier {
       final reposData = await _supabase
           .from('repos_master')
           .select()
-          .in('repo_id', githubIds);
+          .inFilter('repo_id', githubIds);
 
       _savedRepos = (reposData as List).map((json) {
         return Repository.fromJson({
@@ -604,7 +604,7 @@ class RepoService extends ChangeNotifier {
       final reposData = await _supabase
           .from('repos_master')
           .select()
-          .in('repo_id', githubIds);
+          .inFilter('repo_id', githubIds);
 
       _likedRepos = (reposData as List).map((json) {
         return Repository.fromJson({
