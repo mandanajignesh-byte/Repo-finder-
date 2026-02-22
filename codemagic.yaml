@@ -118,7 +118,11 @@ workflows:
         notify:
           success: true
           failure: false
-      # App Store Connect publishing (uncomment when ready to submit to TestFlight)
-      # app_store_connect:
-      #   auth: integration
-      #   submit_to_testflight: true
+      # App Store Connect publishing - automatically uploads to TestFlight after successful build
+      app_store_connect:
+        auth: integration  # Uses App Store Connect API key configured in Codemagic settings
+        submit_to_testflight: true  # Automatically submit to TestFlight for beta testing
+        # Optional: specify TestFlight beta groups (defaults to External Testing if not specified)
+        # beta_groups:
+        #   - "Internal Testing"
+        #   - "External Testing"
