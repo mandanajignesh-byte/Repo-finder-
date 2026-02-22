@@ -86,40 +86,13 @@ workflows:
             exit 1
           fi
           
-          # List available certificates for debugging
-          echo "🔍 Checking available certificates..."
-          security find-identity -v -p codesigning || true
-          
           # Set code signing to use distribution certificates
           echo "🔐 Setting up code signing..."
-          
-          # Apply provisioning profiles (this should install them)
           xcode-project use-profiles
           xcode-project set-identity
           
           # Force distribution code signing for Release builds
           sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
-          
-          # Verify provisioning profiles are installed
-          echo "🔍 Verifying provisioning profiles are installed..."
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          ls -la "$PROFILE_DIR" 2>/dev/null | head -5 || echo "Profile directory created"
-          
-          # List all provisioning profiles
-          echo "📋 Available provisioning profiles:"
-          find "$PROFILE_DIR" -name "*.mobileprovision" 2>/dev/null | head -5 || echo "No profiles found yet"
-          
-          # Verify profile for our bundle ID exists
-          echo "🔍 Checking for profile matching bundle ID com.repoverse.app..."
-          PROFILES=$(find "$PROFILE_DIR" -name "*.mobileprovision" 2>/dev/null)
-          if [ -n "$PROFILES" ]; then
-            for PROFILE in $PROFILES; do
-              if grep -q "com.repoverse.app" "$PROFILE" 2>/dev/null; then
-                echo "✅ Found profile for com.repoverse.app: $PROFILE"
-              fi
-            done
-          fi
           
           echo "✅ Code signing setup complete"
       - name: Verify and install provisioning profile
