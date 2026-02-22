@@ -28,6 +28,7 @@ workflows:
         script: |
           cd RepoFinderMobile
           xcode-project use-profiles
+          xcode-project set-identity
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
