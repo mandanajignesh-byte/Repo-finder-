@@ -27,10 +27,11 @@ workflows:
       - name: Set up code signing settings on Xcode project
         script: |
           cd RepoFinderMobile
+          # Set code signing to use distribution certificates
           xcode-project use-profiles
           xcode-project set-identity
-          # Verify bundle ID is correct
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.repoverse.app" ios/Runner/Info.plist || true
+          # Force distribution code signing for Release builds
+          sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
       - name: Build ipa for distribution
         script: |
           cd RepoFinderMobile
