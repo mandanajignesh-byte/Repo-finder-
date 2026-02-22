@@ -108,8 +108,18 @@ workflows:
           sed -i '' '/PROVISIONING_PROFILE_SPECIFIER/d' ios/Runner.xcodeproj/project.pbxproj || true
           sed -i '' '/PROVISIONING_PROFILE/d' ios/Runner.xcodeproj/project.pbxproj || true
           
-          # Remove DEVELOPMENT_TEAM if hardcoded (Codemagic will set it automatically)
-          # But keep it if it's needed - actually, let's not remove it as it might be needed
+          # Verify automatic signing is properly configured
+          echo "🔍 Verifying code signing configuration..."
+          CODE_SIGN_STYLE_COUNT=$(grep -c "CODE_SIGN_STYLE = Automatic" ios/Runner.xcodeproj/project.pbxproj || echo "0")
+          CODE_SIGN_IDENTITY_COUNT=$(grep -c "CODE_SIGN_IDENTITY" ios/Runner.xcodeproj/project.pbxproj || echo "0")
+          echo "   CODE_SIGN_STYLE = Automatic: $CODE_SIGN_STYLE_COUNT instances"
+          echo "   CODE_SIGN_IDENTITY entries: $CODE_SIGN_IDENTITY_COUNT (should be 0 for automatic signing)"
+          
+          if [ "$CODE_SIGN_IDENTITY_COUNT" -gt "0" ]; then
+            echo "⚠️  WARNING: Some CODE_SIGN_IDENTITY entries still exist"
+            echo "   Listing remaining entries:"
+            grep "CODE_SIGN_IDENTITY" ios/Runner.xcodeproj/project.pbxproj || echo "   (none found)"
+          fi
           
           echo "✅ Code signing setup complete"
       - name: Build ipa for distribution
