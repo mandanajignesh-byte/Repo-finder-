@@ -96,11 +96,13 @@ workflows:
           # Force distribution code signing for Release builds
           sed -i '' 's/"iPhone Developer"/"iPhone Distribution"/g' ios/Runner.xcodeproj/project.pbxproj || true
           
-          # Set CODE_SIGN_STYLE to Manual and ensure provisioning profile is set
-          echo "🔧 Configuring manual code signing..."
-          /usr/libexec/PlistBuddy -c "Set :objects:97C147061CF9000F007C117D:buildSettings:CODE_SIGN_STYLE Manual" ios/Runner.xcodeproj/project.pbxproj 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Set :objects:97C147071CF9000F007C117D:buildSettings:CODE_SIGN_STYLE Manual" ios/Runner.xcodeproj/project.pbxproj 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Set :objects:249021D4217E4FDB00AE95B9:buildSettings:CODE_SIGN_STYLE Manual" ios/Runner.xcodeproj/project.pbxproj 2>/dev/null || true
+          # Verify provisioning profiles are available
+          echo "🔍 Verifying provisioning profiles..."
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null | head -5 || echo "Checking for profiles..."
+          
+          # List all provisioning profiles
+          echo "📋 Available provisioning profiles:"
+          find ~/Library/MobileDevice/Provisioning\ Profiles/ -name "*.mobileprovision" 2>/dev/null | head -3 || echo "No profiles found"
           
           echo "✅ Code signing setup complete"
       - name: Build ipa for distribution
