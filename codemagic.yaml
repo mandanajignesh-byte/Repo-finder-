@@ -12,6 +12,9 @@ workflows:
       vars:
         APP_ID: com.repoverse.app
         BUNDLE_ID: com.repoverse.app
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.repoverse.app
     scripts:
       - name: Navigate to Flutter app directory
         script: |
