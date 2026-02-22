@@ -102,23 +102,26 @@ workflows:
           flutter build ipa --release \
             --build-name=1.0.0 \
             --build-number=1
-          # Verify IPA was created and show location
+          # Verify IPA was created and copy to repository root for artifacts
           echo "🔍 Checking for IPA file..."
           IPA_PATH=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
           if [ -n "$IPA_PATH" ]; then
             echo "✅ IPA file found at: $IPA_PATH"
             ls -lh "$IPA_PATH"
-            # Show absolute path for debugging
-            echo "📁 Absolute path: $(pwd)/$IPA_PATH"
+            # Copy to repository root so Codemagic can find it
+            cp "$IPA_PATH" ../app.ipa
+            echo "✅ IPA copied to repository root as app.ipa"
+            ls -lh ../app.ipa
           else
             echo "⚠️  IPA file not found"
             echo "Searching in build directory..."
             find build -name "*.ipa" -type f 2>/dev/null || echo "No IPA files found in build directory"
             echo "Current directory: $(pwd)"
-            echo "Listing build directory:"
+            echo "Listing build/ios/ipa directory:"
             ls -la build/ios/ipa/ 2>/dev/null || echo "build/ios/ipa/ directory does not exist"
           fi
     artifacts:
+      - app.ipa
       - RepoFinderMobile/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
