@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/auth_service.dart';
 import 'services/app_supabase_service.dart';
 import 'services/repo_service.dart';
+import 'services/revenuecat_service.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -34,7 +36,14 @@ void main() async {
       anonKey: supabaseKey,
     );
     
-    runApp(const RepoFinderApp());
+    // Initialize RevenueCat (non-blocking — app works without subscriptions)
+    try {
+      await RevenueCatService.instance.initialize();
+    } catch (e) {
+      debugPrint('RevenueCat init skipped: $e');
+    }
+    
+    runApp(const riverpod.ProviderScope(child: RepoFinderApp()));
   } catch (e) {
     // Show error screen if initialization fails
     runApp(MaterialApp(

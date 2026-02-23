@@ -3,8 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
+import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
 import 'onboarding_screen.dart';
+import 'paywall_screen.dart';
 import 'sign_in_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -211,6 +213,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     },
                   ),
+
+                  // Subscription Status
+                  Builder(
+                    builder: (context) {
+                      final revenueCat = RevenueCatService.instance;
+                      if (revenueCat.isProUser) {
+                        return Card(
+                          color: const Color(0xFF1A1A1A),
+                          child: ListTile(
+                            leading: const Icon(Icons.workspace_premium_rounded, color: Colors.amber),
+                            title: const Text('Repoverse Pro', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Active subscription', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          ),
+                        );
+                      } else {
+                        return Card(
+                          color: const Color(0xFF1A1A1A),
+                          child: ListTile(
+                            leading: const Icon(Icons.workspace_premium_rounded, color: Colors.cyan),
+                            title: const Text('Upgrade to Pro', style: TextStyle(color: Colors.cyan, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Unlock unlimited swipes & more', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                            onTap: () {
+                              showPaywallScreen(context);
+                            },
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
                   // Actions
                   Card(

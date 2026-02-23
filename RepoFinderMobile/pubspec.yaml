@@ -36,6 +36,13 @@ dependencies:
   sign_in_with_apple: ^6.1.0
   crypto: ^3.0.3
   
+  # In-App Purchases (RevenueCat)
+  purchases_flutter: ^8.2.0
+  purchases_ui_flutter: ^8.2.0
+  
+  # State Management (Riverpod for paywall)
+  flutter_riverpod: ^2.4.0
+  
   # Utils
   intl: ^0.18.1
   url_launcher: ^6.2.2

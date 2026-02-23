@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
+import '../services/revenuecat_service.dart';
 import 'sign_in_screen.dart';
 import 'onboarding_screen.dart';
 import 'main_tab_screen.dart';
@@ -34,6 +35,13 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
 
       if (hasSession && authService.userId != null) {
+        // Sync RevenueCat with authenticated user
+        try {
+          await RevenueCatService.instance.logIn(authService.userId!);
+        } catch (e) {
+          debugPrint('RevenueCat login skipped: $e');
+        }
+
         // User is signed in — check if onboarding is done
         final supabaseService =
             Provider.of<AppSupabaseService>(context, listen: false);

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/revenuecat_service.dart';
 import '../theme/app_theme.dart';
 import 'onboarding_screen.dart';
 import 'main_tab_screen.dart';
@@ -72,6 +74,13 @@ class _SignInScreenState extends State<SignInScreen>
     if (!mounted) return;
 
     if (userId != null) {
+      // Sync RevenueCat with authenticated user
+      try {
+        await RevenueCatService.instance.logIn(userId);
+      } catch (e) {
+        debugPrint('RevenueCat login skipped: $e');
+      }
+
       // Sign-in successful — check if onboarding is completed
       final supabaseService =
           Provider.of<AppSupabaseService>(context, listen: false);

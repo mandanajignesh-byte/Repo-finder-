@@ -243,7 +243,20 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen>
                                   color: AppTheme.textSecondary,
                                   size: 22,
                                 ),
-                                onPressed: widget.onClose,
+                                onPressed: () {
+                                  widget.onClose?.call();
+                                  // Navigate to main app
+                                  final canPop = Navigator.of(context).canPop();
+                                  if (canPop) {
+                                    Navigator.of(context).pop(false);
+                                  } else {
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => const MainTabScreen(),
+                                      ),
+                                    );
+                                  }
+                                },
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                               ),

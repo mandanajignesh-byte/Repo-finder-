@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/app_supabase_service.dart';
+import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
 import '../theme/app_theme.dart';
 import 'main_tab_screen.dart';
+import 'paywall_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -310,18 +312,35 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const MainTabScreen(),
-        transitionDuration: const Duration(milliseconds: 800),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-      ),
-    );
+    // Check if user already has Pro access (VIP or subscriber)
+    final revenueCat = RevenueCatService.instance;
+    if (revenueCat.isProUser) {
+      // VIP or already subscribed — skip paywall, go to main app
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const MainTabScreen(),
+          transitionDuration: const Duration(milliseconds: 800),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+    } else {
+      // Show paywall with close button (soft paywall — user can skip)
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => PaywallScreen(
+            onClose: () {
+              // User skipped paywall — go to main app
+            },
+          ),
+          transitionDuration: const Duration(milliseconds: 800),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+    }
   }
 
   @override
