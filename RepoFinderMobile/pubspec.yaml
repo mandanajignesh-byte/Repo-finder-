@@ -32,6 +32,10 @@ dependencies:
   # Navigation
   go_router: ^13.0.0
   
+  # Authentication
+  sign_in_with_apple: ^6.1.0
+  crypto: ^3.0.3
+  
   # Utils
   intl: ^0.18.1
   url_launcher: ^6.2.2

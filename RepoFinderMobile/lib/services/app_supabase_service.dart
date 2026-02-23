@@ -14,15 +14,26 @@ class AppSupabaseService extends ChangeNotifier {
   UserPreferences? get preferences => _preferences;
 
   // Get or create app user ID
+  // Prefers Supabase auth user ID (from Apple Sign In), falls back to anonymous ID
   Future<String> getOrCreateUserId({String? name}) async {
     if (_userId != null) return _userId!;
 
-    final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getString('app_user_id');
-
-    if (_userId == null) {
-      _userId = 'app_user_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
+    // First, check if there's a Supabase auth session (Apple Sign In)
+    final authUser = _supabase.auth.currentUser;
+    if (authUser != null) {
+      _userId = authUser.id;
+      // Save to SharedPreferences for consistency
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setString('app_user_id', _userId!);
+    } else {
+      // Fallback to anonymous user ID (legacy/offline)
+      final prefs = await SharedPreferences.getInstance();
+      _userId = prefs.getString('app_user_id');
+
+      if (_userId == null) {
+        _userId = 'app_user_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
+        await prefs.setString('app_user_id', _userId!);
+      }
     }
 
     // Ensure user exists in Supabase app_users table

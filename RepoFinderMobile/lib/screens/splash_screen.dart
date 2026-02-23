@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
+import 'sign_in_screen.dart';
 import 'onboarding_screen.dart';
 import 'main_tab_screen.dart';
 
@@ -16,45 +18,49 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkOnboardingStatus();
+    _checkAuthAndNavigate();
   }
 
-  Future<void> _checkOnboardingStatus() async {
+  Future<void> _checkAuthAndNavigate() async {
     try {
+      // Brief splash delay for branding
       await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
 
-      // TEMPORARY: Always show onboarding for testing
-      // TODO: Remove this and uncomment the code below when ready
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const OnboardingScreen(),
-        ),
-      );
-      
-      /* ORIGINAL CODE - Uncomment when ready to use onboarding check
-      final supabaseService = Provider.of<AppSupabaseService>(context, listen: false);
-      final userId = await supabaseService.getOrCreateUserId();
-      final isCompleted = await supabaseService.isOnboardingCompleted(userId);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final hasSession = await authService.hasValidSession();
 
       if (!mounted) return;
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => isCompleted 
-              ? const MainTabScreen() 
-              : const OnboardingScreen(),
-        ),
-      );
-      */
+      if (hasSession && authService.userId != null) {
+        // User is signed in — check if onboarding is done
+        final supabaseService =
+            Provider.of<AppSupabaseService>(context, listen: false);
+        final isOnboarded = await supabaseService
+            .isOnboardingCompleted(authService.userId!);
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) =>
+                isOnboarded ? const MainTabScreen() : const OnboardingScreen(),
+          ),
+        );
+      } else {
+        // No session — show sign-in screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SignInScreen()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
-      
-      // Show error but still navigate to onboarding
-      debugPrint('Error checking onboarding: $e');
+
+      debugPrint('Error during splash check: $e');
+      // On error, default to sign-in screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        MaterialPageRoute(builder: (_) => const SignInScreen()),
       );
     }
   }
@@ -68,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              'RepoFinder',
+              'Repoverse',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

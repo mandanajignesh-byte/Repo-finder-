@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
 import '../models/user_preferences.dart';
 import 'onboarding_screen.dart';
+import 'sign_in_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -59,10 +61,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
-      // Navigate to onboarding
+      // Sign out from Supabase
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.signOut();
+
+      // Navigate to sign-in screen
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const SignInScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('You will need to sign in again to use the app.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.signOut();
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const SignInScreen()),
+          (route) => false,
         );
       }
     }
@@ -136,6 +175,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Account Info
+                  Consumer<AuthService>(
+                    builder: (context, auth, _) {
+                      if (!auth.isSignedIn) return const SizedBox.shrink();
+                      return Column(
+                        children: [
+                          Card(
+                            color: const Color(0xFF1A1A1A),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Account',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (auth.displayName != null)
+                                    _buildInfoRow('Name', auth.displayName!),
+                                  if (auth.email != null)
+                                    _buildInfoRow('Email', auth.email!),
+                                  _buildInfoRow('Sign In', 'Apple ID'),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      );
+                    },
+                  ),
+
                   // Actions
                   Card(
                     color: const Color(0xFF1A1A1A),
@@ -152,6 +228,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ).then((_) => _loadPreferences());
                           },
+                        ),
+                        const Divider(color: Colors.grey),
+                        ListTile(
+                          leading: const Icon(Icons.logout_rounded, color: Colors.orange),
+                          title: const Text('Sign Out', style: TextStyle(color: Colors.orange)),
+                          onTap: _signOut,
                         ),
                         const Divider(color: Colors.grey),
                         ListTile(

@@ -4,11 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'services/auth_service.dart';
 import 'services/app_supabase_service.dart';
 import 'services/repo_service.dart';
 import 'screens/splash_screen.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/main_tab_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -75,6 +74,7 @@ class RepoFinderApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => AppSupabaseService()),
         ChangeNotifierProvider(create: (_) => RepoService()),
       ],
