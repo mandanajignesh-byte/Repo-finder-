@@ -4,7 +4,6 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
 import { BottomNavigation } from '@/app/components/BottomNavigation';
-import { RepositoryRedirect } from '@/app/components/RepositoryRedirect';
 import { Loader2 } from 'lucide-react';
 import { updateSEO, getSEOForRoute } from '@/utils/seo';
 

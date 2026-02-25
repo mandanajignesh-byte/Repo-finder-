@@ -391,8 +391,8 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                 const shared = await shareService.shareRepositoryWithPlatformLink(repo);
                 if (shared) {
                   trackShare('native', 'repo', repo.id);
+                  showToast('Link copied!');
                 } else {
-                  // Fallback to copy
                   trackShare('copy', 'repo', repo.id);
                 }
               }}

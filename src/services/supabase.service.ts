@@ -41,10 +41,20 @@ const savedLikedCache = new Map<string, { saved: Repository[]; liked: Repository
 const SAVED_LIKED_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 class SupabaseService {
+  // PERF: Track whether we've already verified the user in Supabase this session
+  private userVerified = false;
+  private cachedUserId: string | null = null;
+
   /**
    * Get or create user ID
+   * OPTIMIZED: Only hits Supabase once per session to verify user exists
    */
   async getOrCreateUserId(name?: string): Promise<string> {
+    // Fast path: return cached userId if already verified
+    if (this.cachedUserId && this.userVerified && !name) {
+      return this.cachedUserId;
+    }
+
     // Get user ID from localStorage or create one
     let userId = localStorage.getItem('user_id');
     
@@ -52,42 +62,45 @@ class SupabaseService {
       userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem('user_id', userId);
     }
-    
-    // Always ensure user exists in Supabase (even if userId was in localStorage)
-    // This fixes the foreign key constraint error
-    try {
-      const { data: existingUser, error: checkError } = await supabase
-        .from(TABLES.users)
-        .select('id, name')
-        .eq('id', userId)
-        .single();
-      
-      // If user doesn't exist, create it
-      if (!existingUser || checkError?.code === 'PGRST116') {
-        const { error: insertError } = await supabase
+
+    this.cachedUserId = userId;
+
+    // Only verify/create in Supabase once per session (or when name is provided)
+    if (!this.userVerified || name) {
+      try {
+        const { data: existingUser, error: checkError } = await supabase
           .from(TABLES.users)
-          .insert({
-            id: userId,
-            name: name || null,
-            created_at: new Date().toISOString(),
-          });
+          .select('id, name')
+          .eq('id', userId)
+          .single();
         
-        if (insertError && insertError.code !== '23505') { // Ignore duplicate key errors
-          console.error('Error creating user:', insertError);
-          // Don't throw - continue with userId even if creation fails
-        } else {
-          console.log('✅ User created/verified in Supabase:', userId);
+        // If user doesn't exist, create it
+        if (!existingUser || checkError?.code === 'PGRST116') {
+          const { error: insertError } = await supabase
+            .from(TABLES.users)
+            .insert({
+              id: userId,
+              name: name || null,
+              created_at: new Date().toISOString(),
+            });
+          
+          if (insertError && insertError.code !== '23505') { // Ignore duplicate key errors
+            console.error('Error creating user:', insertError);
+          }
+        } else if (name && existingUser.name !== name) {
+          // Update name if provided and different
+          await supabase
+            .from(TABLES.users)
+            .update({ name, updated_at: new Date().toISOString() })
+            .eq('id', userId);
         }
-      } else if (name && existingUser.name !== name) {
-        // Update name if provided and different
-        await supabase
-          .from(TABLES.users)
-          .update({ name, updated_at: new Date().toISOString() })
-          .eq('id', userId);
+        
+        this.userVerified = true;
+      } catch (error) {
+        console.error('Error ensuring user exists in Supabase:', error);
+        // Still mark as verified to avoid retrying every call
+        this.userVerified = true;
       }
-    } catch (error) {
-      console.error('Error ensuring user exists in Supabase:', error);
-      // Don't throw - continue with userId even if check fails
     }
     
     return userId;

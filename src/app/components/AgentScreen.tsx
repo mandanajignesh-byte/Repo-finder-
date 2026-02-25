@@ -15,6 +15,8 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
+  Smartphone,
+  Lock,
 } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { useTypedPlaceholder } from './TypedPlaceholder';
@@ -26,6 +28,31 @@ import {
   RepoComparison,
   RepoHealthScore,
 } from '@/lib/types';
+
+// ── Free tier config ─────────────────────────────────────────
+const FREE_QUERIES_LIMIT = 3;
+const FREE_QUERIES_KEY = 'rv_agent_queries_used';
+const FREE_QUERIES_DATE_KEY = 'rv_agent_queries_date';
+
+function getQueriesUsedToday(): number {
+  const storedDate = localStorage.getItem(FREE_QUERIES_DATE_KEY);
+  const today = new Date().toDateString();
+  if (storedDate !== today) {
+    // Reset daily
+    localStorage.setItem(FREE_QUERIES_DATE_KEY, today);
+    localStorage.setItem(FREE_QUERIES_KEY, '0');
+    return 0;
+  }
+  return parseInt(localStorage.getItem(FREE_QUERIES_KEY) || '0', 10);
+}
+
+function incrementQueriesUsed(): number {
+  const current = getQueriesUsedToday();
+  const next = current + 1;
+  localStorage.setItem(FREE_QUERIES_KEY, String(next));
+  localStorage.setItem(FREE_QUERIES_DATE_KEY, new Date().toDateString());
+  return next;
+}
 
 // ── Initial message ──────────────────────────────────────────
 
@@ -51,8 +78,13 @@ export function AgentScreen() {
   const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [queriesUsed, setQueriesUsed] = useState(getQueriesUsedToday);
+  const [showDownloadGate, setShowDownloadGate] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const freeQueriesRemaining = Math.max(0, FREE_QUERIES_LIMIT - queriesUsed);
+  const isGated = freeQueriesRemaining <= 0;
 
   useTypedPlaceholder({
     strings: [
@@ -84,6 +116,12 @@ export function AgentScreen() {
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isProcessing) return;
+
+    // Check free tier limit
+    if (isGated) {
+      setShowDownloadGate(true);
+      return;
+    }
 
     // Add user message
     const userMsg: AgentMessage = {
@@ -127,6 +165,10 @@ export function AgentScreen() {
         const withoutLoading = prev.filter((m) => !m.loading);
         return [...withoutLoading, agentMsg];
       });
+
+      // Increment free tier usage
+      const used = incrementQueriesUsed();
+      setQueriesUsed(used);
     } catch {
       setMessages((prev) => {
         const withoutLoading = prev.filter((m) => !m.loading);
@@ -168,6 +210,13 @@ export function AgentScreen() {
               </h1>
               <p className="text-xs text-gray-500">Search · Score · Compare · Discover</p>
             </div>
+          </div>
+          <div className="text-xs text-gray-400">
+            {isGated ? (
+              <span className="text-orange-400 font-medium">Daily limit reached</span>
+            ) : (
+              <span>{freeQueriesRemaining}/{FREE_QUERIES_LIMIT} free today</span>
+            )}
           </div>
         </div>
       </div>
@@ -255,34 +304,85 @@ export function AgentScreen() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Download App Gate Overlay */}
+      {showDownloadGate && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-sm w-full bg-gray-900 border border-gray-700 rounded-2xl p-6 text-center space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-white/10 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-xl text-white font-bold">Daily limit reached</h2>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              You've used all {FREE_QUERIES_LIMIT} free agent queries today.
+              Download the Repoverse app for unlimited AI-powered repo discovery,
+              health scores, and comparisons.
+            </p>
+            <div className="space-y-3 pt-2">
+              <a
+                href="https://apps.apple.com/app/repoverse/id6745498032"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 bg-white text-gray-900 rounded-full font-semibold text-sm hover:bg-gray-200 transition-colors"
+              >
+                <Smartphone className="w-4 h-4" />
+                Download Repoverse App
+              </a>
+              <button
+                onClick={() => setShowDownloadGate(false)}
+                className="w-full py-2.5 text-gray-400 hover:text-gray-300 text-sm transition-colors"
+              >
+                Maybe later
+              </button>
+            </div>
+            <p className="text-gray-600 text-[10px]">
+              Free queries reset daily at midnight
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-3 md:p-6 border-t border-gray-700 pb-safe">
-        <div className="flex gap-2 max-w-4xl mx-auto">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
-            placeholder="Ask me anything..."
-            disabled={isProcessing}
-            className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 text-sm md:text-base disabled:opacity-50"
-          />
-          <button
-            onClick={() => handleSend(inputValue)}
-            disabled={!inputValue.trim() || isProcessing}
-            className="w-10 h-10 md:w-12 md:h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-          >
-            {isProcessing ? (
-              <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4 md:w-5 md:h-5" />
-            )}
-          </button>
-        </div>
-        <p className="text-center text-gray-600 text-[10px] md:text-xs mt-1.5 max-w-4xl mx-auto">
-          Powered by real-time GitHub data · Health scores · Comparisons
-        </p>
+        {isGated ? (
+          <div className="max-w-4xl mx-auto">
+            <button
+              onClick={() => setShowDownloadGate(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-800/50 text-gray-400 rounded-full border border-gray-700 text-sm"
+            >
+              <Lock className="w-4 h-4" />
+              Daily limit reached — Download app for unlimited
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2 max-w-4xl mx-auto">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
+                placeholder="Ask me anything..."
+                disabled={isProcessing}
+                className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 text-sm md:text-base disabled:opacity-50"
+              />
+              <button
+                onClick={() => handleSend(inputValue)}
+                disabled={!inputValue.trim() || isProcessing}
+                className="w-10 h-10 md:w-12 md:h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 md:w-5 md:h-5" />
+                )}
+              </button>
+            </div>
+            <p className="text-center text-gray-600 text-[10px] md:text-xs mt-1.5 max-w-4xl mx-auto">
+              Powered by real-time GitHub data · Health scores · Comparisons
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

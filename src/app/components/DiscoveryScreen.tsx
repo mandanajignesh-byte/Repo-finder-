@@ -6,7 +6,6 @@ import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
 import { SignatureCard } from './SignatureCard';
 import { OnboardingQuestionnaire } from './OnboardingQuestionnaire';
-import { useRepositories } from '@/hooks/useRepositories';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { enhancedRecommendationService } from '@/services/enhanced-recommendation.service';
 import { interactionService } from '@/services/interaction.service';
@@ -23,7 +22,6 @@ export function DiscoveryScreen() {
   const { owner, repo } = useParams<{ owner?: string; repo?: string }>();
   const navigate = useNavigate();
   const { preferences, updatePreferences, loaded } = useUserPreferences();
-  const { repos, loading, error, refresh } = useRepositories();
   const [cards, setCards] = useState<Repository[]>([]);
   const [savedRepos, setSavedRepos] = useState<Repository[]>([]);
   const [likedRepos, setLikedRepos] = useState<Repository[]>([]);
@@ -537,7 +535,7 @@ export function DiscoveryScreen() {
   // Also handles /r/owner/repo routes - loads that specific repo in explore page
   useEffect(() => {
     // If URL has /r/owner/repo, load that specific repo FIRST before anything else
-    if (owner && repo && cards.length === 0 && !loading && !isLoadingMore && !isLoadingSharedRepo) {
+    if (owner && repo && cards.length === 0 && !isLoadingMore && !isLoadingSharedRepo) {
       const loadSharedRepo = async () => {
         setIsLoadingSharedRepo(true);
         setSharedRepoError(null);
@@ -640,7 +638,7 @@ export function DiscoveryScreen() {
     
     // Normal flow: Start loading immediately if we don't have cards yet
     // BUT: Don't load if we're currently loading a shared repo
-    if (cards.length === 0 && !loading && !isLoadingMore && !isLoadingSharedRepo && loaded && !owner && !repo) {
+    if (cards.length === 0 && !isLoadingMore && !isLoadingSharedRepo && loaded && !owner && !repo) {
       // Check localStorage for onboarding status immediately (don't wait for Supabase sync)
       const localPrefs = (() => {
         try {
@@ -662,7 +660,7 @@ export function DiscoveryScreen() {
         loadRandomRepos();
     }
     }
-  }, [cards.length, loading, isLoadingMore, isLoadingSharedRepo, preferences.onboardingCompleted, loaded, owner, repo, navigate, loadPersonalizedRepos, loadRandomRepos]);
+  }, [cards.length, isLoadingMore, isLoadingSharedRepo, preferences.onboardingCompleted, loaded, owner, repo, navigate, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reload repos when preferences change significantly (e.g., from profile screen)
   // IMPORTANT: Only reload if onboarding is completed AND user has cards (not during initial load)
@@ -736,14 +734,14 @@ export function DiscoveryScreen() {
 
   // Load more cards when running low
   useEffect(() => {
-    if (cards.length < 5 && !isLoadingMore && !loading && loaded) {
+    if (cards.length < 5 && !isLoadingMore && loaded) {
       if (preferences.onboardingCompleted) {
       loadPersonalizedRepos(true);
       } else {
         loadRandomRepos(true);
       }
     }
-  }, [cards.length, isLoadingMore, loading, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
+  }, [cards.length, isLoadingMore, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
 
   // Reset trigger when card changes
   useEffect(() => {
@@ -855,7 +853,7 @@ export function DiscoveryScreen() {
     setCards((prev) => {
       const newCards = prev.slice(1);
       // If we're running low on cards, trigger loading more
-      if (newCards.length < 3 && !isLoadingMore && !loading) {
+      if (newCards.length < 3 && !isLoadingMore) {
         // Use personalized repos if onboarding completed, otherwise random
         if (preferences.onboardingCompleted) {
           setTimeout(() => loadPersonalizedRepos(true), 100);
@@ -865,7 +863,7 @@ export function DiscoveryScreen() {
       }
       return newCards;
     });
-  }, [cards, isLoadingMore, loading, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
+  }, [cards, isLoadingMore, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
 
   const handleLike = useCallback(async (repo?: Repository) => {
     const repoToLike = repo || cards[0];
@@ -940,7 +938,7 @@ export function DiscoveryScreen() {
     setCards((prev) => {
       const newCards = prev.slice(1);
       // If we're running low on cards, trigger loading more
-      if (newCards.length < 3 && !isLoadingMore && !loading) {
+      if (newCards.length < 3 && !isLoadingMore) {
         // Use personalized repos if onboarding completed, otherwise random
         if (preferences.onboardingCompleted) {
           setTimeout(() => loadPersonalizedRepos(true), 100);
@@ -950,7 +948,7 @@ export function DiscoveryScreen() {
       }
       return newCards;
     });
-  }, [cards, isLoadingMore, loading, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
+  }, [cards, isLoadingMore, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
 
   const handleSave = useCallback(async (repo?: Repository) => {
     const repoToSave = repo || cards[0];
@@ -1299,8 +1297,8 @@ export function DiscoveryScreen() {
     );
   }
 
-  // Loading state
-  if (loading && cards.length === 0 && repos.length === 0) {
+  // Loading state (only show if we have zero cards and something is actively loading)
+  if (isLoadingMore && cards.length === 0) {
     return (
       <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
         <div className="flex flex-col items-center gap-4">
@@ -1309,26 +1307,6 @@ export function DiscoveryScreen() {
           <p className="text-gray-500 text-sm text-center max-w-md px-4">
             {loadingTip}
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error && cards.length === 0 && repos.length === 0) {
-    return (
-      <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
-        <div className="flex flex-col items-center gap-4 p-4 max-w-md text-center">
-          <p className="text-gray-300 mb-2">{error}</p>
-          <p className="text-gray-400 text-sm mb-4">
-            Make sure you have a GitHub token in your .env file or check your internet connection.
-          </p>
-          <button
-            onClick={refresh}
-            className="px-4 py-2 bg-black text-white rounded-full"
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
@@ -1420,7 +1398,7 @@ export function DiscoveryScreen() {
       {/* Card stack - centered both horizontally and vertically */}
       <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
         {cards.length === 0 ? (
-          isLoadingMore || loading ? (
+          isLoadingMore ? (
             // Skeleton loading state for faster perceived performance with animated scale effect
             <div className="relative w-full max-w-md" style={{ minHeight: '400px' }}>
               <motion.div 
