@@ -127,6 +127,11 @@ export const routeSEO: Record<string, SEOData> = {
     description: 'Get help, provide feedback, or support RepoVerse. We\'d love to hear from you!',
     keywords: 'support, feedback, help, contact',
   },
+  '/download': {
+    title: 'Download RepoVerse - Navigate the GitHub Universe | iOS App',
+    description: 'Download RepoVerse for iOS. Discover GitHub repositories with AI-powered recommendations, trending feeds, personalized onboarding, and more. Your personal GitHub companion.',
+    keywords: 'RepoVerse app, download RepoVerse, iOS GitHub app, GitHub repository finder, developer app',
+  },
 };
 
 /**

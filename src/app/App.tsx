@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { updateSEO, getSEOForRoute } from '@/utils/seo';
 
 // Lazy load ALL heavy components for code splitting - including DiscoveryScreen
+const LandingPage = lazy(() => import('@/app/components/LandingPage').then(m => ({ default: m.LandingPage })));
 const DiscoveryScreen = lazy(() => import('@/app/components/DiscoveryScreen').then(m => ({ default: m.DiscoveryScreen })));
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
 const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
@@ -98,6 +99,21 @@ function AppContent() {
     return 'discover';
   };
 
+  // Landing page and download page are standalone (no nav bar, no splash)
+  const isStandalonePage = location.pathname === '/' || location.pathname === '/download';
+
+  if (isStandalonePage) {
+    return (
+      <>
+        <Suspense fallback={<LoadingFallback />}>
+          <LandingPage />
+        </Suspense>
+        <Analytics />
+        <SpeedInsights />
+      </>
+    );
+  }
+
   if (showSplash) {
     return <SplashScreen />;
   }
@@ -113,6 +129,14 @@ function AppContent() {
         <div className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Navigate to="/discover" replace />} />
+            <Route 
+              path="/download" 
+              element={
+                <Suspense fallback={<LoadingFallback />}>
+                  <LandingPage />
+                </Suspense>
+              } 
+            />
             <Route 
               path="/discover" 
               element={
