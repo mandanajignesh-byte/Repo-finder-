@@ -99,18 +99,18 @@ function AppContent() {
     return 'discover';
   };
 
-  // Landing page and download page are standalone (no nav bar, no splash)
-  const isStandalonePage = location.pathname === '/' || location.pathname === '/download';
+  // /download is a standalone landing page (no nav bar, no splash)
+  const isLandingPage = location.pathname === '/download';
 
-  if (isStandalonePage) {
+  if (isLandingPage) {
     return (
-      <>
+      <div className="h-screen w-full overflow-y-auto bg-black">
         <Suspense fallback={<LoadingFallback />}>
           <LandingPage />
         </Suspense>
         <Analytics />
         <SpeedInsights />
-      </>
+      </div>
     );
   }
 
@@ -129,14 +129,6 @@ function AppContent() {
         <div className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Navigate to="/discover" replace />} />
-            <Route 
-              path="/download" 
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <LandingPage />
-                </Suspense>
-              } 
-            />
             <Route 
               path="/discover" 
               element={
