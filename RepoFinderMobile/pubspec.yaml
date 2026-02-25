@@ -46,7 +46,6 @@ dependencies:
   # Utils
   intl: ^0.18.1
   url_launcher: ^6.2.2
-  share_plus: ^7.2.1
   flutter_dotenv: ^5.1.0
   
   # Gestures & Animations
