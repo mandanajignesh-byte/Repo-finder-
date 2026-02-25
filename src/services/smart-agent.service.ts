@@ -69,7 +69,21 @@ class SmartAgentService {
     preferences?: UserPreferences
   ): Promise<SmartAgentResponse> {
     try {
-      const intent = this.detectIntent(userMessage);
+      // First try regex-based intent detection (fast, no API call)
+      let intent = this.detectIntent(userMessage);
+
+      // If the query looks conversational and LLM is available,
+      // use LLM to extract better search terms
+      if (
+        intent.type === 'search' &&
+        this.isConfigured() &&
+        this.isConversational(userMessage)
+      ) {
+        const llmTerms = await this.llmExtractSearchTerms(userMessage);
+        if (llmTerms) {
+          intent = { ...intent, searchTerms: llmTerms };
+        }
+      }
 
       switch (intent.type) {
         case 'compare':
@@ -93,6 +107,73 @@ class SmartAgentService {
         text: 'Something went wrong while processing your request. Please try again.',
         actions: ['Try again'],
       };
+    }
+  }
+
+  /**
+   * Check if the query looks conversational (vs. a simple keyword search).
+   * Conversational queries are longer, contain pronouns, greetings, etc.
+   */
+  private isConversational(query: string): boolean {
+    const lower = query.toLowerCase();
+    const wordCount = query.split(/\s+/).length;
+
+    // Short queries (1-4 words) are likely direct search terms
+    if (wordCount <= 4) return false;
+
+    // Check for conversational markers
+    const markers = [
+      /^(hi|hey|hello|yo)\b/i,
+      /\b(i'm|i am|i want|i need|i wanna|can you|could you|please|suggest|recommend)\b/i,
+      /\b(how do i|what should|which one|tell me|show me|help me)\b/i,
+      /\b(building|working on|looking for|trying to)\b/i,
+      /\?\s*$/,  // Ends with question mark
+    ];
+
+    return markers.some(m => m.test(lower)) || wordCount >= 8;
+  }
+
+  /**
+   * Use LLM to extract concise search terms from a conversational query.
+   * Returns null if extraction fails (falls back to regex extraction).
+   */
+  private async llmExtractSearchTerms(query: string): Promise<string | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Extract 2-5 concise GitHub search keywords from the user\'s message. ' +
+                'Return ONLY the keywords, nothing else. No explanation, no formatting. ' +
+                'Focus on technologies, tools, concepts, and project types. ' +
+                'Example: "I want to build a chat app with React" → "react chat application real-time"',
+            },
+            { role: 'user', content: query },
+          ],
+          temperature: 0.2,
+          max_tokens: 50,
+        }),
+      });
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      const terms = data.choices?.[0]?.message?.content?.trim();
+
+      // Validate: should be short (under 60 chars) and not look like a full sentence
+      if (terms && terms.length < 60 && terms.split(/\s+/).length <= 8) {
+        return terms;
+      }
+      return null;
+    } catch {
+      return null;
     }
   }
 
@@ -177,11 +258,99 @@ class SmartAgentService {
       }
     }
 
+    // Extract meaningful search keywords from conversational queries
+    const searchTerms = this.extractSearchTerms(q);
+
     return {
       type: 'search',
-      searchTerms: q,
+      searchTerms,
       language: detectedLanguage,
     };
+  }
+
+  // ── Keyword extraction ──────────────────────────────────────
+
+  /**
+   * Extract meaningful search keywords from a conversational query.
+   * Strips greetings, filler words, question patterns, and stop words
+   * to produce a concise GitHub-search-friendly query.
+   *
+   * Example: "hi I'm building repoverse and i wanna make recommendation system
+   *           of github repos ... so can you suggest some repos that i can use"
+   * → "recommendation system github repos"
+   */
+  private extractSearchTerms(query: string): string {
+    let q = query;
+
+    // 1) Remove greeting patterns
+    q = q.replace(/^(hi|hey|hello|yo|sup|hola|howdy|greetings)[,!.\s]*/i, '');
+
+    // 2) Remove "I'm building X" preambles — but keep the project-type context
+    q = q.replace(/i(?:'m| am)\s+(?:building|making|creating|working on|developing)\s+(?:a\s+)?(?:\w+\s+)?(?:and|but)?\s*/gi, '');
+
+    // 3) Remove polite request patterns
+    q = q.replace(/(?:can you|could you|please|would you|i want you to|i need you to|i'd like you to)\s*/gi, '');
+    q = q.replace(/(?:suggest|recommend|find|show|give|list|tell)\s*(?:me|us)?\s*(?:some|a few|the best|good)?\s*/gi, '');
+
+    // 4) Remove filler phrases
+    q = q.replace(/(?:i wanna|i want to|i need to|i'd like to|i would like to)\s*/gi, '');
+    q = q.replace(/(?:that i can use|that we can use|that would be|to use for this)\s*/gi, '');
+    q = q.replace(/(?:so\s+)?(?:can you|could you)\s*/gi, '');
+    q = q.replace(/\.\.\./g, ' ');
+
+    // 5) Remove stop words (keep technical terms)
+    const stopWords = new Set([
+      'i', 'me', 'my', 'we', 'our', 'you', 'your', 'it', 'its', 'the', 'a', 'an',
+      'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being',
+      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'shall', 'would', 'should',
+      'may', 'might', 'must', 'can', 'could',
+      'and', 'but', 'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither',
+      'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'about', 'into',
+      'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under',
+      'if', 'then', 'than', 'when', 'where', 'how', 'what', 'which', 'who', 'whom',
+      'this', 'that', 'these', 'those', 'there', 'here',
+      'some', 'any', 'many', 'few', 'more', 'most', 'all', 'each', 'every',
+      'also', 'just', 'very', 'really', 'quite', 'too', 'enough', 'even',
+      'like', 'want', 'need', 'make', 'use', 'get', 'know', 'think', 'look',
+      'help', 'try', 'ask', 'tell', 'give', 'take', 'come', 'go', 'see',
+      'good', 'best', 'great', 'nice', 'cool', 'awesome',
+      'please', 'thanks', 'thank', 'hi', 'hey', 'hello',
+      'something', 'anything', 'nothing', 'everything',
+      'im', 'ive', 'dont', 'doesnt', 'wanna', 'gonna',
+    ]);
+
+    const words = q
+      .replace(/[^\w\s#+.-]/g, ' ')   // Keep # + . - for tech terms
+      .split(/\s+/)
+      .filter(w => w.length > 1 && !stopWords.has(w.toLowerCase()))
+      .map(w => w.trim())
+      .filter(Boolean);
+
+    // 6) Deduplicate while preserving order
+    const seen = new Set<string>();
+    const unique = words.filter(w => {
+      const low = w.toLowerCase();
+      if (seen.has(low)) return false;
+      seen.add(low);
+      return true;
+    });
+
+    // 7) If we still have too many words (>6), keep first 6 (most relevant)
+    const result = unique.slice(0, 6).join(' ');
+
+    // 8) If extraction left us with nothing, fall back to the original query
+    //    but still cleaned up (first 8 significant words)
+    if (result.length < 3) {
+      const fallback = query
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2)
+        .slice(0, 8)
+        .join(' ');
+      return fallback || query;
+    }
+
+    return result;
   }
 
   // ── Intent handlers ──────────────────────────────────────────
@@ -192,17 +361,61 @@ class SmartAgentService {
     minStars?: number,
     preferences?: UserPreferences
   ): Promise<SmartAgentResponse> {
-    // Step 1: Search GitHub
-    const repos = await githubEnhancedService.smartSearch(query, {
+    // Multi-strategy search: try progressively broader queries
+    let repos = await githubEnhancedService.smartSearch(query, {
       language,
       limit: 8,
       minStars: minStars || 20,
     });
 
+    // Strategy 2: If no results, try with fewer keywords (first 3 words)
+    if (repos.length === 0) {
+      const shorterQuery = query.split(/\s+/).slice(0, 3).join(' ');
+      if (shorterQuery !== query && shorterQuery.length >= 3) {
+        repos = await githubEnhancedService.smartSearch(shorterQuery, {
+          language,
+          limit: 8,
+          minStars: 10,
+        });
+      }
+    }
+
+    // Strategy 3: If still no results, try each significant keyword individually
+    if (repos.length === 0) {
+      const keywords = query.split(/\s+/).filter(w => w.length > 3);
+      for (const kw of keywords.slice(0, 3)) {
+        const kwRepos = await githubEnhancedService.smartSearch(kw, {
+          language,
+          sort: 'stars',
+          limit: 4,
+          minStars: 50,
+        });
+        repos.push(...kwRepos);
+        if (repos.length >= 6) break;
+      }
+      // Deduplicate
+      const seen = new Set<string>();
+      repos = repos.filter(r => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
+    }
+
+    // Strategy 4: Try best-match sort instead of stars
+    if (repos.length === 0) {
+      repos = await githubEnhancedService.smartSearch(query, {
+        language,
+        sort: 'best-match',
+        limit: 8,
+        minStars: 5,
+      });
+    }
+
     if (repos.length === 0) {
       return {
         type: 'text',
-        text: `I couldn't find any repositories matching "${query}". Try broadening your search or using different keywords.`,
+        text: `I couldn't find repositories for that query. Try being more specific — for example, "react state management" or "python web scraping".`,
         actions: ['Try different terms', 'Search trending instead'],
       };
     }
