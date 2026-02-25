@@ -35,6 +35,8 @@ export interface GitHubApiRepo {
   stargazers_count: number;
   forks_count: number;
   updated_at: string;
+  pushed_at?: string;
+  created_at?: string;
   language: string | null;
   html_url: string;
   owner: {
@@ -43,6 +45,7 @@ export interface GitHubApiRepo {
   };
   license?: {
     name: string;
+    spdx_id?: string;
   } | null;
   topics?: string[];
 }
@@ -53,6 +56,7 @@ export interface Recommendation {
   reason: string;
   url?: string;
   stars?: number;
+  fitScore?: number;
 }
 
 export interface UserPreferences {
@@ -119,4 +123,98 @@ export interface CreditBalance {
   free: number;
   paid: number;
   total: number;
+}
+
+// ─── Enhanced Agent Types ───────────────────────────────────────
+
+/** Raw health signals fetched from GitHub API */
+export interface RepoHealthSignals {
+  stars: number;
+  forks: number;
+  openIssues: number;
+  watchers: number;
+  /** ISO date of last push */
+  lastPush: string;
+  /** ISO date of repo creation */
+  createdAt: string;
+  license: string | null;
+  language: string | null;
+  topics: string[];
+  defaultBranch: string;
+  /** Number of contributors (top-level) */
+  contributorCount: number;
+  /** Average days to close an issue (last 30 closed issues) */
+  avgIssueCloseTimeDays: number | null;
+  /** Ratio of closed issues to total (closed+open) */
+  issueCloseRate: number | null;
+  /** Number of commits in the last 52 weeks */
+  commitActivity52w: number;
+  /** Number of releases */
+  releaseCount: number;
+  /** ISO date of most recent release */
+  lastReleaseDate: string | null;
+  /** Has README */
+  hasReadme: boolean;
+  /** Has CONTRIBUTING.md or similar */
+  hasContributing: boolean;
+  /** Size in KB */
+  sizeKB: number;
+}
+
+/** Composite health score breakdown */
+export interface RepoHealthScore {
+  overall: number; // 0-100
+  grade: 'A+' | 'A' | 'B+' | 'B' | 'C+' | 'C' | 'D' | 'F';
+  breakdown: {
+    popularity: number;        // 0-100 (stars, watchers)
+    activity: number;          // 0-100 (commit frequency, last push)
+    maintenance: number;       // 0-100 (issue close rate, issue response time)
+    community: number;         // 0-100 (contributors, PR activity)
+    documentation: number;     // 0-100 (readme, contributing, description)
+    maturity: number;          // 0-100 (releases, age, license)
+  };
+  signals: RepoHealthSignals;
+  /** Human-readable summary */
+  summary: string;
+}
+
+/** A repository enriched with health score for the agent */
+export interface ScoredRepository extends Repository {
+  healthScore: RepoHealthScore;
+  /** Stars gained per month (velocity) */
+  starVelocity: number;
+}
+
+/** Comparison result for two or more repos */
+export interface RepoComparison {
+  repos: ScoredRepository[];
+  verdict: string;
+  /** Which repo wins each category */
+  categoryWinners: Record<string, string>;
+  /** AI-generated comparison summary */
+  summary: string;
+}
+
+/** Agent message types */
+export type AgentMessageType =
+  | 'text'
+  | 'recommendations'
+  | 'comparison'
+  | 'health-report'
+  | 'alternatives'
+  | 'error';
+
+export interface AgentMessage {
+  id: string;
+  type: AgentMessageType;
+  sender: 'user' | 'agent';
+  text: string;
+  loading?: boolean;
+  error?: boolean;
+  // Payload (depends on type)
+  recommendations?: ScoredRepository[];
+  comparison?: RepoComparison;
+  healthReport?: RepoHealthScore & { repoName: string };
+  /** Quick action buttons */
+  actions?: string[];
 }

@@ -1,75 +1,75 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, AlertCircle } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  AlertCircle,
+  ExternalLink,
+  Star,
+  GitFork,
+  Users,
+  Activity,
+  Shield,
+  BookOpen,
+  Trophy,
+  TrendingUp,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { useTypedPlaceholder } from './TypedPlaceholder';
-import { aiService } from '@/services/ai.service';
-import {
-  enhancedAIAgentService,
-  ClarificationQuestion,
-  ClarificationAnswers,
-} from '@/services/enhanced-ai-agent.service';
-import { creditService } from '@/services/credit.service';
+import { smartAgentService, SmartAgentResponse } from '@/services/smart-agent.service';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { Recommendation } from '@/lib/types';
+import {
+  AgentMessage,
+  ScoredRepository,
+  RepoComparison,
+  RepoHealthScore,
+} from '@/lib/types';
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'agent';
-  quickReplies?: string[];
-  recommendations?: Recommendation[];
-  loading?: boolean;
-  error?: string;
-  reasoning?: string;
-  toolsUsed?: string[];
-  confidence?: number;
-  clarificationQuestions?: ClarificationQuestion[];
-}
+// ── Initial message ──────────────────────────────────────────
 
-const initialMessages: Message[] = [
+const initialMessages: AgentMessage[] = [
   {
     id: '1',
-    text: "Hi! I'm your RepoVerse AI agent. I'm learning and improving every day so I don't disappoint you. If I do, you can always complain to my maker through the feedback section and they'll teach me. Thanks for building with me 🤝",
+    type: 'text',
     sender: 'agent',
+    text: "Hey! I'm your RepoVerse agent — rebuilt from scratch. I can search repos, score their health, compare them side-by-side, and find alternatives. Try asking me anything.",
+    actions: [
+      'Trending repos today',
+      'Compare react vs vue',
+      'Health of vercel/next.js',
+      'Alternatives to expressjs/express',
+    ],
   },
 ];
 
+// ── Main component ───────────────────────────────────────────
+
 export function AgentScreen() {
   const { preferences } = useUserPreferences();
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [inputValue, setInputValue] = useState('');
-  const [credits, setCredits] = useState(creditService.getBalance());
-  const [pendingFeatureDescription, setPendingFeatureDescription] = useState<string | null>(null);
-  const [clarificationSelections, setClarificationSelections] = useState<Record<string, string[]>>(
-    {}
-  );
+  const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Typed placeholder effect
   useTypedPlaceholder({
     strings: [
-      "I'm building Netflix for X and want recommendations better than Netflix",
-      "I'm building Google for X and want a smarter search engine",
-      "I'm building a Notion-style app and need the best open source building blocks",
-      "I'm building a Stripe-level product and want world-class API examples",
-      "I'm building X — what repos did the best companies learn from?",
-      'What are you building today?',
-      'Looking for a React project?',
-      'Need a Python library?',
+      'Search for a React state manager...',
+      'Compare prisma/prisma vs drizzle-team/drizzle-orm',
+      'Health of tailwindlabs/tailwindcss',
+      'Alternatives to expressjs/express',
+      'Trending Python repos this week',
+      'Best repos for building a SaaS',
+      "I'm building a chat app, what should I use?",
     ],
-    typeSpeed: 50,
-    backSpeed: 30,
+    typeSpeed: 40,
+    backSpeed: 25,
     loop: true,
     showCursor: true,
     inputRef,
   });
-
-  // Refill daily credits on mount
-  useEffect(() => {
-    creditService.refillDailyCredits();
-    setCredits(creditService.getBalance());
-  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -79,387 +79,173 @@ export function AgentScreen() {
     scrollToBottom();
   }, [messages]);
 
-  const toggleClarificationSelection = (questionId: string, optionId: string, multiSelect?: boolean) => {
-    setClarificationSelections((prev) => {
-      const current = prev[questionId] || [];
-      if (multiSelect) {
-        const exists = current.includes(optionId);
-        const next = exists ? current.filter((id) => id !== optionId) : [...current, optionId];
-        return { ...prev, [questionId]: next };
-      }
-      // single-select
-      return { ...prev, [questionId]: [optionId] };
-    });
-  };
-
-  const handleSubmitClarifications = async () => {
-    const lastAgentWithQuestions = [...messages]
-      .reverse()
-      .find((m) => m.sender === 'agent' && m.clarificationQuestions && m.clarificationQuestions.length > 0);
-
-    if (!lastAgentWithQuestions || !pendingFeatureDescription) {
-      return;
-    }
-
-    const answers: ClarificationAnswers = {};
-    for (const q of lastAgentWithQuestions.clarificationQuestions || []) {
-      const selected = clarificationSelections[q.id] || [];
-      if (!selected.length) continue;
-      answers[q.id] = q.multiSelect ? selected : selected[0];
-    }
-
-    if (Object.keys(answers).length === 0) {
-      return;
-    }
-
-    // Add loading message for clarification round
-    const loadingMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      text: 'Got it, searching with your selections...',
-      sender: 'agent',
-      loading: true,
-    };
-    setMessages((prev) => [...prev, loadingMessage]);
-
-    try {
-      const response = await enhancedAIAgentService.getRecommendations(
-        pendingFeatureDescription,
-        preferences,
-        undefined,
-        answers
-      );
-
-      const agentResponse: Message = {
-        id: (Date.now() + 2).toString(),
-        text: response.text,
-        sender: 'agent',
-        recommendations: response.recommendations,
-        reasoning: response.reasoning,
-        toolsUsed: response.tools_used,
-        confidence: response.confidence,
-        clarificationQuestions: response.clarificationQuestions,
-        quickReplies: response.recommendations && response.recommendations.length > 0
-          ? [
-              'Show more',
-              'Explain reasoning',
-              'Find alternatives',
-              'Start over',
-            ]
-          : undefined,
-      };
-
-      // Clear selections if we got results (or new questions)
-      setClarificationSelections({});
-      if (!response.clarificationQuestions || response.clarificationQuestions.length === 0) {
-        setPendingFeatureDescription(null);
-      }
-
-      setMessages((prev) => {
-        const withoutLoading = prev.filter((m) => !m.loading);
-        return [...withoutLoading, agentResponse];
-      });
-    } catch (error) {
-      setMessages((prev) => {
-        const withoutLoading = prev.filter((m) => !m.loading);
-        const errorMessage: Message = {
-          id: (Date.now() + 2).toString(),
-          text: "Sorry, I couldn't complete the search with those details. Please try again.",
-          sender: 'agent',
-          error: 'api_error',
-        };
-        return [...withoutLoading, errorMessage];
-      });
-    }
-  };
+  // ── Send message ─────────────────────────────────────────────
 
   const handleSend = async (text: string) => {
-    if (!text.trim()) return;
-
-    // Check credits
-    if (!creditService.hasCredits()) {
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        text: "You've run out of credits! Please upgrade to continue using the AI agent.",
-        sender: 'agent',
-        error: 'no_credits',
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-      return;
-    }
+    const trimmed = text.trim();
+    if (!trimmed || isProcessing) return;
 
     // Add user message
-    const userMessage: Message = {
+    const userMsg: AgentMessage = {
       id: Date.now().toString(),
-      text,
+      type: 'text',
       sender: 'user',
+      text: trimmed,
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMsg]);
     setInputValue('');
+    setIsProcessing(true);
 
     // Add loading message
-    const loadingMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      text: 'Searching for the perfect repos...',
+    const loadingMsg: AgentMessage = {
+      id: `loading-${Date.now()}`,
+      type: 'text',
       sender: 'agent',
+      text: 'Searching GitHub, calculating health scores...',
       loading: true,
     };
-    setMessages((prev) => [...prev, loadingMessage]);
+    setMessages((prev) => [...prev, loadingMsg]);
 
     try {
-      // Use credits
-      creditService.useCredits(1);
-      setCredits(creditService.getBalance());
+      const response: SmartAgentResponse = await smartAgentService.processMessage(
+        trimmed,
+        preferences
+      );
 
-      // Use enhanced AI agent if available
-      let agentResponse: Message;
-      
-      if (enhancedAIAgentService.isConfigured()) {
-        const response = await enhancedAIAgentService.getRecommendations(text, preferences);
-        agentResponse = {
-          id: (Date.now() + 2).toString(),
-          text: response.text,
-          sender: 'agent',
-          recommendations: response.recommendations,
-          reasoning: response.reasoning,
-          toolsUsed: response.tools_used,
-          confidence: response.confidence,
-          clarificationQuestions: response.clarificationQuestions,
-          quickReplies: [
-            'Show more',
-            'Explain reasoning',
-            'Find alternatives',
-            'Start over',
-          ],
-        };
+      const agentMsg: AgentMessage = {
+        id: `agent-${Date.now()}`,
+        type: response.type === 'alternatives' ? 'recommendations' : response.type,
+        sender: 'agent',
+        text: response.text,
+        recommendations: response.recommendations,
+        comparison: response.comparison,
+        healthReport: response.healthReport,
+        actions: response.actions,
+      };
 
-        // If the agent is asking clarification questions, remember this as a feature-building session
-        if (response.clarificationQuestions && response.clarificationQuestions.length > 0) {
-          setPendingFeatureDescription(text);
-          setClarificationSelections({});
-        } else {
-          setPendingFeatureDescription(null);
-          setClarificationSelections({});
-        }
-      } else {
-        // Fallback to basic AI service
-        const recommendations = await aiService.getRecommendations(text, preferences);
-        agentResponse = {
-          id: (Date.now() + 2).toString(),
-          text: recommendations.length > 0
-            ? "Here are my top recommendations based on your needs:"
-            : "I couldn't find specific matches, but here are some popular repos you might like:",
-          sender: 'agent',
-          recommendations,
-          quickReplies: [
-            'Show more',
-            'Different tech stack',
-            'Start over',
-          ],
-        };
-      }
-
-      // Remove loading message and add response
       setMessages((prev) => {
-        const withoutLoading = prev.filter(m => !m.loading);
-        return [...withoutLoading, agentResponse];
+        const withoutLoading = prev.filter((m) => !m.loading);
+        return [...withoutLoading, agentMsg];
       });
-    } catch (error) {
-      // Remove loading message and add error
+    } catch {
       setMessages((prev) => {
-        const withoutLoading = prev.filter(m => !m.loading);
-        const errorMessage: Message = {
-          id: (Date.now() + 2).toString(),
-          text: "Sorry, I encountered an error. Please try again or check your API configuration.",
-          sender: 'agent',
-          error: 'api_error',
-        };
-        return [...withoutLoading, errorMessage];
+        const withoutLoading = prev.filter((m) => !m.loading);
+        return [
+          ...withoutLoading,
+          {
+            id: `err-${Date.now()}`,
+            type: 'text',
+            sender: 'agent',
+            text: 'Something went wrong. Please try again.',
+            error: true,
+            actions: ['Try again'],
+          },
+        ];
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleQuickReply = (reply: string) => {
-    if (reply === 'Explain reasoning') {
-      // Show reasoning from last agent message
-      const lastAgentMessage = [...messages].reverse().find(m => m.sender === 'agent' && m.reasoning);
-      if (lastAgentMessage) {
-        const reasoningMessage: Message = {
-          id: Date.now().toString(),
-          text: `My reasoning process:\n\n${lastAgentMessage.reasoning}\n\nTools used: ${lastAgentMessage.toolsUsed?.join(', ') || 'N/A'}\nConfidence: ${((lastAgentMessage.confidence || 0) * 100).toFixed(0)}%`,
-          sender: 'agent',
-        };
-        setMessages((prev) => [...prev, reasoningMessage]);
-        return;
-      }
-    }
-    handleSend(reply);
+  const handleAction = (action: string) => {
+    handleSend(action);
   };
+
+  // ── Render ───────────────────────────────────────────────────
 
   return (
-    <div 
-      className="h-full bg-black flex flex-col pb-24 md:pb-0"
-    >
+    <div className="h-full bg-black flex flex-col pb-24 md:pb-0">
       {/* Header */}
       <div className="p-4 md:p-6 border-b border-gray-700">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Agent</h1>
-          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-300">
-            <span>Credits:</span>
-            <span className="font-bold">{credits.total}</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+              <Zap className="w-4 h-4 text-black" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>
+                Agent
+              </h1>
+              <p className="text-xs text-gray-500">Search · Score · Compare · Discover</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 max-w-4xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 max-w-4xl mx-auto w-full">
         {messages.map((message) => (
           <div key={message.id}>
+            {/* Loading state */}
             {message.loading ? (
               <div className="flex justify-start">
-                <div className="rounded-[20px] px-4 py-3 flex items-center gap-2"
-                  style={{ backgroundColor: '#1C1C1E', color: '#F5F5F7' }}>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <p>{message.text}</p>
+                <div
+                  className="rounded-[20px] px-4 py-3 flex items-center gap-3"
+                  style={{ backgroundColor: '#1C1C1E', color: '#F5F5F7' }}
+                >
+                  <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                  <p className="text-sm">{message.text}</p>
                 </div>
               </div>
             ) : message.error ? (
               <div className="flex justify-start">
-                <div className="rounded-[20px] px-4 py-3 flex items-center gap-2"
-                  style={{ backgroundColor: '#1C1C1E', color: '#F5F5F7', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <AlertCircle className="w-4 h-4" />
-                  <p>{message.text}</p>
+                <div
+                  className="rounded-[20px] px-4 py-3 flex items-center gap-2"
+                  style={{
+                    backgroundColor: '#1C1C1E',
+                    color: '#F5F5F7',
+                    border: '1px solid rgba(255,59,48,0.3)',
+                  }}
+                >
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <p className="text-sm">{message.text}</p>
                 </div>
               </div>
             ) : (
+              /* Text bubble */
               <div
-                className={`flex ${
-                  message.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-[16px] md:rounded-[20px] px-3 md:px-4 py-2 md:py-3 ${
+                  className={`max-w-[90%] md:max-w-[80%] rounded-[16px] md:rounded-[20px] px-3 md:px-4 py-2 md:py-3 ${
                     message.sender === 'user'
                       ? 'bg-white text-gray-900'
-                      : 'bg-gray-700 text-gray-200'
+                      : 'bg-gray-800/80 text-gray-200'
                   }`}
                 >
-                  <p className="text-sm md:text-base leading-relaxed">{message.text}</p>
+                  <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                    {renderMarkdownBold(message.text)}
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Recommendations */}
-            {message.recommendations && (
+            {/* Recommendations / Alternatives */}
+            {message.recommendations && message.recommendations.length > 0 && (
               <div className="mt-4 space-y-3">
-                {message.recommendations.map((rec, index) => (
-                  <SignatureCard
-                    key={index}
-                    className="p-4"
-                    showLayers={false}
-                  >
-                    <div className="flex items-start gap-2 mb-2">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white text-gray-900 font-bold flex items-center justify-center text-xs shadow-md">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg text-white font-mono" style={{ fontWeight: 700 }}>{rec.name}</h3>
-                        <div className="flex items-center gap-3 mt-1">
-                          {rec.stars && (
-                            <p className="text-gray-400 text-xs">
-                              ⭐ {rec.stars.toLocaleString()} stars
-                            </p>
-                          )}
-                          {rec.fitScore !== undefined && (
-                            <p className="text-gray-300 text-xs font-semibold">
-                              Fit: {rec.fitScore}%
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-sm mb-3">{rec.description}</p>
-                    <div className="bg-gray-900 border border-gray-700 rounded-[16px] p-3">
-                      <p className="text-gray-200 text-sm">
-                        <span className="font-bold">Why this fits:</span> {rec.reason}
-                      </p>
-                    </div>
-                    {rec.url && (
-                      <a
-                        href={rec.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-block text-gray-100 hover:text-white text-sm font-medium"
-                      >
-                        View on GitHub →
-                      </a>
-                    )}
-                  </SignatureCard>
+                {message.recommendations.map((repo, index) => (
+                  <RepoScoreCard key={repo.id || index} repo={repo} rank={index + 1} />
                 ))}
               </div>
             )}
 
-            {/* Clarification questions (slot filling) */}
-            {message.clarificationQuestions && message.clarificationQuestions.length > 0 && (
-              <div className="mt-4 space-y-4">
-                {message.clarificationQuestions.map((q) => {
-                  const selected = clarificationSelections[q.id] || [];
-                  return (
-                    <div key={q.id} className="bg-gray-800/60 border border-gray-700 rounded-[16px] p-3">
-                      <p className="text-sm text-gray-100 mb-2">{q.question}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {q.options.map((opt) => {
-                          const isSelected = selected.includes(opt.id);
-                          return (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={() => toggleClarificationSelection(q.id, opt.id, q.multiSelect)}
-                              className={`px-3 py-1 rounded-full text-xs border transition-colors ${
-                                isSelected
-                                  ? 'bg-white border-white text-gray-900'
-                                  : 'bg-gray-900 border-gray-600 text-gray-200 hover:bg-gray-700'
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={handleSubmitClarifications}
-                  className="px-4 py-2 bg-white hover:bg-gray-200 text-gray-900 rounded-full text-sm font-medium transition-colors"
-                >
-                  Continue with these choices
-                </button>
-              </div>
-            )}
+            {/* Comparison */}
+            {message.comparison && <ComparisonTable comparison={message.comparison} />}
 
-            {/* Reasoning and Tools Used (if available) */}
-            {(message.toolsUsed || message.confidence !== undefined) && (
-              <div className="mt-3 text-xs text-gray-400 space-y-1">
-                {message.toolsUsed && message.toolsUsed.length > 0 && (
-                  <p>🔧 Tools used: {message.toolsUsed.join(', ')}</p>
-                )}
-                {message.confidence !== undefined && (
-                  <p>📊 Confidence: {((message.confidence * 100).toFixed(0))}%</p>
-                )}
-              </div>
-            )}
+            {/* Health report */}
+            {message.healthReport && <HealthReportCard report={message.healthReport} />}
 
-            {/* Quick replies */}
-            {message.quickReplies && (
+            {/* Action buttons */}
+            {message.actions && message.actions.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
-                {message.quickReplies.map((reply) => (
+                {message.actions.map((action) => (
                   <button
-                    key={reply}
-                    onClick={() => handleQuickReply(reply)}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-full text-sm font-medium transition-colors"
+                    key={action}
+                    onClick={() => handleAction(action)}
+                    disabled={isProcessing}
+                    className="px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700 text-gray-300 rounded-full text-xs md:text-sm font-medium transition-colors border border-gray-700/50 disabled:opacity-50"
                   >
-                    {reply}
+                    {action}
                   </button>
                 ))}
               </div>
@@ -469,7 +255,7 @@ export function AgentScreen() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input - Disabled while in development */}
+      {/* Input */}
       <div className="p-3 md:p-6 border-t border-gray-700 pb-safe">
         <div className="flex gap-2 max-w-4xl mx-auto">
           <input
@@ -477,24 +263,452 @@ export function AgentScreen() {
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
             placeholder="Ask me anything..."
-            className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 text-sm md:text-base"
+            disabled={isProcessing}
+            className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 text-sm md:text-base disabled:opacity-50"
           />
           <button
             onClick={() => handleSend(inputValue)}
-            disabled={!inputValue.trim()}
+            disabled={!inputValue.trim() || isProcessing}
             className="w-10 h-10 md:w-12 md:h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
-            <Send className="w-4 h-4 md:w-5 md:h-5" />
+            {isProcessing ? (
+              <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4 md:w-5 md:h-5" />
+            )}
           </button>
         </div>
-        <p className="text-center text-gray-500 text-[10px] md:text-xs mt-1.5 md:mt-2 max-w-4xl mx-auto px-2">
-          {enhancedAIAgentService.isConfigured() 
-            ? "Enhanced AI agent ready - Ask me anything!" 
-            : "Configure OpenAI API key in .env to enable enhanced AI agent"}
+        <p className="text-center text-gray-600 text-[10px] md:text-xs mt-1.5 max-w-4xl mx-auto">
+          Powered by real-time GitHub data · Health scores · Comparisons
         </p>
       </div>
     </div>
   );
+}
+
+// ── Sub-components ─────────────────────────────────────────────
+
+/** Render **bold** markdown in text */
+function renderMarkdownBold(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} className="font-bold text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+}
+
+// ── Repo Score Card ──────────────────────────────────────────
+
+function RepoScoreCard({ repo, rank }: { repo: ScoredRepository; rank: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const hs = repo.healthScore;
+  const gradeColor = getGradeColor(hs.grade);
+
+  return (
+    <SignatureCard className="p-4" showLayers={false}>
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-white text-gray-900 font-bold flex items-center justify-center text-xs shadow-md">
+          {rank}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base md:text-lg text-white font-mono truncate" style={{ fontWeight: 700 }}>
+              {repo.fullName}
+            </h3>
+            <span
+              className="px-2 py-0.5 rounded-md text-xs font-bold"
+              style={{ backgroundColor: gradeColor.bg, color: gradeColor.text }}
+            >
+              {hs.grade}
+            </span>
+          </div>
+          <p className="text-gray-400 text-sm mt-1 line-clamp-2">{repo.description}</p>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
+        <span className="flex items-center gap-1">
+          <Star className="w-3.5 h-3.5" /> {repo.stars.toLocaleString()}
+        </span>
+        <span className="flex items-center gap-1">
+          <GitFork className="w-3.5 h-3.5" /> {repo.forks.toLocaleString()}
+        </span>
+        {repo.starVelocity > 0 && (
+          <span className="flex items-center gap-1 text-green-400">
+            <TrendingUp className="w-3.5 h-3.5" /> {repo.starVelocity}/mo
+          </span>
+        )}
+        {repo.language && (
+          <span className="px-2 py-0.5 bg-gray-700/50 rounded-full">{repo.language}</span>
+        )}
+      </div>
+
+      {/* Health bar */}
+      <div className="mt-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-500">Health Score</span>
+          <span className="text-xs font-bold" style={{ color: gradeColor.text }}>
+            {hs.overall}/100
+          </span>
+        </div>
+        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${hs.overall}%`,
+              backgroundColor: gradeColor.text,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Expandable breakdown */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1 mt-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+      >
+        {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {expanded ? 'Hide details' : 'Show health breakdown'}
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-2">
+          <BreakdownBar label="Popularity" value={hs.breakdown.popularity} icon={<Star className="w-3 h-3" />} />
+          <BreakdownBar label="Activity" value={hs.breakdown.activity} icon={<Activity className="w-3 h-3" />} />
+          <BreakdownBar label="Maintenance" value={hs.breakdown.maintenance} icon={<Shield className="w-3 h-3" />} />
+          <BreakdownBar label="Community" value={hs.breakdown.community} icon={<Users className="w-3 h-3" />} />
+          <BreakdownBar label="Documentation" value={hs.breakdown.documentation} icon={<BookOpen className="w-3 h-3" />} />
+          <BreakdownBar label="Maturity" value={hs.breakdown.maturity} icon={<Trophy className="w-3 h-3" />} />
+        </div>
+      )}
+
+      {/* Links */}
+      <div className="flex items-center gap-3 mt-3">
+        {repo.url && (
+          <a
+            href={repo.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" /> View on GitHub
+          </a>
+        )}
+      </div>
+    </SignatureCard>
+  );
+}
+
+// ── Breakdown bar ────────────────────────────────────────────
+
+function BreakdownBar({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+}) {
+  const color =
+    value >= 75 ? '#34C759' : value >= 50 ? '#FFD60A' : value >= 30 ? '#FF9F0A' : '#FF453A';
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-gray-500 w-4">{icon}</div>
+      <span className="text-xs text-gray-400 w-24">{label}</span>
+      <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${value}%`, backgroundColor: color }}
+        />
+      </div>
+      <span className="text-xs font-mono w-8 text-right" style={{ color }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ── Comparison Table ─────────────────────────────────────────
+
+function ComparisonTable({ comparison }: { comparison: RepoComparison }) {
+  const categories = [
+    { key: 'popularity', label: 'Popularity', icon: <Star className="w-3 h-3" /> },
+    { key: 'activity', label: 'Activity', icon: <Activity className="w-3 h-3" /> },
+    { key: 'maintenance', label: 'Maintenance', icon: <Shield className="w-3 h-3" /> },
+    { key: 'community', label: 'Community', icon: <Users className="w-3 h-3" /> },
+    { key: 'documentation', label: 'Docs', icon: <BookOpen className="w-3 h-3" /> },
+    { key: 'maturity', label: 'Maturity', icon: <Trophy className="w-3 h-3" /> },
+  ] as const;
+
+  const repos = comparison.repos;
+
+  return (
+    <div className="mt-4">
+      <SignatureCard className="p-4" showLayers={false}>
+        {/* Header row */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-700">
+                <th className="text-left text-gray-500 text-xs py-2 pr-3">Category</th>
+                {repos.map((repo) => (
+                  <th key={repo.id} className="text-center text-white text-xs py-2 px-2 font-mono">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="truncate max-w-[120px]">{repo.name}</span>
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                        style={{
+                          backgroundColor: getGradeColor(repo.healthScore.grade).bg,
+                          color: getGradeColor(repo.healthScore.grade).text,
+                        }}
+                      >
+                        {repo.healthScore.grade}
+                      </span>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Overall */}
+              <tr className="border-b border-gray-800">
+                <td className="text-gray-300 py-2 pr-3 font-bold text-xs">Overall</td>
+                {repos.map((repo) => {
+                  const isWinner =
+                    repo.healthScore.overall ===
+                    Math.max(...repos.map((r) => r.healthScore.overall));
+                  return (
+                    <td
+                      key={repo.id}
+                      className={`text-center py-2 px-2 font-mono text-sm ${
+                        isWinner ? 'text-green-400 font-bold' : 'text-gray-400'
+                      }`}
+                    >
+                      {repo.healthScore.overall}
+                      {isWinner && ' 👑'}
+                    </td>
+                  );
+                })}
+              </tr>
+
+              {/* Category rows */}
+              {categories.map(({ key, label, icon }) => (
+                <tr key={key} className="border-b border-gray-800/50">
+                  <td className="text-gray-400 py-1.5 pr-3 text-xs">
+                    <span className="flex items-center gap-1.5">
+                      {icon} {label}
+                    </span>
+                  </td>
+                  {repos.map((repo) => {
+                    const val = repo.healthScore.breakdown[key];
+                    const isWinner = comparison.categoryWinners[key] === repo.fullName;
+                    const color =
+                      val >= 75
+                        ? '#34C759'
+                        : val >= 50
+                        ? '#FFD60A'
+                        : val >= 30
+                        ? '#FF9F0A'
+                        : '#FF453A';
+                    return (
+                      <td
+                        key={repo.id}
+                        className={`text-center py-1.5 px-2 font-mono text-xs ${
+                          isWinner ? 'font-bold' : ''
+                        }`}
+                        style={{ color }}
+                      >
+                        {val}
+                        {isWinner && ' ✓'}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+
+              {/* Stars row */}
+              <tr className="border-b border-gray-800/50">
+                <td className="text-gray-400 py-1.5 pr-3 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <Star className="w-3 h-3" /> Stars
+                  </span>
+                </td>
+                {repos.map((repo) => (
+                  <td key={repo.id} className="text-center py-1.5 px-2 font-mono text-xs text-gray-300">
+                    {repo.stars.toLocaleString()}
+                  </td>
+                ))}
+              </tr>
+
+              {/* Star velocity row */}
+              <tr>
+                <td className="text-gray-400 py-1.5 pr-3 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3 h-3" /> Stars/mo
+                  </span>
+                </td>
+                {repos.map((repo) => (
+                  <td key={repo.id} className="text-center py-1.5 px-2 font-mono text-xs text-gray-300">
+                    {repo.starVelocity.toLocaleString()}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Verdict */}
+        <div className="mt-4 p-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+          <p className="text-sm text-gray-200 leading-relaxed">
+            {renderMarkdownBold(comparison.verdict)}
+          </p>
+        </div>
+      </SignatureCard>
+    </div>
+  );
+}
+
+// ── Health Report Card ───────────────────────────────────────
+
+function HealthReportCard({
+  report,
+}: {
+  report: RepoHealthScore & { repoName: string };
+}) {
+  const gradeColor = getGradeColor(report.grade);
+
+  const categories = [
+    { key: 'popularity' as const, label: 'Popularity', icon: <Star className="w-3.5 h-3.5" /> },
+    { key: 'activity' as const, label: 'Activity', icon: <Activity className="w-3.5 h-3.5" /> },
+    { key: 'maintenance' as const, label: 'Maintenance', icon: <Shield className="w-3.5 h-3.5" /> },
+    { key: 'community' as const, label: 'Community', icon: <Users className="w-3.5 h-3.5" /> },
+    { key: 'documentation' as const, label: 'Documentation', icon: <BookOpen className="w-3.5 h-3.5" /> },
+    { key: 'maturity' as const, label: 'Maturity', icon: <Trophy className="w-3.5 h-3.5" /> },
+  ];
+
+  return (
+    <div className="mt-4">
+      <SignatureCard className="p-5" showLayers={false}>
+        {/* Header with big grade */}
+        <div className="flex items-center gap-4">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black"
+            style={{ backgroundColor: gradeColor.bg, color: gradeColor.text }}
+          >
+            {report.grade}
+          </div>
+          <div>
+            <h3 className="text-lg text-white font-mono" style={{ fontWeight: 700 }}>
+              {report.repoName}
+            </h3>
+            <p className="text-gray-400 text-sm mt-0.5">
+              Overall: <span className="font-bold" style={{ color: gradeColor.text }}>{report.overall}</span>/100
+            </p>
+          </div>
+        </div>
+
+        {/* Category breakdown */}
+        <div className="mt-5 space-y-3">
+          {categories.map(({ key, label, icon }) => {
+            const value = report.breakdown[key];
+            const color =
+              value >= 75 ? '#34C759' : value >= 50 ? '#FFD60A' : value >= 30 ? '#FF9F0A' : '#FF453A';
+            return (
+              <div key={key} className="flex items-center gap-3">
+                <div className="text-gray-500 w-5">{icon}</div>
+                <span className="text-sm text-gray-300 w-28">{label}</span>
+                <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${value}%`, backgroundColor: color }}
+                  />
+                </div>
+                <span className="text-sm font-mono w-10 text-right font-bold" style={{ color }}>
+                  {value}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Summary */}
+        <div className="mt-4 p-3 bg-gray-900/50 rounded-xl border border-gray-700/50">
+          <p className="text-sm text-gray-300 leading-relaxed">{report.summary}</p>
+        </div>
+
+        {/* Key signals */}
+        {report.signals && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {report.signals.stars > 0 && (
+              <SignalBadge label={`${report.signals.stars.toLocaleString()} stars`} />
+            )}
+            {report.signals.contributorCount > 0 && (
+              <SignalBadge label={`${report.signals.contributorCount} contributors`} />
+            )}
+            {report.signals.releaseCount > 0 && (
+              <SignalBadge label={`${report.signals.releaseCount} releases`} />
+            )}
+            {report.signals.license && (
+              <SignalBadge label={report.signals.license} />
+            )}
+            {report.signals.commitActivity52w > 0 && (
+              <SignalBadge
+                label={`${Math.round(report.signals.commitActivity52w / 52)} commits/week`}
+              />
+            )}
+            {report.signals.issueCloseRate !== null && (
+              <SignalBadge
+                label={`${Math.round(report.signals.issueCloseRate * 100)}% issues closed`}
+              />
+            )}
+          </div>
+        )}
+      </SignatureCard>
+    </div>
+  );
+}
+
+function SignalBadge({ label }: { label: string }) {
+  return (
+    <span className="px-2 py-1 bg-gray-800/80 text-gray-400 rounded-lg text-[11px] border border-gray-700/50">
+      {label}
+    </span>
+  );
+}
+
+// ── Utilities ────────────────────────────────────────────────
+
+function getGradeColor(grade: string): { bg: string; text: string } {
+  switch (grade) {
+    case 'A+':
+      return { bg: 'rgba(52,199,89,0.15)', text: '#34C759' };
+    case 'A':
+      return { bg: 'rgba(52,199,89,0.12)', text: '#34C759' };
+    case 'B+':
+      return { bg: 'rgba(50,173,230,0.12)', text: '#32ADE6' };
+    case 'B':
+      return { bg: 'rgba(50,173,230,0.10)', text: '#32ADE6' };
+    case 'C+':
+      return { bg: 'rgba(255,214,10,0.12)', text: '#FFD60A' };
+    case 'C':
+      return { bg: 'rgba(255,159,10,0.12)', text: '#FF9F0A' };
+    case 'D':
+      return { bg: 'rgba(255,69,58,0.12)', text: '#FF453A' };
+    case 'F':
+      return { bg: 'rgba(255,69,58,0.15)', text: '#FF453A' };
+    default:
+      return { bg: 'rgba(142,142,147,0.12)', text: '#8E8E93' };
+  }
 }

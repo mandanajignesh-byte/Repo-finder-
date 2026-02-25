@@ -11,7 +11,7 @@ export const config = {
   openai: {
     apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
     baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-3.5-turbo', // Use cheaper model for MVP
+    model: 'gpt-4o-mini', // Balanced: much smarter than 3.5, cheaper than gpt-4o
   },
   api: {
     baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
