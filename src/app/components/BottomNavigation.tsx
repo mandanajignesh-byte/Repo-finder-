@@ -37,7 +37,7 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
             <img 
               src="/logo.png" 
               alt="RepoVerse Logo" 
-              className="h-8 w-8 object-contain"
+              className="h-8 w-8 object-contain rounded-xl"
             />
             <h1 className="text-2xl font-bold text-white" style={{ fontWeight: 700 }}>RepoVerse</h1>
           </div>

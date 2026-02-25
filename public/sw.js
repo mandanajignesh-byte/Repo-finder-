@@ -3,14 +3,16 @@
  * Handles offline support and caching
  */
 
-const CACHE_NAME = 'repoverse-v1';
-const RUNTIME_CACHE = 'repoverse-runtime-v1';
+const CACHE_NAME = 'repoverse-v2';
+const RUNTIME_CACHE = 'repoverse-runtime-v2';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/logo.png',
+  '/logo-192.png',
+  '/favicon.ico',
   '/manifest.json'
 ];
 

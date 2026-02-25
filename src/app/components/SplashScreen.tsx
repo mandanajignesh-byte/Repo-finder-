@@ -27,7 +27,7 @@ export function SplashScreen() {
             <img
               src="/logo.png"
               alt="RepoVerse Logo"
-              className="h-16 w-16 md:h-20 md:w-20 object-contain"
+              className="h-16 w-16 md:h-20 md:w-20 object-contain rounded-2xl"
             />
           </div>
           <h1 className="text-2xl font-bold mb-2 text-white">RepoVerse</h1>
