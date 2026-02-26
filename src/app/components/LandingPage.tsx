@@ -567,11 +567,11 @@ export function LandingPage() {
             </span>
           </div>
           <div className="flex items-center gap-6">
-            <a href="/privacy.html" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
-              Privacy
+            <a href="/privacy" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
+              Privacy Policy
             </a>
-            <a href="/terms.html" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
-              Terms
+            <a href="/terms" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
+              Terms of Use
             </a>
             <a href="/support" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
               Support
