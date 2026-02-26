@@ -639,10 +639,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen>
                       fontFamily: '.SF Pro Display',
                     ),
                   ),
-                  if (isYearly) ...[
+                  if (isYearly && _selectedPackage != null) ...[
                     const SizedBox(height: 3),
                     Text(
-                      'Then \$39.99/year',
+                      'Then ${_selectedPackage!.storeProduct.priceString}/year',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
@@ -729,17 +729,71 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen>
   }
 
   Widget _buildAutoRenewalDisclaimer(bool isSmallScreen) {
+    // Build dynamic price info from the selected package
+    String subscriptionDetails = '';
+    if (_selectedPackage != null) {
+      final pkg = _selectedPackage!;
+      final price = pkg.storeProduct.priceString;
+      final period = pkg.packageType == PackageType.annual ? 'year' : 'month';
+      subscriptionDetails = 'Repoverse Pro: $price/$period. ';
+    }
+    
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20 : 24),
-      child: Text(
-        'Subscription renews automatically unless cancelled at least 24 hours before the end of the period.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: isSmallScreen ? 10 : 11,
-          color: AppTheme.textSecondary.withOpacity(0.6),
-          fontFamily: '.SF Pro Text',
-          height: 1.3,
-        ),
+      padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${subscriptionDetails}Payment will be charged to your Apple ID account at confirmation of purchase. '
+            'Subscription automatically renews unless it is cancelled at least 24 hours before the end of the current period. '
+            'Your account will be charged for renewal within 24 hours prior to the end of the current period. '
+            'You can manage and cancel your subscriptions by going to your App Store account settings after purchase.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 9 : 10,
+              color: AppTheme.textSecondary.withOpacity(0.6),
+              fontFamily: '.SF Pro Text',
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: _openTerms,
+                child: Text(
+                  'Terms of Use (EULA)',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 9 : 10,
+                    color: AppTheme.accent.withOpacity(0.7),
+                    fontFamily: '.SF Pro Text',
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              Text(
+                '  •  ',
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 9 : 10,
+                  color: AppTheme.textSecondary.withOpacity(0.4),
+                ),
+              ),
+              GestureDetector(
+                onTap: _openPrivacy,
+                child: Text(
+                  'Privacy Policy',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 9 : 10,
+                    color: AppTheme.accent.withOpacity(0.7),
+                    fontFamily: '.SF Pro Text',
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -857,19 +911,24 @@ class _PackageCard extends StatelessWidget {
   }
 
   String get _priceString {
-    if (package.packageType == PackageType.monthly) {
-      return '\$4.99';
-    } else if (package.packageType == PackageType.annual) {
-      return '\$39.99';
-    }
     return package.storeProduct.priceString;
   }
 
   String get _monthlyPrice {
     if (package.packageType == PackageType.annual) {
-      return 'Only \$${(39.99 / 12).toStringAsFixed(2)}/mo';
+      final monthlyEquiv = package.storeProduct.price / 12;
+      final currencyCode = package.storeProduct.currencyCode;
+      return 'Only ${_formatPrice(monthlyEquiv, currencyCode)}/mo';
     }
-    return '\$4.99/mo';
+    return '${package.storeProduct.priceString}/mo';
+  }
+
+  String _formatPrice(double price, String currency) {
+    if (currency == 'USD') return '\$${price.toStringAsFixed(2)}';
+    if (currency == 'EUR') return '€${price.toStringAsFixed(2)}';
+    if (currency == 'GBP') return '£${price.toStringAsFixed(2)}';
+    if (currency == 'INR') return '₹${price.toStringAsFixed(0)}';
+    return '${price.toStringAsFixed(2)} $currency';
   }
 
   @override
