@@ -300,10 +300,9 @@ async function upsertGem(repoId, gemScore, repo) {
   };
 
   const { error } = await supabase.from('repo_gems').upsert({
-    repo_id:     repoId,
-    gem_score:   parseFloat(gemScore.toFixed(4)),
-    reason:      reason,
-    updated_at:  new Date().toISOString(),
+    repo_id:   repoId,
+    gem_score: parseFloat(gemScore.toFixed(4)),
+    reason:    reason,
   }, { onConflict: 'repo_id' });
 
   if (error) {
