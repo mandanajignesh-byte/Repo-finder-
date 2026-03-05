@@ -759,31 +759,32 @@ export function DiscoveryScreen() {
   }, [cards[0]?.id]);
 
   // Update URL to reflect current repo (YouTube-like behavior)
-  // Each repo gets its own URL that updates when swiping
+  // All in-app repo URLs use /app/r/owner/repo to stay inside the app shell
   useEffect(() => {
     if (cards[0] && cards[0].fullName) {
       const [ownerName, repoName] = cards[0].fullName.split('/');
       if (ownerName && repoName) {
-        const newPath = `/r/${ownerName}/${repoName}`;
+        const newPath = `/app/r/${ownerName}/${repoName}`;
         const currentPath = window.location.pathname;
-        // Only update URL if it's different (avoid unnecessary navigation)
-        // This ensures URL updates when swiping, but doesn't interfere with shared links
         if (currentPath !== newPath) {
           navigate(newPath, { replace: true });
         }
         document.title = `${cards[0].fullName} - RepoVerse`;
       }
     } else if (cards.length === 0) {
-      // No cards - only navigate to /discover if we're not loading a shared repo
+      // No cards - only navigate to /app/discover if we're not loading a shared repo
       const currentPath = window.location.pathname;
-      if (currentPath.startsWith('/r/') && (owner || repo)) {
+      if (
+        (currentPath.startsWith('/app/r/') || currentPath.startsWith('/r/')) &&
+        (owner || repo)
+      ) {
         // Keep the shared repo URL while loading
         document.title = 'RepoVerse - Loading...';
         return;
       }
-      // Navigate to /discover only if we're not already there
-      if (currentPath !== '/discover') {
-        navigate('/discover', { replace: true });
+      // Navigate to /app/discover only if we're not already there
+      if (currentPath !== '/app/discover') {
+        navigate('/app/discover', { replace: true });
       }
       document.title = 'RepoVerse - Discover';
     }
@@ -1285,7 +1286,7 @@ export function DiscoveryScreen() {
               onClick={() => {
                 setSharedRepoError(null);
                 setIsLoadingSharedRepo(false);
-                navigate('/discover', { replace: true });
+                navigate('/app/discover', { replace: true });
               }}
               className="px-4 py-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors"
             >

@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { SplashScreen } from '@/app/components/SplashScreen';
@@ -16,6 +16,12 @@ const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then
 const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
 const ProfileScreen = lazy(() => import('@/app/components/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
 // SupportScreen removed — buy me a coffee page removed
+
+// Redirects /r/:owner/:repo → /app/r/:owner/:repo so shared links open inside the app shell
+function RepoRedirect() {
+  const { owner, repo } = useParams<{ owner: string; repo: string }>();
+  return <Navigate to={`/app/r/${owner ?? ''}/${repo ?? ''}`} replace />;
+}
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -178,10 +184,8 @@ function AppContent() {
             <Route path="/app/r/:owner/:repo"
               element={<Suspense fallback={<LoadingFallback />}><DiscoveryScreen /></Suspense>}
             />
-            {/* Legacy /r/:owner/:repo — keep working */}
-            <Route path="/r/:owner/:repo"
-              element={<Suspense fallback={<LoadingFallback />}><DiscoveryScreen /></Suspense>}
-            />
+            {/* Legacy /r/:owner/:repo — redirect to /app/r/:owner/:repo */}
+            <Route path="/r/:owner/:repo" element={<RepoRedirect />} />
             <Route path="/app/trending"
               element={<Suspense fallback={<LoadingFallback />}><TrendingScreen /></Suspense>}
             />

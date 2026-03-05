@@ -79,7 +79,7 @@ class ShareService {
   generatePlatformShareLink(repo: Repository): string {
     const repoPath = repo.fullName || repo.name;
     const baseUrl = window.location.origin;
-    return `${baseUrl}/r/${repoPath}`;
+    return `${baseUrl}/app/r/${repoPath}`;
   }
 
   /**

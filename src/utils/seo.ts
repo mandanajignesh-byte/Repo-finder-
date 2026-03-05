@@ -138,11 +138,14 @@ export const routeSEO: Record<string, SEOData> = {
  * Get SEO data for a specific route
  */
 export const getSEOForRoute = (pathname: string): SEOData => {
-  // Handle shared repo routes
-  if (pathname.startsWith('/r/')) {
+  // Handle shared repo routes (both /app/r/... and legacy /r/...)
+  if (pathname.startsWith('/app/r/') || pathname.startsWith('/r/')) {
     const parts = pathname.split('/');
-    const owner = parts[2];
-    const repo = parts[3];
+    // /app/r/owner/repo → parts[3], parts[4]
+    // /r/owner/repo     → parts[2], parts[3]
+    const offset = pathname.startsWith('/app/r/') ? 1 : 0;
+    const owner = parts[2 + offset];
+    const repo = parts[3 + offset];
     return {
       title: `${owner}/${repo} | RepoVerse`,
       description: `View ${owner}/${repo} on RepoVerse. Discover this GitHub repository and explore similar projects.`,
