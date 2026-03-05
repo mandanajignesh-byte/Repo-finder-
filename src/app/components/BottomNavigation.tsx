@@ -16,11 +16,11 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
   });
   
   const navItems = [
-    { id: 'discover' as const, icon: Compass, label: 'Explore', path: '/discover' },
-    { id: 'trending' as const, icon: TrendingUp, label: 'Trending', path: '/trending' },
-    { id: 'agent' as const, icon: Bot, label: 'Agent', path: '/agent' },
-    { id: 'profile' as const, icon: User, label: 'Profile', path: '/profile' },
-    { id: 'support' as const, icon: Heart, label: 'Buy Me a Coffee', path: '/support' },
+    { id: 'discover' as const, icon: Compass, label: 'Explore',          path: '/app/discover' },
+    { id: 'trending' as const, icon: TrendingUp, label: 'Trending',      path: '/app/trending' },
+    { id: 'agent'   as const, icon: Bot,        label: 'Agent',          path: '/app/agent'    },
+    { id: 'profile' as const, icon: User,       label: 'Profile',        path: '/app/profile'  },
+    { id: 'support' as const, icon: Heart,      label: 'Buy Me a Coffee',path: '/app/support'  },
   ];
 
   const dismissBanner = () => {
@@ -66,7 +66,8 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
             const Icon = item.icon;
             const isActive =
               location.pathname === item.path ||
-              (item.path === '/discover' && location.pathname === '/');
+              location.pathname.startsWith(item.path + '/') ||
+              (item.path === '/app/discover' && location.pathname === '/app');
 
             return (
               <Link
@@ -210,7 +211,8 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
             const Icon = item.icon;
             const isActive =
               location.pathname === item.path ||
-              (item.path === '/discover' && location.pathname === '/');
+              location.pathname.startsWith(item.path + '/') ||
+              (item.path === '/app/discover' && location.pathname === '/app');
 
             return (
               <Link

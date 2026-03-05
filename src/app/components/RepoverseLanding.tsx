@@ -376,6 +376,11 @@ function AnimatedHeadline() {
           position: 'relative',
           marginRight: '0.28em',
           paddingBottom: isCommitted ? '10px' : undefined,
+          /* Gradient text applied per-word so background-clip works through inline-block */
+          background: 'linear-gradient(180deg, #ffffff 30%, #94a3b8 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
         }}
       >
         {word}
@@ -422,11 +427,8 @@ function AnimatedHeadline() {
         fontWeight: 800,
         lineHeight: 1.08,
         letterSpacing: '-0.03em',
-        background: 'linear-gradient(180deg, #ffffff 30%, #94a3b8 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
         marginBottom: '1.25rem',
+        color: '#ffffff', /* fallback; each word span carries the gradient */
       }}
     >
       <span style={{ display: 'block' }}>
@@ -915,7 +917,7 @@ export function RepoverseLanding() {
   const { ref: terminalRef, isVisible: isTerminalVisible } = useScrollVisible(0.15);
 
   const handleStartSwiping = () => {
-    window.location.href = '/discover';
+    window.location.href = '/app/discover';
   };
 
   return (

@@ -88,15 +88,14 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Determine active tab from pathname
+  // Determine active tab from pathname (all app routes live under /app/*)
   const getActiveTab = (): 'discover' | 'trending' | 'agent' | 'profile' | 'support' => {
     const path = location.pathname;
-    // Exclude /r/ routes from affecting active tab
-    if (path.startsWith('/r/')) return 'discover';
-    if (path === '/trending') return 'trending';
-    if (path === '/agent') return 'agent';
-    if (path === '/profile') return 'profile';
-    if (path === '/support') return 'support';
+    if (path.startsWith('/app/r/') || path.startsWith('/r/')) return 'discover';
+    if (path.startsWith('/app/trending')) return 'trending';
+    if (path.startsWith('/app/agent')) return 'agent';
+    if (path.startsWith('/app/profile')) return 'profile';
+    if (path.startsWith('/app/support')) return 'support';
     return 'discover';
   };
 
@@ -125,6 +124,20 @@ function AppContent() {
       <div style={{ minHeight: '100vh', overflowY: 'auto', background: '#0d1117' }}>
         <Suspense fallback={<LoadingFallback />}>
           <LandingRoute />
+        </Suspense>
+        <Analytics />
+        <SpeedInsights />
+      </div>
+    );
+  }
+
+  // "/trending" — public standalone trending page (no sidebar, no splash)
+  const isPublicTrending = location.pathname === '/trending';
+  if (isPublicTrending) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0d1117', overflowY: 'auto' }}>
+        <Suspense fallback={<LoadingFallback />}>
+          <TrendingScreen />
         </Suspense>
         <Analytics />
         <SpeedInsights />
@@ -161,61 +174,41 @@ function AppContent() {
         {/* Content area */}
         <div className="flex-1 overflow-y-auto">
           <Routes>
-            {/* "/" is handled above (isNewLanding) — never reaches here */}
-            <Route path="/" element={<Navigate to="/discover" replace />} />
-            {/* "/app" and "/app/*" enter the full web app at Discover */}
-            <Route path="/app" element={<Navigate to="/discover" replace />} />
-            <Route path="/app/*" element={<Navigate to="/discover" replace />} />
-            <Route 
-              path="/discover" 
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <DiscoveryScreen />
-                </Suspense>
-              } 
+            {/* All app screens live under /app/* */}
+            <Route path="/app/discover"
+              element={<Suspense fallback={<LoadingFallback />}><DiscoveryScreen /></Suspense>}
             />
-            {/* /r/owner/repo routes also use DiscoveryScreen - it will load that repo in explore page */}
-            <Route 
-              path="/r/:owner/:repo" 
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <DiscoveryScreen />
-                </Suspense>
-              } 
+            <Route path="/app/r/:owner/:repo"
+              element={<Suspense fallback={<LoadingFallback />}><DiscoveryScreen /></Suspense>}
             />
-            <Route 
-              path="/trending" 
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <TrendingScreen />
-                </Suspense>
-              } 
+            {/* Legacy /r/:owner/:repo — keep working */}
+            <Route path="/r/:owner/:repo"
+              element={<Suspense fallback={<LoadingFallback />}><DiscoveryScreen /></Suspense>}
             />
-            <Route 
-              path="/agent" 
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <AgentScreen />
-                </Suspense>
-              } 
+            <Route path="/app/trending"
+              element={<Suspense fallback={<LoadingFallback />}><TrendingScreen /></Suspense>}
             />
-            <Route 
-              path="/profile" 
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <ProfileScreen onClose={() => window.history.back()} />
-                </Suspense>
-              } 
+            <Route path="/app/agent"
+              element={<Suspense fallback={<LoadingFallback />}><AgentScreen /></Suspense>}
             />
-            <Route 
-              path="/support" 
-              element={
-                <Suspense fallback={<LoadingFallback />}>
-                  <SupportScreen />
-                </Suspense>
-              } 
+            <Route path="/app/profile"
+              element={<Suspense fallback={<LoadingFallback />}><ProfileScreen onClose={() => window.history.back()} /></Suspense>}
             />
-            <Route path="*" element={<Navigate to="/discover" replace />} />
+            <Route path="/app/support"
+              element={<Suspense fallback={<LoadingFallback />}><SupportScreen /></Suspense>}
+            />
+
+            {/* Legacy short-path redirects → keep old bookmarks/shares working */}
+            <Route path="/discover"   element={<Navigate to="/app/discover"  replace />} />
+            <Route path="/agent"      element={<Navigate to="/app/agent"     replace />} />
+            <Route path="/profile"    element={<Navigate to="/app/profile"   replace />} />
+            <Route path="/support"    element={<Navigate to="/app/support"   replace />} />
+
+            {/* /app with no sub-path → discover */}
+            <Route path="/app" element={<Navigate to="/app/discover" replace />} />
+
+            {/* Catch-all → discover */}
+            <Route path="*" element={<Navigate to="/app/discover" replace />} />
           </Routes>
         </div>
       </div>
