@@ -25,15 +25,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
 // ─── Validate config ───────────────────────────────────────────────────────────
-const GITHUB_TOKEN       = process.env.GITHUB_TOKEN;
+const GITHUB_TOKEN       = process.env.GITHUB_TOKEN || process.env.GH_API_TOKENS;
 const SUPABASE_URL       = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+// Accept both naming conventions
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RUN_TYPE           = (process.env.RUN_TYPE || 'daily').toLowerCase();
 const TODAY              = new Date().toISOString().split('T')[0];
 
-if (!GITHUB_TOKEN)        throw new Error('Missing GITHUB_TOKEN');
+if (!GITHUB_TOKEN)        throw new Error('Missing GITHUB_TOKEN or GH_API_TOKENS');
 if (!SUPABASE_URL)        throw new Error('Missing SUPABASE_URL');
-if (!SUPABASE_SERVICE_KEY) throw new Error('Missing SUPABASE_SERVICE_KEY');
+if (!SUPABASE_SERVICE_KEY) throw new Error('Missing SUPABASE_SERVICE_KEY or SUPABASE_SERVICE_ROLE_KEY');
 if (!['daily', 'weekly'].includes(RUN_TYPE)) throw new Error('RUN_TYPE must be "daily" or "weekly"');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
