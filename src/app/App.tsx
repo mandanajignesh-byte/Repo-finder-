@@ -104,6 +104,22 @@ function AppContent() {
   // No sidebar. No splash. Fully public.
   const isNewLanding = location.pathname === '/';
 
+  // The global CSS sets html/body to overflow:hidden for the app screens.
+  // On the landing page we need normal document scrolling, so we override it.
+  useEffect(() => {
+    if (isNewLanding) {
+      document.documentElement.style.overflow = 'auto';
+      document.documentElement.style.height = 'auto';
+      document.body.style.overflow = 'auto';
+      document.body.style.height = 'auto';
+    } else {
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100%';
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100%';
+    }
+  }, [isNewLanding]);
+
   if (isNewLanding) {
     return (
       <div style={{ minHeight: '100vh', overflowY: 'auto', background: '#0d1117' }}>
