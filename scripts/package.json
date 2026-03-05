@@ -1,0 +1,18 @@
+{
+  "name": "repoverse-trending-fetcher",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Fetches, scores, and stores trending GitHub repos into Supabase",
+  "main": "fetch-trending.js",
+  "scripts": {
+    "daily": "cross-env RUN_TYPE=daily node fetch-trending.js",
+    "weekly": "cross-env RUN_TYPE=weekly node fetch-trending.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.91.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -25,6 +25,9 @@ export interface Repository {
 export interface TrendingRepo extends Repository {
   trending: string;
   rank: number;
+  healthGrade?: string;   // e.g. "A+", "B", "F"
+  healthStatus?: string;  // e.g. "Very Active", "Stable", "Dormant"
+  category?: string;      // e.g. "ai-ml", "frontend"
 }
 
 export interface GitHubApiRepo {

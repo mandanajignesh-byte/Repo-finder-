@@ -252,12 +252,36 @@ export function TrendingScreen() {
                         <div className="flex-1 min-w-0">
                           {/* Repo name and trending badge */}
                           <div className="flex items-start sm:items-center gap-1.5 md:gap-2 mb-1 md:mb-1.5 flex-wrap">
-                          <h3 className="font-bold text-base md:text-lg text-white hover:text-gray-200 transition-colors font-mono break-words">
+                            <h3 className="font-bold text-base md:text-lg text-white hover:text-gray-200 transition-colors font-mono break-words">
                               {repo.fullName}
                             </h3>
-                            <span className="flex-shrink-0 text-[10px] md:text-xs text-gray-300 font-medium bg-gray-800 px-1.5 md:px-2 py-0.5 rounded">
-                              {repo.trending}
-                            </span>
+                            {/* Health grade badge */}
+                            {repo.healthGrade && (
+                              <span
+                                className="flex-shrink-0 text-[10px] md:text-xs font-bold px-1.5 md:px-2 py-0.5 rounded-md"
+                                style={{
+                                  background:
+                                    repo.healthGrade === 'A+' || repo.healthGrade === 'A' ? 'rgba(34,197,94,0.15)' :
+                                    repo.healthGrade === 'B+' || repo.healthGrade === 'B' ? 'rgba(59,130,246,0.15)' :
+                                    repo.healthGrade === 'C+' || repo.healthGrade === 'C' ? 'rgba(234,179,8,0.15)'  :
+                                    'rgba(239,68,68,0.15)',
+                                  color:
+                                    repo.healthGrade === 'A+' || repo.healthGrade === 'A' ? '#4ade80' :
+                                    repo.healthGrade === 'B+' || repo.healthGrade === 'B' ? '#60a5fa' :
+                                    repo.healthGrade === 'C+' || repo.healthGrade === 'C' ? '#facc15' :
+                                    '#f87171',
+                                  border: '1px solid currentColor',
+                                }}
+                              >
+                                {repo.healthGrade}
+                              </span>
+                            )}
+                            {/* Health status */}
+                            {repo.healthStatus && (
+                              <span className="flex-shrink-0 text-[10px] md:text-xs text-gray-400">
+                                {repo.healthStatus}
+                              </span>
+                            )}
                           </div>
                           
                           {/* Description */}

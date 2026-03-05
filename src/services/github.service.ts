@@ -419,8 +419,13 @@ class GitHubService {
               avatarUrl: dbRepo.repo_owner_avatar_url || '',
             },
             topics: dbRepo.repo_topics || [],
-            trending: dbRepo.trending_score || this.calculateTrendingScore(dbRepo.repo_stars || 0, since),
+            trending: dbRepo.trending_score
+              ? `Score: ${dbRepo.trending_score}`
+              : this.calculateTrendingScore(dbRepo.repo_stars || 0, since),
             rank: dbRepo.rank || 0,
+            healthGrade:  dbRepo.health_grade  || undefined,
+            healthStatus: dbRepo.health_status || undefined,
+            category:     dbRepo.category      || undefined,
           }));
 
           // Re-rank

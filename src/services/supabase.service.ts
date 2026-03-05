@@ -766,53 +766,75 @@ class SupabaseService {
     limit?: number;
   }): Promise<any[]> {
     try {
-      // Map our timeRange to the cron's period_type (monthly → weekly fallback)
-      const periodType = options?.timeRange === 'weekly' ? 'weekly' : 'daily';
-      const limit = options?.limit || 100;
+      const period = options?.timeRange === 'weekly' ? 'weekly' : 'daily';
+      const limit  = options?.limit || 100;
 
-      // Call the Supabase RPC — it auto-picks the latest period_date
-      const { data, error } = await supabase.rpc('get_trending_gems', {
-        p_period_type: periodType,
-        p_cluster_slug: null, // null = all categories
-        p_limit: limit,
-      });
+      // Find the most recent date we have data for this period
+      const { data: latest } = await supabase
+        .from('trending_repos_v2')
+        .select('date')
+        .eq('period', period)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!latest) {
+        console.log(`No trending data in DB for period=${period}`);
+        return [];
+      }
+
+      const latestDate = latest.date;
+
+      // Fetch all repos for that date/period, sorted by score
+      let query = supabase
+        .from('trending_repos_v2')
+        .select('*')
+        .eq('period', period)
+        .eq('date', latestDate)
+        .order('total_score', { ascending: false })
+        .limit(limit);
+
+      if (options?.language) {
+        query = query.ilike('language', options.language);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
-        console.error('Error calling get_trending_gems RPC:', error.message);
+        console.error('Error fetching trending_repos_v2:', error.message);
         return [];
       }
 
       if (!data || data.length === 0) {
-        console.log(`No trending gems in DB for period_type=${periodType} — will fall back to GitHub API`);
+        console.log(`No trending data for period=${period} date=${latestDate}`);
         return [];
       }
 
-      console.log(`✅ Loaded ${data.length} trending repos from DB via get_trending_gems (${periodType})`);
+      console.log(`✅ Loaded ${data.length} trending repos from DB (${period}, ${latestDate})`);
 
-      // Map RPC response fields to the shape github.service.ts expects
-      return (data as any[])
-        .filter(row => {
-          if (!options?.language) return true;
-          return (row.language || '').toLowerCase() === options.language.toLowerCase();
-        })
-        .map((row: any) => ({
-          repo_id:               String(row.repo_id),
-          repo_name:             row.name,
-          repo_full_name:        row.full_name,
-          repo_description:      row.description || '',
-          repo_tags:             Array.isArray(row.topics) ? row.topics : [],
-          repo_stars:            row.stars || 0,
-          repo_forks:            row.forks || 0,
-          repo_updated_at:       '',
-          repo_pushed_at:        '',
-          repo_language:         row.language || null,
-          repo_url:              row.html_url,
-          repo_owner_login:      row.owner_login || '',
-          repo_owner_avatar_url: row.avatar_url  || '',
-          repo_topics:           Array.isArray(row.topics) ? row.topics : [],
-          trending_score:        row.trending_score || 0,
-          rank:                  row.rank || 0,
-        }));
+      // Map to the shape github.service.ts expects
+      return (data as any[]).map((row, idx) => ({
+        repo_id:               String(row.github_id),
+        repo_name:             row.repo,
+        repo_full_name:        row.name,
+        repo_description:      row.description || '',
+        repo_tags:             Array.isArray(row.topics) ? row.topics : [],
+        repo_stars:            row.stars   || 0,
+        repo_forks:            row.forks   || 0,
+        repo_updated_at:       row.github_pushed_at || '',
+        repo_pushed_at:        row.github_pushed_at || '',
+        repo_language:         row.language || null,
+        repo_url:              row.url,
+        repo_owner_login:      row.owner   || '',
+        // Derive avatar URL from owner (no dedicated column needed)
+        repo_owner_avatar_url: `https://github.com/${row.owner}.png`,
+        repo_topics:           Array.isArray(row.topics) ? row.topics : [],
+        trending_score:        row.total_score || 0,
+        health_grade:          row.health_grade  || null,
+        health_status:         row.health_status || null,
+        category:              row.category      || null,
+        rank:                  idx + 1,
+      }));
     } catch (error) {
       console.error('Error in getTrendingRepos:', error);
       return [];
