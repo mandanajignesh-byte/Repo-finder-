@@ -390,7 +390,7 @@ async function main() {
   trendingToInsert.forEach((item, i) => { item.rank = i + 1; });
 
   // ── 4. Delete old rows for this period_type + period_date ─────────────────
-  console.log('🗑️  Removing stale trending rows for today's period…');
+  console.log("🗑️  Removing stale trending rows for today's period...");
   const { error: delErr } = await supabase
     .from('trending_repos')
     .delete()
