@@ -763,7 +763,6 @@ class SupabaseService {
   async getTrendingRepos(options?: {
     timeRange?: 'daily' | 'weekly' | 'monthly';
     language?: string;
-    excludeWellKnown?: boolean;
     limit?: number;
   }): Promise<any[]> {
     try {

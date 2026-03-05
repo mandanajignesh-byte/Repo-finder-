@@ -9,14 +9,13 @@ import { shareService } from '@/services/share.service';
 export function TrendingScreen() {
   const [timeRange, setTimeRange] = useState<'today' | 'week'>('today');
   const [selectedCategory, setSelectedCategory] = useState<RepoCategory | 'all'>('all');
-  const [showUnknownGems, setShowUnknownGems] = useState(true); // Filter out well-known repos by default
   const [categorizedRepos, setCategorizedRepos] = useState<Map<RepoCategory, TrendingRepo[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadTrendingRepos();
-  }, [timeRange, showUnknownGems]);
+  }, [timeRange]);
 
   const loadTrendingRepos = async () => {
     setLoading(true);
@@ -28,10 +27,8 @@ export function TrendingScreen() {
       // Filter out well-known repos to surface unknown gems by default
       const trending = await githubService.getTrendingRepos({
         since,
-        // PERFORMANCE: 40 is a good balance between variety and speed.
-        perPage: 40,
+        perPage: 50,
         usePagination: false,
-        excludeWellKnown: showUnknownGems, // Filter based on toggle
       });
       
       // Categorize repos
@@ -121,26 +118,6 @@ export function TrendingScreen() {
             </div>
           </div>
           
-          {/* Unknown Gems toggle */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => setShowUnknownGems(!showUnknownGems)}
-              className="px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all flex items-center gap-2"
-              style={{
-                backgroundColor: showUnknownGems ? '#2563eb' : '#161b22',
-                color: showUnknownGems ? '#ffffff' : '#8b949e',
-                borderRadius: '999px',
-                border: showUnknownGems ? '1px solid #2563eb' : '1px solid #21262d',
-              }}
-            >
-              <span>{showUnknownGems ? 'Unknown Gems' : 'All Trending'}</span>
-            </button>
-            <span className="text-[10px] md:text-xs text-gray-400">
-              {showUnknownGems 
-                ? 'Showing lesser-known trending repos' 
-                : 'Showing all trending repos including well-known ones'}
-            </span>
-          </div>
         </div>
 
         {/* Loading state */}

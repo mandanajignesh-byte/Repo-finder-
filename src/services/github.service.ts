@@ -356,7 +356,6 @@ class GitHubService {
     since?: 'daily' | 'weekly' | 'monthly';
     perPage?: number;
     usePagination?: boolean;
-    excludeWellKnown?: boolean; // New option: filter out well-known repos (default: true)
   }): Promise<TrendingRepo[]> {
     try {
       const since = options?.since || 'daily';
@@ -377,7 +376,7 @@ class GitHubService {
         cacheDateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
       }
       
-      const cacheKey = `trending-${since}-${cacheDateKey}-${options?.language || 'all'}-${options?.excludeWellKnown !== false ? 'filtered' : 'all'}`;
+      const cacheKey = `trending-${since}-${cacheDateKey}-${options?.language || 'all'}`;
       
       // Check date-based cache first
       const cached = this.getCached(cacheKey);
@@ -397,7 +396,6 @@ class GitHubService {
         const dbRepos = await supabaseService.getTrendingRepos({
           timeRange: since,
           language: options?.language,
-          excludeWellKnown: options?.excludeWellKnown !== false,
           limit: options?.perPage || 100,
         });
 
@@ -425,12 +423,7 @@ class GitHubService {
             rank: dbRepo.rank || 0,
           }));
 
-          // Apply unknown gems filter (same as GitHub API path) when requested
-          if (options?.excludeWellKnown !== false) {
-            mappedRepos = this.filterUnknownGems(mappedRepos) as TrendingRepo[];
-          }
-
-          // Re-rank after filtering
+          // Re-rank
           mappedRepos = mappedRepos.map((repo, i) => ({ ...repo, rank: i + 1 }));
 
           // Cache the results
@@ -462,7 +455,7 @@ class GitHubService {
       // Strategy 1: Repos with recent activity (pushed) - these are actively maintained
       // For daily, look for repos pushed in last 24 hours with good star count
       const minStars = since === 'daily' ? 20 : since === 'weekly' ? 50 : 100;
-      let query1 = `pushed:>${dateStr} stars:>${minStars}`;
+      let query1 = `pushed:>${dateStr} stars:${minStars}..50000`;
 
       if (options?.language) {
         query1 += ` language:${options.language}`;
@@ -491,7 +484,7 @@ class GitHubService {
         }
         const createdDateStr = createdDate.toISOString().split('T')[0];
         
-        let query2 = `created:>${createdDateStr} pushed:>${dateStr} stars:>10`;
+        let query2 = `created:>${createdDateStr} pushed:>${dateStr} stars:10..50000`;
         
         if (options?.language) {
           query2 += ` language:${options.language}`;
@@ -517,18 +510,8 @@ class GitHubService {
       allRepos.push(...Array.from(repoMap.values()));
       allRepos.sort((a, b) => b.stars - a.stars);
 
-      // Filter out well-known repos to surface unknown gems (default: true)
-      let filteredRepos = allRepos;
-      if (options?.excludeWellKnown !== false) { // Default to true if not specified
-        filteredRepos = this.filterUnknownGems(allRepos);
-        
-        // If filtering removed too many repos, get more to fill the quota
-        if (filteredRepos.length < (options?.perPage || 100) && allRepos.length > filteredRepos.length) {
-          // Add some more repos from the filtered list, but still exclude the most popular
-          const additionalRepos = this.filterUnknownGems(allRepos.slice(filteredRepos.length));
-          filteredRepos = [...filteredRepos, ...additionalRepos];
-        }
-      }
+      // Simple filter: only show repos under 50k stars
+      const filteredRepos = allRepos.filter(repo => repo.stars < 50000);
 
       // Limit to requested perPage
       const limitedRepos = filteredRepos.slice(0, options?.perPage || 100);
