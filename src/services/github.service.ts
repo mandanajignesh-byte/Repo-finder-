@@ -405,7 +405,7 @@ class GitHubService {
           console.log(`Using ${dbRepos.length} trending repos from database for ${since} (${cacheDateKey})`);
           
           // Convert database format to TrendingRepo format
-          const trendingRepos: TrendingRepo[] = dbRepos.map((dbRepo: any) => ({
+          let mappedRepos: TrendingRepo[] = dbRepos.map((dbRepo: any) => ({
             id: dbRepo.repo_id,
             name: dbRepo.repo_name,
             fullName: dbRepo.repo_full_name,
@@ -425,11 +425,19 @@ class GitHubService {
             rank: dbRepo.rank || 0,
           }));
 
+          // Apply unknown gems filter (same as GitHub API path) when requested
+          if (options?.excludeWellKnown !== false) {
+            mappedRepos = this.filterUnknownGems(mappedRepos) as TrendingRepo[];
+          }
+
+          // Re-rank after filtering
+          mappedRepos = mappedRepos.map((repo, i) => ({ ...repo, rank: i + 1 }));
+
           // Cache the results
           const dailyTTL = 24 * 60 * 60 * 1000; // 24 hours
-          this.setCache(cacheKey, trendingRepos.map(({ trending, rank, ...repo }) => repo), dailyTTL);
+          this.setCache(cacheKey, mappedRepos.map(({ trending, rank, ...repo }) => repo), dailyTTL);
           
-          return trendingRepos;
+          return mappedRepos;
         }
       } catch (dbError) {
         console.log('Database fetch failed, falling back to API:', dbError);
