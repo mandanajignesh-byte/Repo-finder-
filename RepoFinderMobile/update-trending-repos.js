@@ -172,23 +172,16 @@ function calcHealthScore({ freshnessScore, activityScore, communityScore, hasDes
 }
 
 /**
- * Gem score = "underrated quality"
- * High score → high quality, low public awareness (hidden gem)
- * Stars < 1k gets a bonus; Stars > 5k gets penalised.
+ * Gem score = pure quality signal.
+ * Stars don't matter — a well-maintained 40k-star repo ranks just as high
+ * as a well-maintained 400-star repo if their activity/health is equal.
+ * The only star-based gate is GEM_STAR_MIN (filters out empty/spam repos).
  */
-function calcGemScore({ healthScore, freshnessScore, stars }) {
-  const underratedBonus = stars < 500   ? 1.0
-                        : stars < 2000  ? 0.85
-                        : stars < 5000  ? 0.70
-                        : stars < 10000 ? 0.55
-                        : stars < 20000 ? 0.40
-                        : stars < 35000 ? 0.25
-                        : 0.15; // 35k–50k stars — still qualifies but lower bonus
-
+function calcGemScore({ healthScore, freshnessScore, activityScore }) {
   return Math.min(1.0,
-    healthScore    * 0.45 +
+    healthScore    * 0.50 +
     freshnessScore * 0.30 +
-    underratedBonus * 0.25
+    activityScore  * 0.20
   );
 }
 
@@ -266,7 +259,7 @@ async function upsertRepoWithScores(repo) {
     openIssues:     repo.open_issues_count,
     forks:          repo.forks_count,
   });
-  const gemScore        = calcGemScore({ healthScore, freshnessScore, stars: repo.stargazers_count });
+  const gemScore        = calcGemScore({ healthScore, freshnessScore, activityScore });
   const starVelocity    = estimateStarVelocity(freshnessScore, activityScore);
   const trendingScore   = calcTrendingScore({ starVelocity, freshnessScore, healthScore });
 
@@ -347,8 +340,7 @@ async function main() {
   // ── 2. Upsert each repo + scores ───────────────────────────────────────────
   console.log('💾 Upserting repos + calculating scores…\n');
 
-  const GEM_STAR_MAX   = 50000; // above this → not a "hidden gem"
-  const GEM_STAR_MIN   = 10;   // below this → too obscure
+  const GEM_STAR_MIN   = 10;   // below this → likely spam/empty repo
   const GEM_DESC_MIN   = 10;   // chars
 
   const trendingToInsert = [];
@@ -366,10 +358,9 @@ async function main() {
     // Determine if it qualifies as a gem
     const isGem = (
       repo.stargazers_count >= GEM_STAR_MIN &&
-      repo.stargazers_count <= GEM_STAR_MAX &&
       repo.description &&
       repo.description.length > GEM_DESC_MIN &&
-      scores.healthScore >= 0.35
+      scores.healthScore >= 0.35  // must have decent health — filters out stale/dead repos
     );
 
     if (isGem) {
