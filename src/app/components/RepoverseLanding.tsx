@@ -9,6 +9,9 @@ import {
   Cpu,
   Smartphone,
   TrendingUp,
+  Activity,
+  Filter,
+  User,
 } from 'lucide-react';
 
 // ─── App Store Link ────────────────────────────────────────────────────────────
@@ -29,12 +32,33 @@ const TERMINAL_LINES = [
 
 // ─── CSS animations (injected via <style>) ────────────────────────────────────
 const LANDING_CSS = `
-/* Inter font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@font-face {
+  font-family: 'Cal Sans';
+  src: url('https://cdn.jsdelivr.net/npm/cal-sans@1.0.1/fonts/CalSans-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
 
 .lp-root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
-  font-feature-settings: "cv02","cv03","cv04" !important;
+  font-feature-settings: "cv02","cv03","cv04","tnum" !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Cal Sans for all headings */
+.lp-root h1,
+.lp-root h2 {
+  font-family: 'Cal Sans', 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Mono utility */
+.lp-mono {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace !important;
 }
 
 /* ── Keyframes ─────────────────────────────────────────────── */
@@ -168,12 +192,34 @@ const LANDING_CSS = `
 .lp-section-hidden  { opacity: 0; transform: translateY(30px); }
 .lp-section-visible { animation: lp-fade-up 0.6s ease-out forwards; }
 
+/* ── Screenshot rock animation (Discover section) ─────────── */
+@keyframes lp-rock {
+  0%, 100% { transform: translateX(-4px) rotate(-0.3deg); }
+  50%       { transform: translateX(4px)  rotate( 0.3deg); }
+}
+.lp-rock { animation: lp-rock 3s ease-in-out infinite; }
+
+/* ── Feature cards (Personalisation section) ────────────── */
+.lp-feature-card {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 16px;
+  padding: 24px;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.lp-feature-card:hover {
+  border-color: #2563eb;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(37,99,235,0.15);
+}
+
 /* ── Reduce motion ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .lp-pill-shimmer,
   .lp-btn-primary::after,
   .lp-badge-1, .lp-badge-2, .lp-badge-3,
   .lp-star, .lp-pulse-dot, .lp-cursor,
+  .lp-rock,
   .lp-grad-border::before { animation: none !important; }
   .lp-word {
     animation: none !important;
@@ -229,6 +275,56 @@ function useScrollVisible(threshold = 0.2) {
 
   return { ref, isVisible };
 }
+
+// ─── useParallax ──────────────────────────────────────────────────────────────
+function useParallax(factor = 0.04) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let rafId = 0;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const offset = (rect.top + rect.height / 2 - window.innerHeight / 2) * factor;
+      el.style.transform = `translateY(${offset}px)`;
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    update();
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafId); };
+  }, [factor]);
+  return ref;
+}
+
+// ─── Screenshot shared style ───────────────────────────────────────────────────
+const SCREENSHOT_STYLE: React.CSSProperties = {
+  borderRadius: '16px',
+  border: '1px solid #21262d',
+  boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+  maxWidth: '100%',
+  display: 'block',
+  width: '100%',
+};
+
+// ─── Section label pill ────────────────────────────────────────────────────────
+const SECTION_PILL_STYLE: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '4px 12px',
+  borderRadius: '999px',
+  fontSize: '11px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  background: 'rgba(37,99,235,0.12)',
+  color: '#93c5fd',
+  border: '1px solid rgba(37,99,235,0.25)',
+  marginBottom: '20px',
+};
 
 // ─── useTerminalTyping ────────────────────────────────────────────────────────
 function useTerminalTyping(isVisible: boolean) {
@@ -912,6 +1008,434 @@ function FadeSection({ id, visible, setRef, children, className = '', style }: S
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
+// ─── SECTION A: Discover / Swipe ─────────────────────────────────────────────
+function DiscoverSection() {
+  const { ref, isVisible } = useScrollVisible(0.1);
+  const parallaxRef = useParallax(0.04);
+
+  const pills = [
+    '✦ Health scored before you see it',
+    '✦ 5 free swipes daily',
+    '✦ No setup required',
+  ];
+
+  return (
+    <section
+      ref={ref}
+      className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
+      style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+    >
+      <div
+        style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '64px',
+          alignItems: 'center',
+        }}
+      >
+        {/* ── Text ── */}
+        <div style={{ order: 2 }}>
+          <div style={SECTION_PILL_STYLE}>Discover</div>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+            Find repos worth your time.
+          </h2>
+          <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', marginBottom: '32px' }}>
+            Swipe right to save. Swipe left to skip.<br />
+            Every card is health scored before it reaches you.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            {pills.map((text) => (
+              <span
+                key={text}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '8px 16px',
+                  borderRadius: '999px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  background: '#161b22',
+                  border: '1px solid #21262d',
+                  color: '#8b949e',
+                }}
+              >
+                {text}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Screenshot ── */}
+        <div style={{ order: 1, position: 'relative' }} ref={parallaxRef}>
+          {/* SKIP label */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '-16px',
+              transform: 'translateY(-50%)',
+              zIndex: 10,
+              padding: '8px 14px',
+              borderRadius: '999px',
+              fontSize: '13px',
+              fontWeight: 600,
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              color: '#ef4444',
+              pointerEvents: 'none',
+            }}
+          >
+            ← SKIP
+          </div>
+          {/* SAVE label */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              right: '-16px',
+              transform: 'translateY(-50%)',
+              zIndex: 10,
+              padding: '8px 14px',
+              borderRadius: '999px',
+              fontSize: '13px',
+              fontWeight: 600,
+              background: 'rgba(34,197,94,0.1)',
+              border: '1px solid rgba(34,197,94,0.3)',
+              color: '#22c55e',
+              pointerEvents: 'none',
+            }}
+          >
+            SAVE →
+          </div>
+          {/* Rocking screenshot */}
+          <div className="lp-rock">
+            <img
+              src="/discover-screenshot.png"
+              alt="Repoverse Discover page — swipe repos"
+              style={SCREENSHOT_STYLE}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── SECTION B: Trending ──────────────────────────────────────────────────────
+function TrendingFeatureSection() {
+  const { ref, isVisible } = useScrollVisible(0.1);
+  const parallaxRef = useParallax(0.04);
+
+  const features = [
+    {
+      icon: <Activity size={20} strokeWidth={1.5} color="#2563eb" />,
+      title: 'Quality scored',
+      body: 'Every repo gets an A to F health grade based on commits, forks and activity.',
+    },
+    {
+      icon: <TrendingUp size={20} strokeWidth={1.5} color="#2563eb" />,
+      title: 'Updated daily',
+      body: 'Not a static list. Refreshed every single day.',
+    },
+    {
+      icon: <Filter size={20} strokeWidth={1.5} color="#2563eb" />,
+      title: 'Filter by category',
+      body: 'AI & ML, Frontend, Backend, DevOps and more. Find what matters to you.',
+    },
+  ];
+
+  return (
+    <section
+      ref={ref}
+      className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
+      style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+    >
+      <div
+        style={{
+          maxWidth: '1120px',
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '64px',
+          alignItems: 'center',
+        }}
+      >
+        {/* ── Screenshot (left on desktop, top on mobile) ── */}
+        <div style={{ position: 'relative' }} ref={parallaxRef}>
+          {/* Blue glow */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: '-40px',
+              background: 'radial-gradient(circle at center, rgba(37,99,235,0.08) 0%, transparent 70%)',
+              pointerEvents: 'none',
+              borderRadius: '50%',
+            }}
+          />
+          <img
+            src="/trending-screenshot.png"
+            alt="Repoverse Trending page"
+            style={SCREENSHOT_STYLE}
+          />
+        </div>
+
+        {/* ── Text (right on desktop) ── */}
+        <div>
+          <div style={SECTION_PILL_STYLE}>Trending</div>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+            Know before the world does.
+          </h2>
+          <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', marginBottom: '36px' }}>
+            495 repos scored daily.<br />
+            Ranked by real activity — not just stars from 3 years ago.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {features.map((f, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: 'rgba(37,99,235,0.12)',
+                    border: '1px solid rgba(37,99,235,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {f.icon}
+                </div>
+                <div>
+                  <p style={{ fontWeight: 600, color: '#e6edf3', marginBottom: '4px', fontSize: '15px' }}>{f.title}</p>
+                  <p style={{ fontSize: '14px', color: '#8b949e', lineHeight: 1.6 }}>{f.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── SECTION C: AI Agent ──────────────────────────────────────────────────────
+function AgentFeatureSection() {
+  const { ref, isVisible } = useScrollVisible(0.1);
+  const parallaxRef = useParallax(0.04);
+
+  const rows = [
+    { label: 'Source of data', bad: 'Old blog posts & articles',   good: 'Direct from GitHub API'      },
+    { label: 'Freshness',      bad: 'Could be 2 years old',        good: 'Updated today'               },
+    { label: 'Health check',   bad: 'No scoring',                  good: 'Every repo scored A–F'       },
+    { label: 'Accuracy',       bad: 'Guesses based on training',   good: 'Real numbers, real repos'    },
+  ];
+
+  return (
+    <section
+      ref={ref}
+      className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
+      style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+    >
+      <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ ...SECTION_PILL_STYLE, margin: '0 auto 20px' }}>AI Agent</div>
+        <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+          An AI that actually knows GitHub.
+        </h2>
+        <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', marginBottom: '44px', maxWidth: '480px', margin: '0 auto 44px' }}>
+          Not Google. Not old blog posts.<br />
+          Direct from GitHub. Right now.
+        </p>
+
+        {/* Screenshot */}
+        <div ref={parallaxRef} style={{ marginBottom: '40px' }}>
+          <img
+            src="/agent-screenshot.png"
+            alt="Repoverse AI Agent"
+            style={{ ...SCREENSHOT_STYLE, margin: '0 auto' }}
+          />
+        </div>
+
+        {/* Comparison table */}
+        <div
+          style={{
+            background: '#161b22',
+            border: '1px solid #21262d',
+            borderRadius: '16px',
+            padding: '24px',
+            overflowX: 'auto',
+            textAlign: 'left',
+          }}
+        >
+          {/* Header row */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1.4fr 1fr 1fr',
+              gap: '16px',
+              paddingBottom: '16px',
+              borderBottom: '1px solid #21262d',
+              marginBottom: '4px',
+              minWidth: '480px',
+            }}
+          >
+            <div />
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#8b949e' }}>
+              ChatGPT / Google
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Zap size={13} strokeWidth={1.5} />
+              RepoVerse Agent
+            </div>
+          </div>
+          {/* Data rows */}
+          {rows.map((row, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1.4fr 1fr 1fr',
+                gap: '16px',
+                padding: '13px 0',
+                borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                alignItems: 'start',
+                minWidth: '480px',
+              }}
+            >
+              <div style={{ fontSize: '13px', fontWeight: 500, color: '#e6edf3' }}>{row.label}</div>
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>✗ {row.bad}</div>
+              <div style={{ fontSize: '13px', color: '#22c55e' }}>✓ {row.good}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── SECTION D: Personalisation ──────────────────────────────────────────────
+function PersonalisationSection() {
+  const { ref, isVisible } = useScrollVisible(0.1);
+
+  const cards = [
+    {
+      icon: <User size={24} strokeWidth={1.5} color="#2563eb" />,
+      step: '01',
+      title: 'Set your interests',
+      body: 'Pick your languages, frameworks and goals once.',
+    },
+    {
+      icon: <Zap size={24} strokeWidth={1.5} color="#2563eb" />,
+      step: '02',
+      title: 'We learn your taste',
+      body: 'The more you swipe, the sharper your feed gets.',
+    },
+    {
+      icon: <Star size={24} strokeWidth={1.5} color="#2563eb" />,
+      step: '03',
+      title: 'Only relevant repos',
+      body: 'No more scrolling through PHP repos when you code in Python.',
+    },
+  ];
+
+  return (
+    <section
+      ref={ref}
+      className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
+      style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+    >
+      <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+        {/* Heading */}
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <div style={{ ...SECTION_PILL_STYLE, margin: '0 auto 20px' }}>Personalisation</div>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+            The more you use it,<br />the better it gets.
+          </h2>
+          <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', maxWidth: '380px', margin: '0 auto' }}>
+            Tell us what you like once.<br />We handle the rest.
+          </p>
+        </div>
+
+        {/* Cards + connecting line */}
+        <div style={{ position: 'relative' }}>
+          {/* Horizontal connector line (desktop) */}
+          <div
+            className="hidden-mobile"
+            style={{
+              position: 'absolute',
+              top: '50px',
+              left: '12%',
+              right: '12%',
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent 0%, #21262d 15%, #21262d 85%, transparent 100%)',
+              pointerEvents: 'none',
+            }}
+          />
+          {/* Connector dots */}
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="hidden-mobile"
+              style={{
+                position: 'absolute',
+                top: '44px',
+                left: i === 0 ? 'calc(16.67%)' : i === 1 ? '50%' : 'calc(83.33%)',
+                transform: 'translateX(-50%)',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: '#2563eb',
+                border: '2px solid #0d1117',
+                boxShadow: '0 0 8px rgba(37,99,235,0.5)',
+                zIndex: 2,
+                pointerEvents: 'none',
+              }}
+            />
+          ))}
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '20px',
+            }}
+          >
+            {cards.map((card, i) => (
+              <div key={i} className="lp-feature-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '12px',
+                      background: 'rgba(37,99,235,0.12)',
+                      border: '1px solid rgba(37,99,235,0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {card.icon}
+                  </div>
+                  <span className="lp-mono" style={{ fontSize: '11px', color: '#374151' }}>{card.step}</span>
+                </div>
+                <div>
+                  <p style={{ fontWeight: 600, color: '#e6edf3', marginBottom: '8px', fontSize: '16px' }}>{card.title}</p>
+                  <p style={{ fontSize: '14px', color: '#8b949e', lineHeight: 1.65 }}>{card.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 export function RepoverseLanding() {
   const { visible, setRef } = useFadeIn();
   const { ref: terminalRef, isVisible: isTerminalVisible } = useScrollVisible(0.15);
@@ -1019,6 +1543,14 @@ export function RepoverseLanding() {
             </svg>
           </div>
         </section>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            FEATURE SECTIONS (Discover · Trending · Agent · Personalisation)
+        ══════════════════════════════════════════════════════════════════ */}
+        <DiscoverSection />
+        <TrendingFeatureSection />
+        <AgentFeatureSection />
+        <PersonalisationSection />
 
         {/* ══════════════════════════════════════════════════════════════════
             SECTION 2 — PAIN POINT + TERMINAL
