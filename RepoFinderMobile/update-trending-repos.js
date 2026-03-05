@@ -177,12 +177,13 @@ function calcHealthScore({ freshnessScore, activityScore, communityScore, hasDes
  * Stars < 1k gets a bonus; Stars > 5k gets penalised.
  */
 function calcGemScore({ healthScore, freshnessScore, stars }) {
-  const underratedBonus = stars < 200  ? 1.0
-                        : stars < 500  ? 0.85
-                        : stars < 1000 ? 0.70
-                        : stars < 3000 ? 0.50
-                        : stars < 5000 ? 0.30
-                        : 0.10; // well-known repos get low gem score
+  const underratedBonus = stars < 500   ? 1.0
+                        : stars < 2000  ? 0.85
+                        : stars < 5000  ? 0.70
+                        : stars < 10000 ? 0.55
+                        : stars < 20000 ? 0.40
+                        : stars < 35000 ? 0.25
+                        : 0.15; // 35k–50k stars — still qualifies but lower bonus
 
   return Math.min(1.0,
     healthScore    * 0.45 +
@@ -346,7 +347,7 @@ async function main() {
   // ── 2. Upsert each repo + scores ───────────────────────────────────────────
   console.log('💾 Upserting repos + calculating scores…\n');
 
-  const GEM_STAR_MAX   = 5000; // above this → not a "hidden gem"
+  const GEM_STAR_MAX   = 50000; // above this → not a "hidden gem"
   const GEM_STAR_MIN   = 10;   // below this → too obscure
   const GEM_DESC_MIN   = 10;   // chars
 
