@@ -1,0 +1,62 @@
+name: Fetch Trending Repos
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      run_type:
+        description: 'Run type'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - weekly
+
+jobs:
+  fetch-trending:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm install
+
+      - name: Run daily fetch
+        if: github.event.schedule == '0 1 * * *'
+        working-directory: scripts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_API_TOKENS }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RUN_TYPE: daily
+        run: node fetch-trending.js
+
+      - name: Run weekly fetch
+        if: github.event.schedule == '0 2 * * 1'
+        working-directory: scripts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_API_TOKENS }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RUN_TYPE: weekly
+        run: node fetch-trending.js
+
+      - name: Run manual fetch
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: scripts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_API_TOKENS }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RUN_TYPE: ${{ github.event.inputs.run_type }}
+        run: node fetch-trending.js
