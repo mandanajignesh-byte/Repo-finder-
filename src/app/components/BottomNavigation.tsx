@@ -30,94 +30,166 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 bg-black border-r border-gray-800 flex-col py-6">
+      {/* ── Desktop Sidebar ─────────────────────────────────────────── */}
+      <div
+        className="hidden md:flex flex-col py-6"
+        style={{
+          width: '256px',
+          minWidth: '256px',
+          background: '#0d1117',
+          borderRight: '1px solid #21262d',
+        }}
+      >
+        {/* Logo */}
         <div className="px-6 mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <img 
-              src="/logo.png" 
-              alt="RepoVerse Logo" 
+          <div className="flex items-center gap-3 mb-1">
+            <img
+              src="/logo.png"
+              alt="RepoVerse Logo"
               className="h-8 w-8 object-contain rounded-xl"
             />
-            <h1 className="text-2xl font-bold text-white" style={{ fontWeight: 700 }}>RepoVerse</h1>
+            <h1
+              className="text-xl"
+              style={{ fontWeight: 700, color: '#e6edf3' }}
+            >
+              RepoVerse
+            </h1>
           </div>
-          <p className="text-sm text-gray-500 mt-1">Navigate GitHub repositories</p>
+          <p className="text-xs mt-0.5" style={{ color: '#8b949e' }}>
+            Navigate GitHub repositories
+          </p>
         </div>
-        <nav className="flex-1 space-y-2 px-4">
-          {navItems.map((item, i) => {
+
+        {/* Nav items */}
+        <nav className="flex-1 space-y-1 px-3">
+          {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path || (item.path === '/discover' && location.pathname === '/');
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/discover' && location.pathname === '/');
+
             return (
               <Link
                 key={item.id}
                 to={item.path}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors relative ${
-                  isActive
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-400 hover:bg-gray-900'
-                }`}
+                className="w-full flex items-center gap-3 rounded-lg transition-all duration-150 relative group"
+                style={{
+                  padding: '10px 14px',
+                  // Active: blue left accent + subtle blue bg
+                  background: isActive ? '#1d2939' : 'transparent',
+                  borderLeft: isActive
+                    ? '3px solid #2563eb'
+                    : '3px solid transparent',
+                  color: isActive ? '#e6edf3' : '#8b949e',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLElement).style.background =
+                      '#161b22';
+                    (e.currentTarget as HTMLElement).style.color = '#c9d1d9';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLElement).style.background =
+                      'transparent';
+                    (e.currentTarget as HTMLElement).style.color = '#8b949e';
+                  }
+                }}
               >
                 <Icon
-                  className={`w-5 h-5 relative z-10`}
+                  style={{ width: '20px', height: '20px', flexShrink: 0 }}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
-                <span className="font-medium relative z-10">{item.label}</span>
+                <span
+                  className="text-sm"
+                  style={{ fontWeight: isActive ? 600 : 400 }}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}
         </nav>
 
-        {/* Download App CTA - Desktop Sidebar */}
-        <div className="px-4 mt-4">
+        {/* Bottom: subtle Pro badge + muted App Store link */}
+        <div className="px-4 mt-6 space-y-3">
+          {/* Pro upgrade — subtle, not intrusive */}
+          <Link
+            to="/profile"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-150"
+            style={{ color: '#8b949e' }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = '#161b22';
+              (e.currentTarget as HTMLElement).style.color = '#c9d1d9';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = 'transparent';
+              (e.currentTarget as HTMLElement).style.color = '#8b949e';
+            }}
+          >
+            <span style={{ fontSize: '14px' }}>⚡</span>
+            <span className="text-xs" style={{ fontWeight: 500 }}>
+              Upgrade to Pro
+            </span>
+          </Link>
+
+          {/* iOS App link — muted, small */}
           <a
             href={APP_STORE_LINK}
             target="_blank"
             rel="noopener noreferrer"
-            className="group block rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-600/10 to-purple-600/5 p-4 hover:border-blue-500/30 hover:from-blue-600/15 transition-all duration-300"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-150"
+            style={{ color: '#8b949e', textDecoration: 'none' }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = '#c9d1d9';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = '#8b949e';
+            }}
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                <Smartphone className="w-4 h-4 text-blue-400" />
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-white">Get the App</div>
-                <div className="text-[10px] text-gray-500">Unlimited AI + More</div>
-              </div>
-            </div>
-            <div className="text-[11px] text-gray-400 leading-relaxed">
-              Unlock unlimited AI agent queries, push notifications, offline access & more.
-            </div>
-            <div className="mt-3 flex items-center gap-2 text-xs font-medium text-blue-400 group-hover:text-blue-300 transition-colors">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 21.99C7.79 22.03 6.8 20.68 5.96 19.47C4.25 16.97 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z" />
-              </svg>
-              Download on App Store
-            </div>
+            <Smartphone style={{ width: '13px', height: '13px', flexShrink: 0 }} />
+            <span style={{ fontSize: '11px' }}>Download iOS App</span>
           </a>
         </div>
       </div>
 
-      {/* Mobile: Smart App Banner (top of screen) */}
+      {/* ── Mobile: Smart App Banner (top) ──────────────────────────── */}
       {showMobileBanner && (
-        <div className="md:hidden fixed top-0 left-0 right-0 z-[60] bg-gray-900/95 backdrop-blur-xl border-b border-white/5 px-3 py-2.5 safe-area-inset-top">
+        <div
+          className="md:hidden fixed top-0 left-0 right-0 z-[60] backdrop-blur-xl border-b px-3 py-2.5"
+          style={{
+            background: 'rgba(13,17,23,0.96)',
+            borderColor: '#21262d',
+          }}
+        >
           <div className="flex items-center gap-3">
             <button
               onClick={dismissBanner}
-              className="text-gray-500 hover:text-gray-300 p-0.5"
+              className="p-0.5"
               aria-label="Dismiss"
+              style={{ color: '#8b949e' }}
             >
               <X className="w-4 h-4" />
             </button>
             <img src="/logo.png" alt="RepoVerse" className="w-9 h-9 rounded-xl" />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-white leading-tight">RepoVerse</div>
-              <div className="text-[11px] text-gray-400 leading-tight">Unlimited AI Agent & More</div>
+              <div
+                className="text-sm font-semibold leading-tight"
+                style={{ color: '#e6edf3' }}
+              >
+                RepoVerse
+              </div>
+              <div className="text-[11px] leading-tight" style={{ color: '#8b949e' }}>
+                Unlimited AI Agent &amp; More
+              </div>
             </div>
             <a
               href={APP_STORE_LINK}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-1.5 text-xs font-bold rounded-full bg-blue-500 text-white flex-shrink-0"
+              className="px-4 py-1.5 text-xs font-bold rounded-full flex-shrink-0"
+              style={{ background: '#2563eb', color: '#fff' }}
             >
               GET
             </a>
@@ -125,24 +197,37 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
         </div>
       )}
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 px-4 py-2.5 pb-safe z-50 safe-area-inset-bottom">
+      {/* ── Mobile Bottom Navigation ─────────────────────────────────── */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 px-4 py-2.5 pb-safe z-50"
+        style={{
+          background: '#0d1117',
+          borderTop: '1px solid #21262d',
+        }}
+      >
         <div className="flex justify-around items-center">
-          {navItems.map((item, i) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path || (item.path === '/discover' && location.pathname === '/');
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/discover' && location.pathname === '/');
+
             return (
               <Link
                 key={item.id}
                 to={item.path}
-                className={`flex flex-col items-center gap-0.5 transition-colors relative px-2 py-1 ${
-                  isActive ? 'text-white' : 'text-gray-500'
-                }`}
+                className="flex flex-col items-center gap-0.5 transition-colors relative px-2 py-1"
+                style={{ color: isActive ? '#2563eb' : '#8b949e' }}
               >
                 <div>
                   <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
                 </div>
-                <span className="text-[10px] md:text-xs font-medium leading-tight">{item.label}</span>
+                <span
+                  className="text-[10px] leading-tight"
+                  style={{ fontWeight: isActive ? 600 : 400 }}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}

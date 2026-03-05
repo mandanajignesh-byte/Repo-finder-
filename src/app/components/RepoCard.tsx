@@ -310,7 +310,10 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                   {repo.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-3 md:px-4 py-1.5 md:py-2 bg-gray-700 text-gray-200 rounded-full text-xs md:text-sm font-medium"
+                      className="px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-colors cursor-default"
+                      style={{ background: '#1f2937', color: '#60a5fa' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#263548'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#1f2937'; }}
                     >
                       {tag}
                     </span>
@@ -319,7 +322,10 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                   {additionalTopics.map((topic) => (
                     <span
                       key={topic}
-                      className="px-3 md:px-4 py-1.5 md:py-2 bg-gray-800 text-gray-200 border border-gray-600 rounded-full text-xs md:text-sm font-medium"
+                      className="px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-colors cursor-default"
+                      style={{ background: '#1f2937', color: '#60a5fa', border: '1px solid #2d3f55' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#263548'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#1f2937'; }}
                     >
                       {topic}
                     </span>

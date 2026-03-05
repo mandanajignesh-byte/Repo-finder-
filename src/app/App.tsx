@@ -9,6 +9,7 @@ import { updateSEO, getSEOForRoute } from '@/utils/seo';
 
 // Lazy load ALL heavy components for code splitting - including DiscoveryScreen
 const LandingPage = lazy(() => import('@/app/components/LandingPage').then(m => ({ default: m.LandingPage })));
+const LandingRoute = lazy(() => import('@/app/components/LandingRoute').then(m => ({ default: m.LandingRoute })));
 const DiscoveryScreen = lazy(() => import('@/app/components/DiscoveryScreen').then(m => ({ default: m.DiscoveryScreen })));
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
 const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
@@ -17,10 +18,10 @@ const SupportScreen = lazy(() => import('@/app/components/SupportScreen').then(m
 
 // Loading fallback component
 const LoadingFallback = () => (
-  <div className="h-full bg-black flex items-center justify-center">
+  <div className="h-full flex items-center justify-center" style={{ background: '#0d1117' }}>
     <div className="flex flex-col items-center gap-4">
       <Loader2 className="w-8 h-8 text-gray-400" />
-      <p className="text-gray-400 text-sm">Loading...</p>
+      <p className="text-sm" style={{ color: '#8b949e' }}>Loading...</p>
     </div>
   </div>
 );
@@ -99,6 +100,22 @@ function AppContent() {
     return 'discover';
   };
 
+  // "/" — new public landing page (RepoverseLanding + live Trending feed)
+  // No sidebar. No splash. Fully public.
+  const isNewLanding = location.pathname === '/';
+
+  if (isNewLanding) {
+    return (
+      <div style={{ minHeight: '100vh', overflowY: 'auto', background: '#0d1117' }}>
+        <Suspense fallback={<LoadingFallback />}>
+          <LandingRoute />
+        </Suspense>
+        <Analytics />
+        <SpeedInsights />
+      </div>
+    );
+  }
+
   // /download is a standalone landing page (no nav bar, no splash)
   const isLandingPage = location.pathname === '/download';
 
@@ -119,7 +136,7 @@ function AppContent() {
   }
 
   return (
-    <div className="h-screen w-full bg-transparent relative overflow-hidden flex flex-col dark">
+    <div className="h-screen w-full relative overflow-hidden flex flex-col dark" style={{ background: '#0d1117' }}>
       {/* Main content area */}
       <div className="flex-1 overflow-hidden flex">
         {/* Sidebar navigation (desktop) */}
@@ -128,7 +145,11 @@ function AppContent() {
         {/* Content area */}
         <div className="flex-1 overflow-y-auto">
           <Routes>
+            {/* "/" is handled above (isNewLanding) — never reaches here */}
             <Route path="/" element={<Navigate to="/discover" replace />} />
+            {/* "/app" and "/app/*" enter the full web app at Discover */}
+            <Route path="/app" element={<Navigate to="/discover" replace />} />
+            <Route path="/app/*" element={<Navigate to="/discover" replace />} />
             <Route 
               path="/discover" 
               element={

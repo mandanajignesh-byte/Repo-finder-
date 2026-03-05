@@ -4,17 +4,18 @@
 
 /* Global dark background and typography */
 html, body {
-  background-color: #0F0F12 !important;
+  background-color: #0d1117 !important;
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif;
+  color: #e6edf3;
 }
 
 #root {
-  background-color: #0F0F12 !important;
+  background-color: #0d1117 !important;
   width: 100%;
   height: 100%;
 }

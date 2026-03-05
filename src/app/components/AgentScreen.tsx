@@ -15,9 +15,9 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
-  Smartphone,
   Lock,
 } from 'lucide-react';
+import { PaywallModal } from './PaywallModal';
 import { SignatureCard } from './SignatureCard';
 import { useTypedPlaceholder } from './TypedPlaceholder';
 import { smartAgentService, SmartAgentResponse } from '@/services/smart-agent.service';
@@ -30,7 +30,7 @@ import {
 } from '@/lib/types';
 
 // ── Free tier config ─────────────────────────────────────────
-const FREE_QUERIES_LIMIT = 3;
+const FREE_QUERIES_LIMIT = 2;
 const FREE_QUERIES_KEY = 'rv_agent_queries_used';
 const FREE_QUERIES_DATE_KEY = 'rv_agent_queries_date';
 
@@ -196,26 +196,44 @@ export function AgentScreen() {
   // ── Render ───────────────────────────────────────────────────
 
   return (
-    <div className="h-full bg-black flex flex-col pb-24 md:pb-0">
+    <div className="h-full flex flex-col pb-24 md:pb-0" style={{ background: '#0d1117' }}>
       {/* Header */}
-      <div className="p-4 md:p-6 border-b border-gray-700">
+      <div className="p-4 md:p-6" style={{ borderBottom: '1px solid #21262d' }}>
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-              <Zap className="w-4 h-4 text-black" />
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#2563eb' }}>
+              <Zap className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>
+              <h1 className="text-xl md:text-2xl" style={{ fontWeight: 700, color: '#e6edf3' }}>
                 Agent
               </h1>
-              <p className="text-xs text-gray-500">Search · Score · Compare · Discover</p>
+              <p className="text-xs" style={{ color: '#8b949e' }}>Search · Score · Compare · Discover</p>
             </div>
           </div>
-          <div className="text-xs text-gray-400">
+          {/* Query counter — friendly mini progress bar */}
+          <div className="flex flex-col items-end gap-1">
             {isGated ? (
-              <span className="text-orange-400 font-medium">Daily limit reached</span>
+              <span className="text-xs font-medium" style={{ color: '#f97316' }}>Daily limit reached</span>
             ) : (
-              <span>{freeQueriesRemaining}/{FREE_QUERIES_LIMIT} free today</span>
+              <>
+                <span className="text-xs" style={{ color: '#8b949e' }}>
+                  {freeQueriesRemaining}/{FREE_QUERIES_LIMIT} queries left
+                </span>
+                <div className="flex gap-1">
+                  {Array.from({ length: FREE_QUERIES_LIMIT }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="rounded-full"
+                      style={{
+                        width: '20px', height: '5px',
+                        background: i < freeQueriesRemaining ? '#2563eb' : '#21262d',
+                        transition: 'background 0.3s',
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -230,7 +248,11 @@ export function AgentScreen() {
               <div className="flex justify-start">
                 <div
                   className="rounded-[20px] px-4 py-3 flex items-center gap-3"
-                  style={{ backgroundColor: '#1C1C1E', color: '#F5F5F7' }}
+                  style={{
+                    background: 'linear-gradient(135deg, #1e3a5f 0%, #1a2f4a 100%)',
+                    borderLeft: '3px solid #2563eb',
+                    color: '#e6edf3',
+                  }}
                 >
                   <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
                   <p className="text-sm">{message.text}</p>
@@ -241,8 +263,8 @@ export function AgentScreen() {
                 <div
                   className="rounded-[20px] px-4 py-3 flex items-center gap-2"
                   style={{
-                    backgroundColor: '#1C1C1E',
-                    color: '#F5F5F7',
+                    backgroundColor: '#161b22',
+                    color: '#e6edf3',
                     border: '1px solid rgba(255,59,48,0.3)',
                   }}
                 >
@@ -255,17 +277,29 @@ export function AgentScreen() {
               <div
                 className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                  className={`max-w-[90%] md:max-w-[80%] rounded-[16px] md:rounded-[20px] px-3 md:px-4 py-2 md:py-3 ${
-                    message.sender === 'user'
-                      ? 'bg-white text-gray-900'
-                      : 'bg-gray-800/80 text-gray-200'
-                  }`}
-                >
-                  <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-                    {renderMarkdownBold(message.text)}
-                  </p>
-                </div>
+                {message.sender === 'user' ? (
+                  <div
+                    className="max-w-[90%] md:max-w-[80%] rounded-[16px] md:rounded-[20px] px-3 md:px-4 py-2 md:py-3"
+                    style={{ background: '#fff', color: '#111' }}
+                  >
+                    <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                      {renderMarkdownBold(message.text)}
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    className="max-w-[90%] md:max-w-[80%] rounded-[16px] md:rounded-[20px] px-3 md:px-4 py-2 md:py-3"
+                    style={{
+                      background: 'linear-gradient(135deg, #1e3a5f 0%, #1a2f4a 100%)',
+                      borderLeft: '3px solid #2563eb',
+                      color: '#e6edf3',
+                    }}
+                  >
+                    <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                      {renderMarkdownBold(message.text)}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -284,7 +318,7 @@ export function AgentScreen() {
             {/* Health report */}
             {message.healthReport && <HealthReportCard report={message.healthReport} />}
 
-            {/* Action buttons */}
+            {/* Action suggestion pills */}
             {message.actions && message.actions.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {message.actions.map((action) => (
@@ -292,84 +326,120 @@ export function AgentScreen() {
                     key={action}
                     onClick={() => handleAction(action)}
                     disabled={isProcessing}
-                    className="px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700 text-gray-300 rounded-full text-xs md:text-sm font-medium transition-colors border border-gray-700/50 disabled:opacity-50"
+                    className="group px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition-all duration-150 disabled:opacity-50 flex items-center gap-1"
+                    style={{
+                      background: '#161b22',
+                      color: '#8b949e',
+                      border: '1px solid #21262d',
+                    }}
+                    onMouseEnter={(e) => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.borderColor = '#2563eb';
+                      el.style.color = '#e6edf3';
+                    }}
+                    onMouseLeave={(e) => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.borderColor = '#21262d';
+                      el.style.color = '#8b949e';
+                    }}
                   >
                     {action}
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5">→</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
         ))}
+        {/* Example query cards — shown in center when only the initial message exists */}
+        {messages.length === 1 && (
+          <div className="flex flex-col items-center gap-3 py-6 px-4 max-w-lg mx-auto w-full">
+            <p className="text-xs mb-2" style={{ color: '#8b949e' }}>Try asking something like:</p>
+            {[
+              'Find me trending Python repos',
+              'Compare Next.js vs Nuxt',
+              'Best React UI libraries active in 2025',
+            ].map((q) => (
+              <button
+                key={q}
+                onClick={() => handleAction(q)}
+                disabled={isProcessing}
+                className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 disabled:opacity-50"
+                style={{
+                  background: '#161b22',
+                  border: '1px solid #21262d',
+                  color: '#c9d1d9',
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.borderColor = '#2563eb';
+                  el.style.background = '#1d2939';
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.borderColor = '#21262d';
+                  el.style.background = '#161b22';
+                }}
+              >
+                <span style={{ color: '#2563eb', marginRight: '8px' }}>→</span>
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Download App Gate Overlay */}
+      {/* Agent query paywall */}
       {showDownloadGate && (
-        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-sm w-full bg-gray-900 border border-gray-700 rounded-2xl p-6 text-center space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-white/10 flex items-center justify-center">
-              <Lock className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-xl text-white font-bold">Daily limit reached</h2>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              You've used all {FREE_QUERIES_LIMIT} free agent queries today.
-              Download the Repoverse app for unlimited AI-powered repo discovery,
-              health scores, and comparisons.
-            </p>
-            <div className="space-y-3 pt-2">
-              <a
-                href="https://apps.apple.com/app/repoverse/id6745498032"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 bg-white text-gray-900 rounded-full font-semibold text-sm hover:bg-gray-200 transition-colors"
-              >
-                <Smartphone className="w-4 h-4" />
-                Download Repoverse App
-              </a>
-              <button
-                onClick={() => setShowDownloadGate(false)}
-                className="w-full py-2.5 text-gray-400 hover:text-gray-300 text-sm transition-colors"
-              >
-                Maybe later
-              </button>
-            </div>
-            <p className="text-gray-600 text-[10px]">
-              Free queries reset daily at midnight
-            </p>
-          </div>
-        </div>
+        <PaywallModal
+          type="agent"
+          onClose={() => setShowDownloadGate(false)}
+        />
       )}
 
       {/* Input */}
-      <div className="p-3 md:p-6 border-t border-gray-700 pb-safe">
+      <div className="p-3 md:p-6 pb-safe" style={{ borderTop: '1px solid #21262d' }}>
         {isGated ? (
           <div className="max-w-4xl mx-auto">
             <button
               onClick={() => setShowDownloadGate(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-800/50 text-gray-400 rounded-full border border-gray-700 text-sm"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm"
+              style={{ background: '#161b22', color: '#8b949e', border: '1px solid #21262d' }}
             >
               <Lock className="w-4 h-4" />
-              Daily limit reached — Download app for unlimited
+              Daily limit reached — Upgrade for unlimited
             </button>
           </div>
         ) : (
           <>
             <div className="flex gap-2 max-w-4xl mx-auto">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
-                placeholder="Ask me anything..."
-                disabled={isProcessing}
-                className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-gray-800/50 text-white placeholder-gray-500 rounded-full border border-gray-700 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/20 text-sm md:text-base disabled:opacity-50"
-              />
+              <div className="flex-1 flex items-center rounded-full overflow-hidden transition-all duration-150"
+                style={{ background: '#161b22', border: '1px solid #21262d' }}
+                onFocusCapture={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px #2563eb'; (e.currentTarget as HTMLElement).style.borderColor = '#2563eb'; }}
+                onBlurCapture={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.borderColor = '#21262d'; }}
+              >
+                <span className="pl-4 text-base" style={{ color: '#8b949e', flexShrink: 0 }}>🔍</span>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend(inputValue)}
+                  placeholder="Ask me anything..."
+                  disabled={isProcessing}
+                  className="flex-1 px-3 md:px-4 py-2.5 md:py-3 bg-transparent focus:outline-none text-sm md:text-base disabled:opacity-50"
+                  style={{ color: '#e6edf3' }}
+                />
+              </div>
               <button
                 onClick={() => handleSend(inputValue)}
                 disabled={!inputValue.trim() || isProcessing}
-                className="w-10 h-10 md:w-12 md:h-12 bg-white text-gray-900 rounded-full flex items-center justify-center hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                style={{ background: '#2563eb', color: '#fff' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1d4ed8'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#2563eb'; }}
               >
                 {isProcessing ? (
                   <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
@@ -378,7 +448,7 @@ export function AgentScreen() {
                 )}
               </button>
             </div>
-            <p className="text-center text-gray-600 text-[10px] md:text-xs mt-1.5 max-w-4xl mx-auto">
+            <p className="text-center text-[10px] md:text-xs mt-1.5 max-w-4xl mx-auto" style={{ color: '#8b949e' }}>
               Powered by real-time GitHub data · Health scores · Comparisons
             </p>
           </>

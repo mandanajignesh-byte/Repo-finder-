@@ -84,12 +84,13 @@ export function TrendingScreen() {
 
   return (
     <div 
-      className="h-full bg-black overflow-y-auto pb-24 md:pb-0"
+      className="h-full overflow-y-auto pb-24 md:pb-0"
+      style={{ background: '#0d1117' }}
     >
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
         <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Trending Repositories</h1>
+            <h1 className="text-xl md:text-2xl" style={{ fontWeight: 700, color: '#e6edf3' }}>Trending Repositories</h1>
             
             {/* Time range toggle */}
             <div className="flex gap-2 w-full sm:w-auto">
@@ -97,10 +98,10 @@ export function TrendingScreen() {
                 onClick={() => setTimeRange('today')}
                 className="flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all"
                 style={{
-                  backgroundColor: timeRange === 'today' ? '#FFFFFF' : '#1C1C1E',
-                  color: timeRange === 'today' ? '#0F0F12' : '#F5F5F7',
+                  backgroundColor: timeRange === 'today' ? '#2563eb' : '#161b22',
+                  color: timeRange === 'today' ? '#ffffff' : '#8b949e',
                   borderRadius: '999px',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  border: timeRange === 'today' ? '1px solid #2563eb' : '1px solid #21262d',
                 }}
               >
                 Today
@@ -109,10 +110,10 @@ export function TrendingScreen() {
                 onClick={() => setTimeRange('week')}
                 className="flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all"
                 style={{
-                  backgroundColor: timeRange === 'week' ? '#FFFFFF' : '#1C1C1E',
-                  color: timeRange === 'week' ? '#0F0F12' : '#F5F5F7',
+                  backgroundColor: timeRange === 'week' ? '#2563eb' : '#161b22',
+                  color: timeRange === 'week' ? '#ffffff' : '#8b949e',
                   borderRadius: '999px',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  border: timeRange === 'week' ? '1px solid #2563eb' : '1px solid #21262d',
                 }}
               >
                 This Week
@@ -126,10 +127,10 @@ export function TrendingScreen() {
               onClick={() => setShowUnknownGems(!showUnknownGems)}
               className="px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all flex items-center gap-2"
               style={{
-                backgroundColor: showUnknownGems ? '#FFFFFF' : '#1C1C1E',
-                color: showUnknownGems ? '#0F0F12' : '#F5F5F7',
+                backgroundColor: showUnknownGems ? '#2563eb' : '#161b22',
+                color: showUnknownGems ? '#ffffff' : '#8b949e',
                 borderRadius: '999px',
-                border: '1px solid rgba(255,255,255,0.06)',
+                border: showUnknownGems ? '1px solid #2563eb' : '1px solid #21262d',
               }}
             >
               <span>{showUnknownGems ? 'Unknown Gems' : 'All Trending'}</span>
@@ -171,11 +172,13 @@ export function TrendingScreen() {
                 onClick={() => setSelectedCategory('all')}
                 className="px-3 md:px-4 py-1.5 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all"
                 style={{
-                  backgroundColor: selectedCategory === 'all' ? '#FFFFFF' : '#1C1C1E',
-                  color: selectedCategory === 'all' ? '#0F0F12' : '#F5F5F7',
+                  backgroundColor: selectedCategory === 'all' ? '#2563eb' : '#161b22',
+                  color: selectedCategory === 'all' ? '#ffffff' : '#8b949e',
                   borderRadius: '999px',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  border: selectedCategory === 'all' ? '1px solid #2563eb' : '1px solid #21262d',
                 }}
+                onMouseEnter={(e) => { if (selectedCategory !== 'all') (e.currentTarget as HTMLElement).style.borderColor = '#2563eb'; }}
+                onMouseLeave={(e) => { if (selectedCategory !== 'all') (e.currentTarget as HTMLElement).style.borderColor = '#21262d'; }}
               >
                 All
               </button>
@@ -184,21 +187,23 @@ export function TrendingScreen() {
               {categoryOrder.map((category) => {
                 const repos = categorizedRepos.get(category) || [];
                 if (repos.length === 0) return null;
-                
+                const isActive = selectedCategory === category;
                 return (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
                     className="px-3 md:px-4 py-1.5 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all flex items-center gap-1.5 md:gap-2"
                     style={{
-                      backgroundColor: selectedCategory === category ? '#FFFFFF' : '#1C1C1E',
-                      color: selectedCategory === category ? '#0F0F12' : '#F5F5F7',
+                      backgroundColor: isActive ? '#2563eb' : '#161b22',
+                      color: isActive ? '#ffffff' : '#8b949e',
                       borderRadius: '999px',
-                      border: '1px solid rgba(255,255,255,0.06)',
+                      border: isActive ? '1px solid #2563eb' : '1px solid #21262d',
                     }}
+                    onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.borderColor = '#2563eb'; }}
+                    onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.borderColor = '#21262d'; }}
                   >
                     <span>{categoryService.getCategoryName(category)}</span>
-                    <span className="text-[10px] md:text-xs text-gray-400">
+                    <span className="text-[10px] md:text-xs" style={{ color: isActive ? 'rgba(255,255,255,0.7)' : '#8b949e' }}>
                       ({repos.length})
                     </span>
                   </button>
@@ -216,17 +221,17 @@ export function TrendingScreen() {
                 {/* Category header (only show if showing all categories) */}
                 {selectedCategory === 'all' && (
                   <>
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-xl text-white" style={{ fontWeight: 700 }}>
+                    <div className="flex items-center gap-3" style={{ borderLeft: '3px solid #2563eb', paddingLeft: '12px' }}>
+                      <h2 className="text-xl md:text-2xl" style={{ fontWeight: 700, color: '#e6edf3' }}>
                         {categoryService.getCategoryName(category)}
                       </h2>
-                      <span className="text-sm text-gray-400">
+                      <span className="text-sm" style={{ color: '#8b949e' }}>
                         ({repos.length})
                       </span>
                     </div>
                     
                     {/* Category description */}
-                    <p className="text-sm text-gray-400 mb-4">
+                    <p className="text-sm mb-4" style={{ color: '#8b949e' }}>
                       {categoryService.getCategoryDescription(category)}
                     </p>
                   </>
@@ -237,13 +242,33 @@ export function TrendingScreen() {
                   {repos.map((repo, index) => (
                     <SignatureCard
                       key={repo.id}
-                      className="p-3 md:p-4 hover:bg-gray-800 transition-colors cursor-pointer rounded-xl"
+                      className="p-3 md:p-4 cursor-pointer rounded-xl"
                       showLayers={false}
                       onClick={() => window.open(repo.url, '_blank')}
+                      style={{
+                        transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.transform = 'translateY(-2px)';
+                        el.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.transform = 'translateY(0)';
+                        el.style.boxShadow = 'none';
+                      }}
                     >
                       <div className="flex items-start gap-3 md:gap-4">
                         {/* Rank badge */}
-                        <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-lg bg-white text-gray-900 font-bold flex items-center justify-center text-xs md:text-sm shadow-md">
+                        <div
+                          className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-lg font-bold flex items-center justify-center text-xs md:text-sm shadow-md"
+                          style={{
+                            background: index === 0 ? '#2563eb' : '#1f2937',
+                            color: index === 0 ? '#fff' : '#8b949e',
+                            boxShadow: index === 0 ? '0 0 10px rgba(37,99,235,0.4)' : undefined,
+                          }}
+                        >
                           {index + 1}
                         </div>
                         
@@ -269,7 +294,8 @@ export function TrendingScreen() {
                               {repo.tags.slice(0, 3).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="px-2 md:px-2.5 py-0.5 md:py-1 bg-gray-700 text-gray-200 rounded-full text-[10px] md:text-xs font-medium"
+                                  className="px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium"
+                                  style={{ background: '#1f2937', color: '#60a5fa' }}
                                 >
                                   {tag}
                                 </span>

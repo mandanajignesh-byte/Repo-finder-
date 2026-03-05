@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { X, Bookmark, Heart, XCircle, Loader2, Trash2, Download } from 'lucide-react';
+import { PaywallModal, PaywallType } from './PaywallModal';
+import { getSwipesUsedToday, incrementSwipesUsed, getSwipesLeft, FREE_SWIPES } from '@/utils/usageLimit';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'motion/react';
 import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
@@ -36,6 +38,11 @@ export function DiscoveryScreen() {
   const [swipeCount, setSwipeCount] = useState(0); // Track swipe count for delayed onboarding
   const [showPWAInstallPrompt, setShowPWAInstallPrompt] = useState(false);
   const [isPWAInstalledState, setIsPWAInstalledState] = useState(false);
+
+  // ── Daily usage limit (free tier) ────────────────────────────────────────────
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallType, setPaywallType] = useState<PaywallType>('swipes');
+  const [dailySwipesUsed, setDailySwipesUsed] = useState(() => getSwipesUsedToday());
 
   // Short one-line tips about using GitHub repos, shown during loading states
   const loadingTips = [
@@ -951,24 +958,11 @@ export function DiscoveryScreen() {
   }, [cards, isLoadingMore, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
 
   const handleSave = useCallback(async (repo?: Repository) => {
-    const repoToSave = repo || cards[0];
-    if (repoToSave) {
-      // Track interaction as 'save' (async, but don't wait)
-      interactionService.trackInteraction(repoToSave, 'save', {
-        position: 0,
-        source: 'discover',
-      }).catch(err => console.error('Error tracking save:', err));
-      
-      // Track in Google Analytics
-      trackRepoInteraction('save', repoToSave.id, repoToSave.fullName || repoToSave.name);
-      
-      setSavedRepos((saved) => [...saved, repoToSave]);
-      // Navigate to saved section
-      setShowSaved(true);
-      trackNavigation('saved', 'discover');
-    }
-    setCards((prev) => prev.slice(1));
-  }, [cards]);
+    // ── Paywall: saving is a Pro feature ────────────────────────────────────
+    void repo; // pro feature gate - suppress unused warning
+    setPaywallType('save');
+    setShowPaywall(true);
+  }, []);
 
   const handleRemoveSaved = useCallback(async (repoId: string) => {
     try {
@@ -991,6 +985,13 @@ export function DiscoveryScreen() {
 
   const handleSwipe = useCallback((direction: 'left' | 'right') => {
     if (isSwiping || cards.length === 0 || triggerSwipe) return;
+
+    // ── Daily swipe limit check (keyboard / button swipes) ──────────────────
+    if (getSwipesLeft() <= 0) {
+      setPaywallType('swipes');
+      setShowPaywall(true);
+      return;
+    }
     
     setIsSwiping(true);
     // Trigger the animation in SwipeableCard
@@ -999,6 +1000,19 @@ export function DiscoveryScreen() {
 
   // Handle the actual swipe action after animation completes
   const handleSwipeComplete = useCallback((direction: 'left' | 'right') => {
+    // ── Daily swipe limit check (drag-triggered swipes) ─────────────────────
+    if (getSwipesLeft() <= 0) {
+      setPaywallType('swipes');
+      setShowPaywall(true);
+      setIsSwiping(false);
+      setTriggerSwipe(null);
+      return;
+    }
+
+    // Increment daily counter
+    const newCount = incrementSwipesUsed();
+    setDailySwipesUsed(newCount);
+
     // Swipe left = skip, swipe right = like
     if (direction === 'left') {
       handleSkip();
@@ -1100,7 +1114,7 @@ export function DiscoveryScreen() {
 
   if (showSaved) {
     return (
-      <div className="h-full bg-black p-4 md:p-6 overflow-y-auto pb-24 md:pb-0">
+      <div className="h-full p-4 md:p-6 overflow-y-auto pb-24 md:pb-0" style={{ background: '#0d1117' }}>
         <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
           <h2 className="text-2xl text-white" style={{ fontWeight: 700 }}>Saved Repos</h2>
           <motion.button
@@ -1178,7 +1192,7 @@ export function DiscoveryScreen() {
 
   if (showLiked) {
     return (
-      <div className="h-full bg-black p-4 md:p-6 overflow-y-auto pb-24 md:pb-0">
+      <div className="h-full p-4 md:p-6 overflow-y-auto pb-24 md:pb-0" style={{ background: '#0d1117' }}>
         <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
           <h2 className="text-2xl text-white" style={{ fontWeight: 700 }}>Liked Repos</h2>
           <motion.button
@@ -1247,7 +1261,7 @@ export function DiscoveryScreen() {
   // Loading state for shared repo
   if (isLoadingSharedRepo && cards.length === 0) {
     return (
-      <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
+      <div className="h-full flex items-center justify-center pb-24 md:pb-0" style={{ background: '#0d1117' }}>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
           <p className="text-gray-400">Loading repository...</p>
@@ -1262,7 +1276,7 @@ export function DiscoveryScreen() {
   // Error state for shared repo
   if (sharedRepoError && cards.length === 0) {
     return (
-      <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
+      <div className="h-full flex items-center justify-center pb-24 md:pb-0" style={{ background: '#0d1117' }}>
         <div className="flex flex-col items-center gap-4 p-4 max-w-md text-center">
           <XCircle className="w-12 h-12 text-red-400" />
           <p className="text-gray-300 mb-2">{sharedRepoError}</p>
@@ -1300,7 +1314,7 @@ export function DiscoveryScreen() {
   // Loading state (only show if we have zero cards and something is actively loading)
   if (isLoadingMore && cards.length === 0) {
     return (
-      <div className="h-full bg-black flex items-center justify-center pb-24 md:pb-0">
+      <div className="h-full flex items-center justify-center pb-24 md:pb-0" style={{ background: '#0d1117' }}>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
           <p className="text-gray-400">Loading recommendations...</p>
@@ -1313,11 +1327,18 @@ export function DiscoveryScreen() {
   }
 
   return (
-    <div className="h-full bg-black flex flex-col pb-20 md:pb-16 relative overflow-hidden">
+    <div className="h-full flex flex-col pb-20 md:pb-16 relative overflow-hidden" style={{ background: '#0d1117' }}>
       {/* Header with bookmark, heart, and install button */}
       <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-1 md:mb-0">
-        <h1 className="text-xl md:text-2xl text-white" style={{ fontWeight: 700 }}>Explore</h1>
+        <h1 className="text-xl md:text-2xl" style={{ fontWeight: 700, color: '#e6edf3' }}>Explore</h1>
         <div className="flex items-center gap-3">
+          {/* Daily swipe counter */}
+          <span
+            className="text-xs font-medium tabular-nums"
+            style={{ color: dailySwipesUsed >= FREE_SWIPES ? '#ef4444' : '#6b7280' }}
+          >
+            {Math.max(0, FREE_SWIPES - dailySwipesUsed)}/{FREE_SWIPES} swipes left
+          </span>
           {/* PWA Install Button - Show if not installed */}
           {!isPWAInstalledState && (
           <button
@@ -1466,22 +1487,64 @@ export function DiscoveryScreen() {
             
             {/* Loading indicator when loading more repos */}
             {isLoadingMore && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none" style={{ opacity: 0.5 }}>
                 <div className="flex items-center gap-2 text-gray-400 text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Exploring deeper into the galaxy...</span>
-            </div>
-          </div>
+                </div>
+              </div>
             )}
           </>
         )}
       </div>
+
+      {/* Skip / Like circular action buttons */}
+      {cards.length > 0 && !showSaved && !showLiked && (
+        <div className="flex-shrink-0 flex items-center justify-center gap-10 pb-4 md:pb-6 z-10">
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            whileHover={{ scale: 1.08 }}
+            onClick={() => handleSwipe('left')}
+            className="rounded-full flex items-center justify-center shadow-xl"
+            style={{
+              width: '56px', height: '56px',
+              background: 'rgba(239,68,68,0.12)',
+              border: '2px solid #ef4444',
+            }}
+            title="Skip (←)"
+          >
+            <XCircle className="w-7 h-7" style={{ color: '#ef4444' }} strokeWidth={2} />
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            whileHover={{ scale: 1.08 }}
+            onClick={() => handleSwipe('right')}
+            className="rounded-full flex items-center justify-center shadow-xl"
+            style={{
+              width: '56px', height: '56px',
+              background: 'rgba(34,197,94,0.12)',
+              border: '2px solid #22c55e',
+            }}
+            title="Like (→)"
+          >
+            <Heart className="w-7 h-7" style={{ color: '#22c55e' }} fill="currentColor" strokeWidth={2} />
+          </motion.button>
+        </div>
+      )}
 
       {/* PWA Install Prompt - Shows after 2-3 swipes if not installed */}
       <PWAInstallPrompt 
         show={showPWAInstallPrompt} 
         onDismiss={() => setShowPWAInstallPrompt(false)} 
       />
+
+      {/* Paywall modal — free tier limits */}
+      {showPaywall && (
+        <PaywallModal
+          type={paywallType}
+          onClose={() => setShowPaywall(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1840,25 +1903,23 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
       >
         <RepoCard repo={repo} style={{ height: '100%', maxHeight: '100%' }} onSave={onSave} isFirstCard={isFirstCard} />
         
-        {/* Skip indicator (left swipe) */}
+        {/* Skip indicator (left swipe) — red tint circle, no label */}
         <motion.div
-          className="absolute top-12 left-8 flex items-center gap-2 pointer-events-none z-30"
+          className="absolute top-12 left-6 flex items-center pointer-events-none z-30"
           style={{ opacity: skipOpacity }}
         >
-          <div className="bg-gray-900 border-2 border-gray-500 rounded-full p-3 shadow-lg">
-            <XCircle className="w-8 h-8 text-gray-300" strokeWidth={2.5} />
+          <div className="rounded-full p-3 shadow-xl" style={{ background: 'rgba(239,68,68,0.18)', border: '2.5px solid #ef4444' }}>
+            <XCircle className="w-9 h-9" style={{ color: '#ef4444' }} strokeWidth={2.5} />
           </div>
-          <span className="text-gray-300 font-bold text-lg">SKIP</span>
         </motion.div>
         
-        {/* Like indicator (right swipe) */}
+        {/* Like indicator (right swipe) — green tint circle, no label */}
         <motion.div
-          className="absolute top-12 right-8 flex items-center gap-2 pointer-events-none z-30"
+          className="absolute top-12 right-6 flex items-center pointer-events-none z-30"
           style={{ opacity: saveOpacity }}
         >
-          <span className="text-white font-bold text-lg">LIKE</span>
-          <div className="bg-gray-900 border-2 border-gray-300 rounded-full p-3 shadow-lg">
-            <Heart className="w-8 h-8 text-white" fill="currentColor" strokeWidth={2.5} />
+          <div className="rounded-full p-3 shadow-xl" style={{ background: 'rgba(34,197,94,0.18)', border: '2.5px solid #22c55e' }}>
+            <Heart className="w-9 h-9" style={{ color: '#22c55e' }} fill="currentColor" strokeWidth={2.5} />
           </div>
         </motion.div>
       </div>

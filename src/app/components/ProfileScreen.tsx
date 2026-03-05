@@ -110,29 +110,76 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
     setIsEditing(false);
   };
 
+  // Language → color mapping
+  const langColor = (lang: string): { bg: string; text: string } => {
+    const map: Record<string, { bg: string; text: string }> = {
+      JavaScript: { bg: 'rgba(234,179,8,0.15)',  text: '#eab308' },
+      TypeScript: { bg: 'rgba(59,130,246,0.15)', text: '#60a5fa' },
+      Python:     { bg: 'rgba(59,130,246,0.15)', text: '#60a5fa' },
+      Java:       { bg: 'rgba(249,115,22,0.15)', text: '#fb923c' },
+      React:      { bg: 'rgba(6,182,212,0.15)',  text: '#22d3ee' },
+      'React Native': { bg: 'rgba(6,182,212,0.15)', text: '#22d3ee' },
+      'Next.js':  { bg: 'rgba(6,182,212,0.15)',  text: '#22d3ee' },
+      Go:         { bg: 'rgba(6,214,160,0.15)',  text: '#34d399' },
+      Rust:       { bg: 'rgba(249,115,22,0.15)', text: '#fb923c' },
+      'C++':      { bg: 'rgba(139,92,246,0.15)', text: '#a78bfa' },
+      'C#':       { bg: 'rgba(139,92,246,0.15)', text: '#a78bfa' },
+      Swift:      { bg: 'rgba(249,115,22,0.15)', text: '#fb923c' },
+      Kotlin:     { bg: 'rgba(139,92,246,0.15)', text: '#a78bfa' },
+      Ruby:       { bg: 'rgba(239,68,68,0.15)',  text: '#f87171' },
+    };
+    return map[lang] || { bg: '#1f2937', text: '#60a5fa' };
+  };
+
   if (!loaded) {
     return (
-      <div className="h-full bg-black flex items-center justify-center">
-        <div className="text-gray-400">Loading...</div>
+      <div className="h-full flex items-center justify-center" style={{ background: '#0d1117' }}>
+        <div style={{ color: '#8b949e' }}>Loading...</div>
       </div>
     );
   }
 
+  // User initials for avatar
+  const initials = (preferences.name || 'U').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+
   return (
     <div 
-      className="h-full bg-black p-4 md:p-6 overflow-y-auto pb-24 md:pb-0"
+      className="h-full p-4 md:p-6 overflow-y-auto pb-24 md:pb-0"
+      style={{ background: '#0d1117' }}
     >
       <div className="max-w-4xl mx-auto">
+
+        {/* ── Profile avatar area ───────────────────────────────── */}
+        <div className="flex flex-col items-center py-8 mb-6">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold mb-3 shadow-xl"
+            style={{
+              background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
+              color: '#ffffff',
+              border: '2px solid #2563eb',
+            }}
+          >
+            {initials}
+          </div>
+          {preferences.name && (
+            <p className="text-lg font-semibold" style={{ color: '#e6edf3' }}>{preferences.name}</p>
+          )}
+          <p className="text-sm mt-0.5" style={{ color: '#8b949e' }}>RepoVerse explorer</p>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="transition-colors"
+              style={{ color: '#8b949e' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#e6edf3'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#8b949e'; }}
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            <h1 className="text-2xl text-white" style={{ fontWeight: 700 }}>Your Profile</h1>
+            <h1 className="text-2xl" style={{ fontWeight: 700, color: '#e6edf3' }}>Your Profile</h1>
           </div>
           {!isEditing ? (
             <button
@@ -244,13 +291,20 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {preferences.techStack?.filter(lang => LANGUAGES.includes(lang)).map(lang => (
-                <span key={lang} className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-sm">
-                  {lang}
-                </span>
-              ))}
+              {preferences.techStack?.filter(lang => LANGUAGES.includes(lang)).map(lang => {
+                const c = langColor(lang);
+                return (
+                  <span
+                    key={lang}
+                    className="px-3 py-1 rounded-full text-sm font-medium transition-colors cursor-default"
+                    style={{ background: c.bg, color: c.text, border: `1px solid ${c.text}30` }}
+                  >
+                    {lang}
+                  </span>
+                );
+              })}
               {(!preferences.techStack || preferences.techStack.length === 0) && (
-                <span className="text-gray-400 text-sm">No languages selected</span>
+                <span className="text-sm" style={{ color: '#8b949e' }}>No languages selected</span>
               )}
             </div>
           )}
@@ -282,13 +336,20 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {preferences.techStack?.filter(fw => FRAMEWORKS.includes(fw)).map(fw => (
-                <span key={fw} className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-sm">
-                  {fw}
-                </span>
-              ))}
+              {preferences.techStack?.filter(fw => FRAMEWORKS.includes(fw)).map(fw => {
+                const c = langColor(fw);
+                return (
+                  <span
+                    key={fw}
+                    className="px-3 py-1 rounded-full text-sm font-medium transition-colors cursor-default"
+                    style={{ background: c.bg, color: c.text, border: `1px solid ${c.text}30` }}
+                  >
+                    {fw}
+                  </span>
+                );
+              })}
               {(!preferences.techStack || !preferences.techStack.some(fw => FRAMEWORKS.includes(fw))) && (
-                <span className="text-gray-400 text-sm">No frameworks selected</span>
+                <span className="text-sm" style={{ color: '#8b949e' }}>No frameworks selected</span>
               )}
             </div>
           )}
@@ -375,6 +436,45 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             </div>
           )}
         </SignatureCard>
+
+        {/* ── Upgrade to Pro banner ───────────────────────────────── */}
+        <div
+          className="p-6 mb-4 rounded-2xl"
+          style={{
+            background: 'linear-gradient(135deg, #0f1f3d 0%, #1a2f4a 60%, #0d1117 100%)',
+            border: '1px solid #2563eb40',
+          }}
+        >
+          <div className="flex items-start gap-4">
+            <div
+              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+              style={{ background: 'rgba(37,99,235,0.2)', border: '1px solid #2563eb50' }}
+            >
+              ⚡
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base mb-1" style={{ color: '#e6edf3' }}>Upgrade to Pro</p>
+              <p className="text-sm mb-3" style={{ color: '#8b949e' }}>
+                Unlock the full Repoverse experience.
+              </p>
+              <div className="space-y-1.5 mb-4">
+                {['Unlimited swipes daily', 'Unlimited AI Agent queries', 'Save & organise collections', 'Advanced filters'].map(b => (
+                  <div key={b} className="flex items-center gap-2 text-sm" style={{ color: '#c9d1d9' }}>
+                    <span style={{ color: '#22c55e' }}>✓</span> {b}
+                  </div>
+                ))}
+              </div>
+              <button
+                className="px-5 py-2.5 rounded-full text-sm font-semibold transition-all"
+                style={{ background: '#2563eb', color: '#fff' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1d4ed8'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#2563eb'; }}
+              >
+                Upgrade to Pro — $4.99/month
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Project Types */}
         <SignatureCard className="p-6 mb-4" showLayers={false}>
