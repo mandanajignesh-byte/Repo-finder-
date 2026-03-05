@@ -15,7 +15,7 @@ const DiscoveryScreen = lazy(() => import('@/app/components/DiscoveryScreen').th
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
 const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
 const ProfileScreen = lazy(() => import('@/app/components/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
-const SupportScreen = lazy(() => import('@/app/components/SupportScreen').then(m => ({ default: m.SupportScreen })));
+// SupportScreen removed — buy me a coffee page removed
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -90,13 +90,12 @@ function AppContent() {
   }, []);
 
   // Determine active tab from pathname (all app routes live under /app/*)
-  const getActiveTab = (): 'discover' | 'trending' | 'agent' | 'profile' | 'support' => {
+  const getActiveTab = (): 'discover' | 'trending' | 'agent' | 'profile' => {
     const path = location.pathname;
     if (path.startsWith('/app/r/') || path.startsWith('/r/')) return 'discover';
     if (path.startsWith('/app/trending')) return 'trending';
     if (path.startsWith('/app/agent')) return 'agent';
     if (path.startsWith('/app/profile')) return 'profile';
-    if (path.startsWith('/app/support')) return 'support';
     return 'discover';
   };
 
@@ -192,15 +191,13 @@ function AppContent() {
             <Route path="/app/profile"
               element={<Suspense fallback={<LoadingFallback />}><ProfileScreen onClose={() => window.history.back()} /></Suspense>}
             />
-            <Route path="/app/support"
-              element={<Suspense fallback={<LoadingFallback />}><SupportScreen /></Suspense>}
-            />
+            {/* /app/support removed — buy me a coffee page removed */}
 
             {/* Legacy short-path redirects → keep old bookmarks/shares working */}
             <Route path="/discover"   element={<Navigate to="/app/discover"  replace />} />
             <Route path="/agent"      element={<Navigate to="/app/agent"     replace />} />
             <Route path="/profile"    element={<Navigate to="/app/profile"   replace />} />
-            <Route path="/support"    element={<Navigate to="/app/support"   replace />} />
+            {/* /support removed */}
 
             {/* /app with no sub-path → discover */}
             <Route path="/app" element={<Navigate to="/app/discover" replace />} />

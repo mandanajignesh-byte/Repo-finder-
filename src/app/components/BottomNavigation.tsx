@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Compass, TrendingUp, Bot, User, Heart, Smartphone, X } from 'lucide-react';
+import { Compass, TrendingUp, Bot, User, Smartphone, X } from 'lucide-react';
 
 const APP_STORE_LINK = 'https://apps.apple.com/app/repoverse/id6746498585';
 
 interface BottomNavigationProps {
-  activeTab: 'discover' | 'trending' | 'agent' | 'profile' | 'support';
+  activeTab: 'discover' | 'trending' | 'agent' | 'profile';
 }
 
 export function BottomNavigation({ activeTab }: BottomNavigationProps) {
@@ -16,11 +16,10 @@ export function BottomNavigation({ activeTab }: BottomNavigationProps) {
   });
   
   const navItems = [
-    { id: 'discover' as const, icon: Compass, label: 'Explore',          path: '/app/discover' },
-    { id: 'trending' as const, icon: TrendingUp, label: 'Trending',      path: '/app/trending' },
-    { id: 'agent'   as const, icon: Bot,        label: 'Agent',          path: '/app/agent'    },
-    { id: 'profile' as const, icon: User,       label: 'Profile',        path: '/app/profile'  },
-    { id: 'support' as const, icon: Heart,      label: 'Buy Me a Coffee',path: '/app/support'  },
+    { id: 'discover' as const, icon: Compass,    label: 'Explore',  path: '/app/discover' },
+    { id: 'trending' as const, icon: TrendingUp, label: 'Trending', path: '/app/trending' },
+    { id: 'agent'   as const, icon: Bot,         label: 'Agent',    path: '/app/agent'    },
+    { id: 'profile' as const, icon: User,        label: 'Profile',  path: '/app/profile'  },
   ];
 
   const dismissBanner = () => {

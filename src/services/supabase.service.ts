@@ -751,7 +751,19 @@ class SupabaseService {
   }
 
   /**
-   * Get trending repos from database
+   * Get trending repos from database.
+   *
+   * The GitHub Actions workflow (main.yml) saves data with:
+   *   - table: trending_repos  (columns: repo_id, period_type, period_date, rank, trending_score, category)
+   *   - table: repos_master    (full repo details keyed by github_id)
+   *
+   * period_type  = 'daily' | 'weekly'
+   * period_date  = the day the workflow ran minus the window
+   *                  daily  → yesterday's date (YYYY-MM-DD)
+   *                  weekly → 7-days-ago date  (YYYY-MM-DD)
+   *
+   * We look for the most-recent period_date so the page always shows
+   * the latest batch regardless of minor timing differences.
    */
   async getTrendingRepos(options?: {
     timeRange?: 'daily' | 'weekly' | 'monthly';
@@ -760,48 +772,82 @@ class SupabaseService {
     limit?: number;
   }): Promise<any[]> {
     try {
-      const timeRange = options?.timeRange || 'daily';
-      const language = options?.language;
-      const excludeWellKnown = options?.excludeWellKnown !== false; // Default to true
+      // Map our timeRange to the workflow's period_type
+      const rawRange = options?.timeRange || 'daily';
+      const periodType = rawRange === 'monthly' ? 'weekly' : rawRange; // monthly falls back to weekly
       const limit = options?.limit || 100;
 
-      // Calculate date key
-      const today = new Date();
-      let dateKey: string;
-      
-      if (timeRange === 'daily') {
-        dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
-      } else if (timeRange === 'weekly') {
-        const weekNumber = this.getWeekNumber(today);
-        dateKey = `${today.getFullYear()}-W${weekNumber}`;
-      } else {
-        dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-      }
-
-      // Build query
-      let query = supabase
+      // ── Step 1: get the latest batch of trending repo IDs ────────────
+      const { data: trendingRows, error: trendingError } = await supabase
         .from('trending_repos')
-        .select('*')
-        .eq('time_range', timeRange)
-        .eq('date_key', dateKey)
-        .eq('exclude_well_known', excludeWellKnown)
-        .order('rank', { ascending: true })
+        .select('repo_id, rank, trending_score, category, period_date')
+        .eq('period_type', periodType)
+        .order('period_date', { ascending: false }) // most-recent first
+        .order('rank',        { ascending: true  })
         .limit(limit);
 
-      if (language) {
-        query = query.eq('language', language);
-      } else {
-        query = query.is('language', null);
+      if (trendingError) {
+        console.error('Error fetching trending rows:', trendingError.message);
+        return [];
       }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching trending repos from database:', error);
+      if (!trendingRows || trendingRows.length === 0) {
+        console.log(`No trending data found for period_type=${periodType}`);
         return [];
       }
 
-      return data || [];
+      // Keep only the freshest period_date
+      const latestDate = trendingRows[0].period_date;
+      const freshRows  = trendingRows.filter(r => r.period_date === latestDate);
+      console.log(`Using ${freshRows.length} trending rows from ${latestDate} (${periodType})`);
+
+      // ── Step 2: fetch full repo details from repos_master ────────────
+      const repoIds = freshRows.map(r => r.repo_id);
+      const { data: masterRepos, error: masterError } = await supabase
+        .from('repos_master')
+        .select('github_id, name, full_name, description, owner_login, avatar_url, language, stars, forks, topics, repo_url, updated_at, pushed_at')
+        .in('github_id', repoIds);
+
+      if (masterError) {
+        console.error('Error fetching repos_master:', masterError.message);
+        return [];
+      }
+
+      const repoMap = new Map((masterRepos || []).map(r => [r.github_id, r]));
+
+      // ── Step 3: merge and return in expected shape ────────────────────
+      const results: any[] = [];
+      for (const row of freshRows) {
+        const repo = repoMap.get(row.repo_id);
+        if (!repo) continue;
+
+        const lang = (repo.language || '').toLowerCase();
+        const langFilter = options?.language;
+        if (langFilter && lang !== langFilter.toLowerCase()) continue;
+
+        results.push({
+          // These field names match the mapping in github.service.ts
+          repo_id:             repo.github_id,
+          repo_name:           repo.name,
+          repo_full_name:      repo.full_name,
+          repo_description:    repo.description || '',
+          repo_tags:           repo.topics || [],
+          repo_stars:          repo.stars || 0,
+          repo_forks:          repo.forks || 0,
+          repo_updated_at:     repo.updated_at || '',
+          repo_pushed_at:      repo.pushed_at  || '',
+          repo_language:       repo.language   || null,
+          repo_url:            repo.repo_url,
+          repo_owner_login:    repo.owner_login || '',
+          repo_owner_avatar_url: repo.avatar_url || '',
+          repo_topics:         repo.topics      || [],
+          trending_score:      row.trending_score,
+          rank:                row.rank,
+          period_date:         row.period_date,
+          category:            row.category,
+        });
+      }
+
+      return results;
     } catch (error) {
       console.error('Error in getTrendingRepos:', error);
       return [];
