@@ -10,6 +10,7 @@ import { updateSEO, getSEOForRoute } from '@/utils/seo';
 // Lazy load ALL heavy components for code splitting - including DiscoveryScreen
 const LandingPage = lazy(() => import('@/app/components/LandingPage').then(m => ({ default: m.LandingPage })));
 const LandingRoute = lazy(() => import('@/app/components/LandingRoute').then(m => ({ default: m.LandingRoute })));
+const PublicTrendingPage = lazy(() => import('@/app/components/PublicTrendingPage').then(m => ({ default: m.PublicTrendingPage })));
 const DiscoveryScreen = lazy(() => import('@/app/components/DiscoveryScreen').then(m => ({ default: m.DiscoveryScreen })));
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
 const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
@@ -99,14 +100,14 @@ function AppContent() {
     return 'discover';
   };
 
-  // "/" — new public landing page (RepoverseLanding + live Trending feed)
-  // No sidebar. No splash. Fully public.
-  const isNewLanding = location.pathname === '/';
+  // "/" and "/trending" are public scrollable pages (no sidebar).
+  const isNewLanding  = location.pathname === '/';
+  const isPublicPage  = isNewLanding || location.pathname === '/trending';
 
   // The global CSS sets html/body to overflow:hidden for the app screens.
-  // On the landing page we need normal document scrolling, so we override it.
+  // On public pages we need normal document scrolling, so we override it.
   useEffect(() => {
-    if (isNewLanding) {
+    if (isPublicPage) {
       document.documentElement.style.overflow = 'auto';
       document.documentElement.style.height = 'auto';
       document.body.style.overflow = 'auto';
@@ -117,7 +118,7 @@ function AppContent() {
       document.body.style.overflow = 'hidden';
       document.body.style.height = '100%';
     }
-  }, [isNewLanding]);
+  }, [isPublicPage]);
 
   if (isNewLanding) {
     return (
@@ -131,17 +132,14 @@ function AppContent() {
     );
   }
 
-  // "/trending" — public standalone trending page (no sidebar, no splash)
-  const isPublicTrending = location.pathname === '/trending';
-  if (isPublicTrending) {
+  // "/trending" — public trending page with nav + footer CTA (no sidebar, no splash)
+  if (location.pathname === '/trending') {
     return (
-      <div style={{ minHeight: '100vh', background: '#0d1117', overflowY: 'auto' }}>
-        <Suspense fallback={<LoadingFallback />}>
-          <TrendingScreen />
-        </Suspense>
+      <Suspense fallback={<LoadingFallback />}>
+        <PublicTrendingPage />
         <Analytics />
         <SpeedInsights />
-      </div>
+      </Suspense>
     );
   }
 

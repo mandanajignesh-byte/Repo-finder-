@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PublicNav } from './PublicNav';
 import {
   Star,
   GitFork,
@@ -1461,6 +1462,9 @@ export function RepoverseLanding() {
           backgroundSize: '40px 40px',
         }}
       >
+        {/* ── Shared sticky nav ───────────────────────────────────────────── */}
+        <PublicNav />
+
         {/* ══════════════════════════════════════════════════════════════════
             SECTION 1 — HERO
         ══════════════════════════════════════════════════════════════════ */}
