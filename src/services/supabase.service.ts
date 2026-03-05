@@ -753,14 +753,12 @@ class SupabaseService {
   /**
    * Get trending repos from database.
    *
-   * Data is written by the Vercel cron: api/cron/fetch-trending.ts
-   * Table: trending_repos
-   * Columns: time_range, date_key, exclude_well_known, repo_*, rank, trending_score
+   * Data is written by the GitHub Actions cron (update-trending-repos.js):
+   *   - table: trending_repos  → minimal rows (repo_id, period_type, period_date, rank, trending_score, cluster_slug)
+   *   - table: repos_master    → full repo details
    *
-   * date_key format:
-   *   daily   → YYYY-MM-DD  (today's date when cron ran)
-   *   weekly  → YYYY-W##    (ISO week number)
-   *   monthly → YYYY-MM
+   * The Supabase RPC `get_trending_gems` joins both and always returns the
+   * most-recent period_date batch, so no date calculation is needed here.
    */
   async getTrendingRepos(options?: {
     timeRange?: 'daily' | 'weekly' | 'monthly';
@@ -769,52 +767,53 @@ class SupabaseService {
     limit?: number;
   }): Promise<any[]> {
     try {
-      const timeRange = options?.timeRange || 'daily';
-      const language = options?.language;
-      const excludeWellKnown = options?.excludeWellKnown !== false; // default true
+      // Map our timeRange to the cron's period_type (monthly → weekly fallback)
+      const periodType = options?.timeRange === 'weekly' ? 'weekly' : 'daily';
       const limit = options?.limit || 100;
 
-      // Build the date_key that the cron used when it last ran
-      const today = new Date();
-      let dateKey: string;
-      if (timeRange === 'daily') {
-        dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
-      } else if (timeRange === 'weekly') {
-        const weekNumber = this.getWeekNumber(today);
-        dateKey = `${today.getFullYear()}-W${weekNumber}`;
-      } else {
-        dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-      }
-
-      let query = supabase
-        .from('trending_repos')
-        .select('*')
-        .eq('time_range', timeRange)
-        .eq('date_key', dateKey)
-        .eq('exclude_well_known', excludeWellKnown)
-        .order('rank', { ascending: true })
-        .limit(limit);
-
-      if (language) {
-        query = query.eq('language', language);
-      } else {
-        query = query.is('language', null);
-      }
-
-      const { data, error } = await query;
+      // Call the Supabase RPC — it auto-picks the latest period_date
+      const { data, error } = await supabase.rpc('get_trending_gems', {
+        p_period_type: periodType,
+        p_cluster_slug: null, // null = all categories
+        p_limit: limit,
+      });
 
       if (error) {
-        console.error('Error fetching trending repos from database:', error);
+        console.error('Error calling get_trending_gems RPC:', error.message);
         return [];
       }
 
       if (!data || data.length === 0) {
-        console.log(`No trending data in DB for ${timeRange} / ${dateKey} — will fall back to GitHub API`);
+        console.log(`No trending gems in DB for period_type=${periodType} — will fall back to GitHub API`);
         return [];
       }
 
-      console.log(`✅ Loaded ${data.length} trending repos from DB (${timeRange} / ${dateKey})`);
-      return data;
+      console.log(`✅ Loaded ${data.length} trending repos from DB via get_trending_gems (${periodType})`);
+
+      // Map RPC response fields to the shape github.service.ts expects
+      return (data as any[])
+        .filter(row => {
+          if (!options?.language) return true;
+          return (row.language || '').toLowerCase() === options.language.toLowerCase();
+        })
+        .map((row: any) => ({
+          repo_id:               String(row.repo_id),
+          repo_name:             row.name,
+          repo_full_name:        row.full_name,
+          repo_description:      row.description || '',
+          repo_tags:             Array.isArray(row.topics) ? row.topics : [],
+          repo_stars:            row.stars || 0,
+          repo_forks:            row.forks || 0,
+          repo_updated_at:       '',
+          repo_pushed_at:        '',
+          repo_language:         row.language || null,
+          repo_url:              row.html_url,
+          repo_owner_login:      row.owner_login || '',
+          repo_owner_avatar_url: row.avatar_url  || '',
+          repo_topics:           Array.isArray(row.topics) ? row.topics : [],
+          trending_score:        row.trending_score || 0,
+          rank:                  row.rank || 0,
+        }));
     } catch (error) {
       console.error('Error in getTrendingRepos:', error);
       return [];
