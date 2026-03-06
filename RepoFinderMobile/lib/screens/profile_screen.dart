@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
 import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
+import '../widgets/github_connect_card.dart';
 import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
 import 'sign_in_screen.dart';
@@ -213,6 +214,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     },
                   ),
+
+                  // GitHub Connection
+                  const GitHubConnectCard(),
+                  const SizedBox(height: 16),
 
                   // Subscription Status
                   Builder(

@@ -9,6 +9,7 @@ import 'services/auth_service.dart';
 import 'services/app_supabase_service.dart';
 import 'services/repo_service.dart';
 import 'services/revenuecat_service.dart';
+import 'services/github_service.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -86,6 +87,7 @@ class RepoFinderApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => AppSupabaseService()),
         ChangeNotifierProvider(create: (_) => RepoService()),
+        ChangeNotifierProvider(create: (_) => GitHubService()),
       ],
       child: MaterialApp(
         title: 'Repoverse',

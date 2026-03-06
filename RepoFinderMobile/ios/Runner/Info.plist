@@ -61,6 +61,16 @@
 				<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>GitHub OAuth Callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>repoverse</string>
+			</array>
+		</dict>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
