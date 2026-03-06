@@ -174,8 +174,8 @@ function AppContent() {
         {/* Sidebar navigation (desktop) */}
         <BottomNavigation activeTab={getActiveTab()} />
         
-        {/* Content area */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Content area — overflow-hidden here; each screen manages its own internal scroll */}
+        <div className="flex-1 overflow-hidden">
           <Routes>
             {/* All app screens live under /app/* */}
             <Route path="/app/discover"

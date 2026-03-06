@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Bookmark, Heart, XCircle, Loader2, Trash2, Download, CornerUpLeft } from 'lucide-react';
+import { X, Bookmark, Heart, XCircle, Loader2, Trash2, CornerUpLeft } from 'lucide-react';
 import { PaywallModal, PaywallType } from './PaywallModal';
 import { getSwipesUsedToday, incrementSwipesUsed, getSwipesLeft, FREE_SWIPES } from '@/utils/usageLimit';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'motion/react';
@@ -1371,52 +1371,6 @@ export function DiscoveryScreen() {
               </>
             )}
           </span>
-          {/* PWA Install Button - Show if not installed */}
-          {!isPWAInstalledState && (
-          <button
-              onClick={async () => {
-                try {
-                  console.log('[PWA] Manual install button clicked');
-                  const { isIOS, shouldShowIOSInstructions, promptInstallPWA, isInstallPromptAvailable } = await import('@/utils/pwa');
-                  const iosDevice = isIOS();
-                  const iosInstructions = shouldShowIOSInstructions();
-                  
-                  if (iosDevice && iosInstructions) {
-                    // iOS: Show instructions
-                    const dismissed = localStorage.getItem('pwa-install-dismissed-ios');
-                    if (!dismissed) {
-                      console.log('[PWA] Showing iOS instructions');
-                      setShowPWAInstallPrompt(true);
-                    }
-                  } else {
-                    // Android: Try to prompt install
-                    const promptAvailable = isInstallPromptAvailable();
-                    console.log('[PWA] Android prompt available:', promptAvailable);
-                    if (promptAvailable) {
-                      const success = await promptInstallPWA();
-                      console.log('[PWA] Install prompt result:', success);
-                      if (!success) {
-                        // If prompt failed, show manual instructions
-                        setShowPWAInstallPrompt(true);
-                      }
-                    } else {
-                      // Show manual instructions
-                      console.log('[PWA] Prompt not available, showing instructions');
-                      setShowPWAInstallPrompt(true);
-                    }
-                  }
-                } catch (error) {
-                  console.error('[PWA] Error in manual install button:', error);
-                  // Show instructions as fallback
-                  setShowPWAInstallPrompt(true);
-                }
-              }}
-              className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-300"
-              title="Add to Home Screen"
-            >
-              <Download className="w-5 h-5" />
-            </button>
-          )}
           <button
             onClick={() => {
               setShowLiked(true);
@@ -1449,7 +1403,7 @@ export function DiscoveryScreen() {
       </div>
 
       {/* Card stack - centered both horizontally and vertically */}
-      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 pt-2 md:pt-12 pb-20 md:pb-24 z-10 min-h-0">
+      <div className="flex-1 relative flex items-center justify-center max-w-2xl mx-auto w-full px-3 md:px-4 z-10 min-h-0" style={{ minHeight: 0 }}>
         {cards.length === 0 ? (
           isLoadingMore ? (
             // Skeleton loading state for faster perceived performance with animated scale effect
