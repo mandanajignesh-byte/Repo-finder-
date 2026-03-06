@@ -254,54 +254,28 @@ export function PublicNav() {
             </Link>
           </div>
 
-          {/* ── Mobile: compact get-app + hamburger ─────────────── */}
-          <div className="flex md:hidden items-center gap-2">
-            <a
-              href={APP_STORE_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display:        'inline-flex',
-                alignItems:     'center',
-                gap:            '5px',
-                padding:        '6px 12px',
-                borderRadius:   '999px',
-                fontSize:       '12px',
-                fontWeight:     700,
-                color:          '#0d1117',
-                background:     '#ffffff',
-                textDecoration: 'none',
-                letterSpacing:  '-0.01em',
-                whiteSpace:     'nowrap',
-              }}
-            >
-              <AppleIcon size={12} />
-              Get App
-            </a>
-
-            {/* Hamburger button */}
-            <button
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label="Toggle menu"
-              aria-expanded={mobileOpen}
-              style={{
-                display:         'flex',
-                alignItems:      'center',
-                justifyContent:  'center',
-                width:           '40px',
-                height:          '40px',
-                borderRadius:    '12px',
-                background:      mobileOpen ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
-                border:          '1px solid rgba(255,255,255,0.08)',
-                cursor:          'pointer',
-                color:           '#e6edf3',
-                transition:      'background 0.2s ease',
-                flexShrink:      0,
-              }}
-            >
-              <HamburgerIcon open={mobileOpen} />
-            </button>
-          </div>
+          {/* ── Mobile: logo + hamburger only (clean minimal) ───── */}
+          <button
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
+            className="flex md:hidden"
+            style={{
+              alignItems:      'center',
+              justifyContent:  'center',
+              width:           '36px',
+              height:          '36px',
+              borderRadius:    '10px',
+              background:      'transparent',
+              border:          'none',
+              cursor:          'pointer',
+              color:           '#e6edf3',
+              padding:         0,
+              flexShrink:      0,
+            }}
+          >
+            <HamburgerIcon open={mobileOpen} />
+          </button>
         </div>
       </nav>
 
@@ -335,8 +309,8 @@ export function PublicNav() {
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
           borderBottom: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: '0 0 20px 20px',
-          padding:    '8px 16px 20px',
+          borderRadius: '0 0 24px 24px',
+          padding:    '4px 16px 20px',
           transform:  mobileOpen ? 'translateY(0)' : 'translateY(-110%)',
           opacity:    mobileOpen ? 1 : 0,
           transition: 'transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.25s ease',
