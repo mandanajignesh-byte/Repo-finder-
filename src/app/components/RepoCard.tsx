@@ -1,4 +1,4 @@
-import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2, BookOpen } from 'lucide-react';
+import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2, BookOpen, Activity } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
 import { useRef, useState, memo } from 'react';
@@ -8,7 +8,7 @@ import { ReadmeModal } from './ReadmeModal';
 import { showToast } from '@/utils/toast';
 import { trackShare } from '@/utils/analytics';
 
-// Language → colour mapping (GitHub palette)
+// ─── Language → colour mapping (GitHub palette) ──────────────────────────────
 const LANG_COLORS: Record<string, string> = {
   JavaScript:   '#f1e05a',
   TypeScript:   '#3178c6',
@@ -40,6 +40,45 @@ function getLangColor(lang: string | undefined): string {
   if (!lang) return '#6b7280';
   return LANG_COLORS[lang] || '#6b7280';
 }
+
+// ─── Health grade helpers ─────────────────────────────────────────────────────
+function healthGradeColor(grade: string): string {
+  if (grade.startsWith('A')) return '#22c55e';
+  if (grade.startsWith('B')) return '#60a5fa';
+  if (grade.startsWith('C')) return '#eab308';
+  return '#ef4444'; // D, F
+}
+function healthGradeBg(grade: string): string {
+  if (grade.startsWith('A')) return 'rgba(34,197,94,0.12)';
+  if (grade.startsWith('B')) return 'rgba(96,165,250,0.12)';
+  if (grade.startsWith('C')) return 'rgba(234,179,8,0.12)';
+  return 'rgba(239,68,68,0.12)';
+}
+function healthGradeBorder(grade: string): string {
+  if (grade.startsWith('A')) return 'rgba(34,197,94,0.25)';
+  if (grade.startsWith('B')) return 'rgba(96,165,250,0.25)';
+  if (grade.startsWith('C')) return 'rgba(234,179,8,0.25)';
+  return 'rgba(239,68,68,0.25)';
+}
+
+// ─── Match badge helpers ──────────────────────────────────────────────────────
+function matchBadgeStyle(score: number): React.CSSProperties {
+  if (score >= 80) return {
+    background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)',
+  };
+  if (score >= 60) return {
+    background: 'rgba(37,99,235,0.15)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.2)',
+  };
+  return {
+    background: 'rgba(255,255,255,0.05)', color: '#8b949e', border: '1px solid rgba(255,255,255,0.1)',
+  };
+}
+
+// ─── Injected CSS (scrollbar hide, card styles) ───────────────────────────────
+const CARD_CSS = `
+.repo-card-scroll::-webkit-scrollbar { display: none; }
+.repo-card-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+`;
 
 interface RepoCardProps {
   repo: Repository;
@@ -76,63 +115,120 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
     }
   };
 
+  const repoName = repo.fullName?.split('/')[1] || repo.name;
+
   return (
     <div className="h-full w-full" style={{ ...style, maxHeight: '100%', height: '100%', overflow: 'visible' }}>
+      {/* Inject card CSS */}
+      <style>{CARD_CSS}</style>
+
       <SignatureCard
         className="h-full max-h-full flex flex-col relative overflow-hidden"
         style={{ padding: 0 }}
         showLayers={false}
         showParticles={false}
       >
-        {/* ── HEADER ─────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-5 pt-5 pb-3 flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {repo.owner?.avatarUrl ? (
-              <img
-                src={repo.owner.avatarUrl}
-                alt={repo.owner.login}
-                className="w-8 h-8 rounded-full flex-shrink-0 border"
-                style={{ borderColor: '#30363d' }}
-                width="32"
-                height="32"
-                loading={isFirstCard ? 'eager' : 'lazy'}
-              />
-            ) : (
-              <div
-                className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
-                style={{ background: '#21262d', color: '#8b949e' }}
-              >
-                {(repo.owner?.login || repo.name || '?')[0].toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-xs font-mono truncate" style={{ color: '#8b949e' }}>
-                {repo.owner?.login || ''}
-              </p>
-              <h2
-                className="text-base md:text-lg font-semibold font-mono leading-tight truncate"
-                style={{ color: '#e6edf3' }}
-              >
-                {repo.fullName?.split('/')[1] || repo.name}
-              </h2>
-            </div>
-          </div>
+        {/* ── ABSOLUTE BADGES ────────────────────────────────────── */}
 
-          {/* Fit score badge */}
-          {repo.fitScore && (
+        {/* Health grade — top left */}
+        {repo.healthGrade && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '14px',
+              left: '14px',
+              zIndex: 10,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: healthGradeColor(repo.healthGrade),
+              background: healthGradeBg(repo.healthGrade),
+              border: `1px solid ${healthGradeBorder(repo.healthGrade)}`,
+              pointerEvents: 'none',
+            }}
+          >
+            <Activity size={10} strokeWidth={1.5} />
+            {repo.healthGrade}
+          </div>
+        )}
+
+        {/* Match score — top right */}
+        {repo.fitScore != null && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '14px',
+              right: '14px',
+              zIndex: 10,
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 700,
+              pointerEvents: 'none',
+              ...matchBadgeStyle(repo.fitScore),
+            }}
+          >
+            {repo.fitScore}% match
+          </div>
+        )}
+
+        {/* ── HEADER ─────────────────────────────────────────────── */}
+        {/* Top padding accounts for absolute badges (health left, match right) */}
+        <div
+          className="flex-shrink-0 px-5 pb-3 flex items-center gap-2.5"
+          style={{
+            paddingTop: (repo.healthGrade || repo.fitScore != null) ? '44px' : '20px',
+          }}
+        >
+          {repo.owner?.avatarUrl ? (
+            <img
+              src={repo.owner.avatarUrl}
+              alt={repo.owner.login}
+              className="w-8 h-8 rounded-full flex-shrink-0 border"
+              style={{ borderColor: '#30363d' }}
+              width="32"
+              height="32"
+              loading={isFirstCard ? 'eager' : 'lazy'}
+            />
+          ) : (
             <div
-              className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
-              style={{ background: 'rgba(37,99,235,0.15)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.25)' }}
+              className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
+              style={{ background: '#21262d', color: '#8b949e' }}
             >
-              {repo.fitScore}% fit
+              {(repo.owner?.login || repo.name || '?')[0].toUpperCase()}
             </div>
           )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-mono" style={{ color: '#8b949e', marginBottom: '1px' }}>
+              {repo.owner?.login || ''}
+            </p>
+            {/* FIX 1: Name with ellipsis + tooltip */}
+            <h2
+              className="font-semibold font-mono leading-tight"
+              title={repoName}
+              style={{
+                color: '#e6edf3',
+                fontSize: '1.1rem',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%',
+                display: 'block',
+              }}
+            >
+              {repoName}
+            </h2>
+          </div>
         </div>
 
         {/* ── DESCRIPTION ────────────────────────────────────────── */}
         <div className="flex-shrink-0 px-5 pb-3">
           <p
-            className="text-sm md:text-base leading-relaxed line-clamp-3"
+            className="text-sm leading-relaxed line-clamp-3"
             style={{ color: '#8b949e' }}
           >
             {repo.description || 'No description provided.'}
@@ -167,7 +263,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
           </button>
         </div>
 
-        {/* ── TAGS (scrollable) ──────────────────────────────────── */}
+        {/* ── TAGS (scrollable, no scrollbar) ────────────────────── */}
         {(repo.tags?.length > 0 || repo.topics?.length > 0) && (() => {
           const existingTags = new Set((repo.tags || []).map((t: string) => t.toLowerCase()));
           const additionalTopics = (repo.topics || []).filter(
@@ -177,7 +273,8 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
 
           return (
             <div
-              className="flex-shrink-0 px-5 pb-3"
+              className="flex-shrink-0 px-5 pb-3 repo-card-scroll"
+              style={{ overflowX: 'auto' }}
               onWheel={(e) => {
                 const parent = e.currentTarget.closest('[data-swipeable-card]');
                 if (parent) {
@@ -194,8 +291,8 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                 {allTags.slice(0, 8).map((tag: string) => (
                   <span
                     key={tag}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-default transition-colors"
-                    style={{ background: '#161b22', color: '#60a5fa', border: '1px solid #21262d' }}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-default transition-colors flex-shrink-0"
+                    style={{ background: '#161b22', color: '#60a5fa', border: '1px solid #21262d', whiteSpace: 'nowrap' }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLElement).style.background = '#1f2937';
                       (e.currentTarget as HTMLElement).style.borderColor = '#2d3f55';

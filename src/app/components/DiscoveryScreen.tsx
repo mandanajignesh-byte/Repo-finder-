@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Bookmark, Heart, XCircle, Loader2, Trash2, Download } from 'lucide-react';
+import { X, Bookmark, Heart, XCircle, Loader2, Trash2, Download, CornerUpLeft } from 'lucide-react';
 import { PaywallModal, PaywallType } from './PaywallModal';
 import { getSwipesUsedToday, incrementSwipesUsed, getSwipesLeft, FREE_SWIPES } from '@/utils/usageLimit';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'motion/react';
@@ -38,6 +38,10 @@ export function DiscoveryScreen() {
   const [swipeCount, setSwipeCount] = useState(0); // Track swipe count for delayed onboarding
   const [showPWAInstallPrompt, setShowPWAInstallPrompt] = useState(false);
   const [isPWAInstalledState, setIsPWAInstalledState] = useState(false);
+
+  // ── Undo (session-only, max 10) ───────────────────────────────────────────
+  const [skippedRepos, setSkippedRepos] = useState<Repository[]>([]);
+  const [undoEntry, setUndoEntry] = useState(false);
 
   // ── Daily usage limit (free tier) ────────────────────────────────────────────
   const [showPaywall, setShowPaywall] = useState(false);
@@ -793,6 +797,9 @@ export function DiscoveryScreen() {
   const handleSkip = useCallback(async (repo?: Repository) => {
     const repoToSkip = repo || cards[0];
     if (repoToSkip) {
+      // Push to undo stack (session-only, max 10)
+      setSkippedRepos(prev => [repoToSkip, ...prev].slice(0, 10));
+
       // Track interaction (async, but don't wait)
       interactionService.trackInteraction(repoToSkip, 'skip', {
         position: 0,
@@ -983,6 +990,16 @@ export function DiscoveryScreen() {
       setSavedRepos((prev) => prev.filter(repo => repo.id !== repoId));
     }
   }, []);
+
+  const handleUndo = useCallback(() => {
+    if (skippedRepos.length === 0) return;
+    const [toRestore, ...remaining] = skippedRepos;
+    setSkippedRepos(remaining);
+    setUndoEntry(true);
+    setCards(prev => [toRestore, ...prev]);
+    // Reset undoEntry flag after the entry animation finishes
+    setTimeout(() => setUndoEntry(false), 400);
+  }, [skippedRepos]);
 
   const handleSwipe = useCallback((direction: 'left' | 'right') => {
     if (isSwiping || cards.length === 0 || triggerSwipe) return;
@@ -1333,12 +1350,26 @@ export function DiscoveryScreen() {
       <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-1 md:mb-0">
         <h1 className="text-xl md:text-2xl" style={{ fontWeight: 700, color: '#e6edf3' }}>Explore</h1>
         <div className="flex items-center gap-3">
-          {/* Daily swipe counter */}
-          <span
-            className="text-xs font-medium tabular-nums"
-            style={{ color: dailySwipesUsed >= FREE_SWIPES ? '#ef4444' : '#6b7280' }}
-          >
-            {Math.max(0, FREE_SWIPES - dailySwipesUsed)}/{FREE_SWIPES} swipes left
+          {/* Daily swipe counter + undo shortcut */}
+          <span className="flex items-center gap-1.5 text-xs font-medium tabular-nums">
+            <span style={{ color: dailySwipesUsed >= FREE_SWIPES ? '#ef4444' : '#6b7280' }}>
+              {Math.max(0, FREE_SWIPES - dailySwipesUsed)} swipes left
+            </span>
+            {skippedRepos.length > 0 && (
+              <>
+                <span style={{ color: '#374151' }}>·</span>
+                <button
+                  onClick={handleUndo}
+                  className="flex items-center gap-0.5 transition-colors"
+                  style={{ color: '#8b949e' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#e6edf3')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#8b949e')}
+                  title="Undo last skip"
+                >
+                  ↩ {skippedRepos.length}
+                </button>
+              </>
+            )}
           </span>
           {/* PWA Install Button - Show if not installed */}
           {!isPWAInstalledState && (
@@ -1481,6 +1512,7 @@ export function DiscoveryScreen() {
                     onSave={() => handleSave(cards[0])}
                     triggerSwipe={triggerSwipe}
                     isFirstCard={true}
+                    enterFromLeft={undoEntry}
             />
                 )}
               </AnimatePresence>
@@ -1499,9 +1531,10 @@ export function DiscoveryScreen() {
         )}
       </div>
 
-      {/* Skip / Like circular action buttons */}
+      {/* Skip / Undo / Like circular action buttons */}
       {cards.length > 0 && !showSaved && !showLiked && (
-        <div className="flex-shrink-0 flex items-center justify-center gap-10 pb-4 md:pb-6 z-10">
+        <div className="flex-shrink-0 flex items-center justify-center gap-5 md:gap-8 pb-4 md:pb-6 z-10">
+          {/* Skip */}
           <motion.button
             whileTap={{ scale: 0.88 }}
             whileHover={{ scale: 1.08 }}
@@ -1516,6 +1549,60 @@ export function DiscoveryScreen() {
           >
             <XCircle className="w-7 h-7" style={{ color: '#ef4444' }} strokeWidth={2} />
           </motion.button>
+
+          {/* Undo — slightly smaller, between skip and like */}
+          <div style={{ position: 'relative' }}>
+            {/* Blue dot when there are repos to undo */}
+            {skippedRepos.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-2px',
+                  right: '-2px',
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: '#2563eb',
+                  zIndex: 1,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+            <motion.button
+              whileTap={skippedRepos.length > 0 ? { scale: 0.88 } : {}}
+              whileHover={skippedRepos.length > 0 ? { scale: 1.05 } : {}}
+              onClick={handleUndo}
+              className="rounded-full flex items-center justify-center"
+              style={{
+                width: '48px',
+                height: '48px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#8b949e',
+                opacity: skippedRepos.length === 0 ? 0.3 : 1,
+                cursor: skippedRepos.length === 0 ? 'not-allowed' : 'pointer',
+                pointerEvents: skippedRepos.length === 0 ? 'none' : 'auto',
+                transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                if (skippedRepos.length > 0) {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.3)';
+                  (e.currentTarget as HTMLElement).style.color = '#e6edf3';
+                }
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.15)';
+                (e.currentTarget as HTMLElement).style.color = '#8b949e';
+              }}
+              title="Undo last skip"
+            >
+              <CornerUpLeft size={18} strokeWidth={1.5} />
+            </motion.button>
+          </div>
+
+          {/* Like */}
           <motion.button
             whileTap={{ scale: 0.88 }}
             whileHover={{ scale: 1.08 }}
@@ -1556,9 +1643,10 @@ interface SwipeableCardProps {
   onSave?: () => void;
   triggerSwipe?: 'left' | 'right' | null;
   isFirstCard?: boolean; // Mark first card for LCP optimization
+  enterFromLeft?: boolean; // Undo animation: card slides in from the left
 }
 
-const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, triggerSwipe, isFirstCard = false }: SwipeableCardProps) {
+const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, triggerSwipe, isFirstCard = false, enterFromLeft = false }: SwipeableCardProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const opacity = useMotionValue(1);
@@ -1770,8 +1858,8 @@ const SwipeableCard = memo(function SwipeableCard({ repo, onSwipe, onSave, trigg
     <motion.div
       ref={cardRef}
       data-swipeable-card
-      initial={{ opacity: 0, scale: 0.9, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
+      initial={enterFromLeft ? { opacity: 0, x: -100, scale: 1 } : { opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
       exit={isExiting ? { 
         opacity: 0,
         transition: { duration: 0 }

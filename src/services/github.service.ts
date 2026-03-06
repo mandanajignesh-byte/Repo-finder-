@@ -596,8 +596,13 @@ class GitHubService {
    */
   async getRepoReadme(fullName: string): Promise<string | null> {
     try {
+      // Use the raw+json Accept header to get markdown directly (no base64 decoding needed)
+      const baseHeaders = this.getHeaders();
       const response = await fetch(`${this.baseUrl}/repos/${fullName}/readme`, {
-        headers: this.getHeaders(),
+        headers: {
+          ...baseHeaders,
+          Accept: 'application/vnd.github.raw+json',
+        },
       });
 
       if (response.status === 404) {
@@ -606,37 +611,12 @@ class GitHubService {
       }
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        console.error('GitHub README error response:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText,
-        });
         throw new Error(`GitHub README error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
-
-      if (!data.content || typeof data.content !== 'string') {
-        return null;
-      }
-
-      // README content is base64 encoded
-      let decoded: string;
-      try {
-        if (typeof atob === 'function') {
-          decoded = atob(data.content.replace(/\n/g, ''));
-        } else {
-          // Fallback for environments without atob (shouldn't normally run in browser)
-          // eslint-disable-next-line no-undef
-          decoded = Buffer.from(data.content, 'base64').toString('utf-8');
-        }
-      } catch (decodeError) {
-        console.error('Failed to decode README content:', decodeError);
-        return null;
-      }
-
-      return decoded;
+      // raw+json returns the file content directly as plain text
+      const text = await response.text();
+      return text || null;
     } catch (error) {
       console.error('Error fetching repo README:', error);
       return null;

@@ -20,6 +20,8 @@ export interface Repository {
   };
   license?: string;
   topics?: string[];
+  healthGrade?: string;    // e.g. "A+", "B", "F" — from trending_repos_v2
+  healthStatus?: string;   // e.g. "Very Active", "Stable", "Dormant"
 }
 
 export interface TrendingRepo extends Repository {
