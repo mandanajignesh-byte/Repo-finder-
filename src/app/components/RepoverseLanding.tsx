@@ -330,14 +330,48 @@ function PhoneMockup({ children, glowColor = 'rgba(37,99,235,0.2)' }: {
       <div style={{
         position: 'relative',
         zIndex: 1,
-        borderRadius: '44px',
-        padding: '2.5px',
+        borderRadius: '48px',
+        padding: '3px',
         background: 'linear-gradient(145deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.10) 100%)',
         boxShadow: '0 48px 96px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)',
       }}>
-        {/* Screen */}
-        <div style={{ borderRadius: '42px', overflow: 'hidden', background: '#000', lineHeight: 0 }}>
-          {children}
+        {/* Phone body */}
+        <div style={{ borderRadius: '46px', background: '#0a0a0a', overflow: 'hidden' }}>
+          {/* Top bezel with Dynamic Island pill */}
+          <div style={{
+            height: '28px',
+            background: '#0a0a0a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <div style={{
+              width: '80px',
+              height: '10px',
+              background: '#1a1a1a',
+              borderRadius: '999px',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }} />
+          </div>
+          {/* Screen content with side padding */}
+          <div style={{ padding: '0 6px', lineHeight: 0, borderRadius: '8px', overflow: 'hidden' }}>
+            {children}
+          </div>
+          {/* Bottom bezel with home indicator */}
+          <div style={{
+            height: '28px',
+            background: '#0a0a0a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <div style={{
+              width: '100px',
+              height: '4px',
+              background: 'rgba(255,255,255,0.25)',
+              borderRadius: '999px',
+            }} />
+          </div>
         </div>
       </div>
     </div>
