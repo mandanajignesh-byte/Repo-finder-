@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 // ─── App Store Link ────────────────────────────────────────────────────────────
-const APP_STORE_LINK = 'https://apps.apple.com/app/repoverse/id6746498585';
+const APP_STORE_LINK = 'https://apps.apple.com/us/app/repoverse/id6759513548';
 
 // ─── Terminal content ─────────────────────────────────────────────────────────
 const TERMINAL_LINES = [
@@ -372,6 +372,125 @@ function AppleIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 21.99C7.79 22.03 6.8 20.68 5.96 19.47C4.25 16.97 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z" />
+    </svg>
+  );
+}
+
+// ─── Handdrawn decoration components ─────────────────────────────────────────
+
+/** Wobbly underline to accent a text span */
+function ScribbleUnderline({ color = '#2563eb', className = '' }: { color?: string; className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 220 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: 'block', width: '100%', height: '10px', pointerEvents: 'none' }}
+      aria-hidden
+    >
+      <path
+        d="M2 7 C22 2, 44 11, 66 6 C88 1, 110 10, 132 5 C154 0, 176 9, 198 4 C208 2, 215 7, 218 6"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.75"
+      />
+    </svg>
+  );
+}
+
+/** Small ✦ sparkle / corner doodle */
+function SparkDoodle({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      style={{ ...style, pointerEvents: 'none' }}
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <line x1="20" y1="3"  x2="20" y2="37" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" opacity="0.45" />
+      <line x1="3"  y1="20" x2="37" y2="20" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" opacity="0.45" />
+      <line x1="8"  y1="8"  x2="32" y2="32" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" opacity="0.25" />
+      <line x1="32" y1="8"  x2="8"  y2="32" stroke="#f472b6" strokeWidth="1.5" strokeLinecap="round" opacity="0.25" />
+      <circle cx="20" cy="20" r="3.5" fill="#f472b6" opacity="0.4" />
+    </svg>
+  );
+}
+
+/** Wavy horizontal doodle line */
+function WavyDoodle({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      style={{ ...style, display: 'block', pointerEvents: 'none' }}
+      viewBox="0 0 300 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M0 8 C20 2, 40 14, 60 8 C80 2, 100 14, 120 8 C140 2, 160 14, 180 8 C200 2, 220 14, 240 8 C260 2, 280 14, 300 8"
+        stroke="url(#wg)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.3"
+      />
+      <defs>
+        <linearGradient id="wg" x1="0" y1="0" x2="300" y2="0" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#3b82f6" />
+          <stop offset="0.5" stopColor="#8b5cf6" />
+          <stop offset="1" stopColor="#06b6d4" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+/** Dashed open circle doodle */
+function CircleDoodle({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      style={{ ...style, pointerEvents: 'none' }}
+      viewBox="0 0 70 70"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <ellipse cx="35" cy="35" rx="30" ry="28"
+        stroke="#a78bfa"
+        strokeWidth="1.5"
+        strokeDasharray="5 3"
+        opacity="0.35"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+/** Crosshatch dot-grid decoration */
+function DotGrid({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  const dots = [];
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      dots.push(<circle key={`${r}-${c}`} cx={c * 12 + 6} cy={r * 12 + 6} r="1.5" fill="#6366f1" opacity="0.25" />);
+    }
+  }
+  return (
+    <svg
+      className={className}
+      style={{ ...style, pointerEvents: 'none' }}
+      viewBox="0 0 54 54"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      {dots}
     </svg>
   );
 }
@@ -1037,11 +1156,15 @@ function DiscoverSection() {
         }}
       >
         {/* ── Text ── */}
-        <div style={{ order: 2 }}>
+        <div style={{ order: 2, position: 'relative' }}>
+          {/* Corner doodles */}
+          <SparkDoodle style={{ position: 'absolute', top: '-20px', right: '-10px', width: '28px', height: '28px', opacity: 0.8 }} />
+          <DotGrid style={{ position: 'absolute', bottom: '-10px', right: '-20px', width: '44px', height: '44px' }} />
           <div style={SECTION_PILL_STYLE}>Discover</div>
-          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '6px' }}>
             Find repos worth your time.
           </h2>
+          <ScribbleUnderline color="#2563eb" />
           <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', marginBottom: '32px' }}>
             Swipe right to save. Swipe left to skip.<br />
             Every card is health scored before it reaches you.
@@ -1183,11 +1306,14 @@ function TrendingFeatureSection() {
         </div>
 
         {/* ── Text (right on desktop) ── */}
-        <div>
+        <div style={{ position: 'relative' }}>
+          {/* Corner doodles */}
+          <CircleDoodle style={{ position: 'absolute', top: '-30px', right: '-10px', width: '50px', height: '50px' }} />
           <div style={SECTION_PILL_STYLE}>Trending</div>
-          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '6px' }}>
             Know before the world does.
           </h2>
+          <ScribbleUnderline color="#a78bfa" />
           <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', marginBottom: '36px' }}>
             495 repos scored daily.<br />
             Ranked by real activity — not just stars from 3 years ago.
@@ -1241,11 +1367,19 @@ function AgentFeatureSection() {
       className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
       style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
     >
-      <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+        {/* Scattered doodles */}
+        <SparkDoodle style={{ position: 'absolute', top: '-24px', left: '0px', width: '28px', height: '28px', opacity: 0.6 }} />
+        <DotGrid style={{ position: 'absolute', top: '-16px', right: '0px', width: '44px', height: '44px' }} />
         <div style={{ ...SECTION_PILL_STYLE, margin: '0 auto 20px' }}>AI Agent</div>
-        <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+        <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '6px' }}>
           An AI that actually knows GitHub.
         </h2>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          <div style={{ width: '260px' }}>
+            <ScribbleUnderline color="#22d3ee" />
+          </div>
+        </div>
         <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', marginBottom: '44px', maxWidth: '480px', margin: '0 auto 44px' }}>
           Not Google. Not old blog posts.<br />
           Direct from GitHub. Right now.
@@ -1348,13 +1482,20 @@ function PersonalisationSection() {
       className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
       style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
     >
-      <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '960px', margin: '0 auto' }}>
         {/* Heading */}
-        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px', position: 'relative' }}>
+          <CircleDoodle style={{ position: 'absolute', top: '-20px', left: '5%', width: '50px', height: '50px' }} />
+          <SparkDoodle style={{ position: 'absolute', top: '-10px', right: '5%', width: '32px', height: '32px', opacity: 0.7 }} />
           <div style={{ ...SECTION_PILL_STYLE, margin: '0 auto 20px' }}>Personalisation</div>
-          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginBottom: '6px' }}>
             The more you use it,<br />the better it gets.
           </h2>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+            <div style={{ width: '300px' }}>
+              <ScribbleUnderline color="#f472b6" />
+            </div>
+          </div>
           <p style={{ fontSize: '1.125rem', lineHeight: 1.7, color: '#8b949e', maxWidth: '380px', margin: '0 auto' }}>
             Tell us what you like once.<br />We handle the rest.
           </p>
@@ -1537,6 +1678,11 @@ export function RepoverseLanding() {
             <FloatingBadges />
           </div>
 
+          {/* Wavy doodle separator */}
+          <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'center' }}>
+            <WavyDoodle style={{ width: '320px' }} />
+          </div>
+
           {/* Scroll indicator */}
           <div
             className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce"
@@ -1565,10 +1711,12 @@ export function RepoverseLanding() {
           setRef={setRef('pain')}
           className="py-20 sm:py-28 px-4"
         >
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-8" style={{ letterSpacing: '-0.02em' }}>
+          <div className="max-w-2xl mx-auto" style={{ position: 'relative' }}>
+            <DotGrid style={{ position: 'absolute', top: '-16px', right: '-24px', width: '48px', height: '48px', opacity: 0.7 }} />
+            <h2 className="text-3xl sm:text-4xl font-bold mb-3" style={{ letterSpacing: '-0.02em' }}>
               You know this feeling.
             </h2>
+            <ScribbleUnderline color="#ef4444" className="mb-5" />
 
             <div className="space-y-5 text-base sm:text-lg leading-relaxed mb-10" style={{ color: '#9ca3af' }}>
               <p>
@@ -1605,12 +1753,19 @@ export function RepoverseLanding() {
           style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
         >
           <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl sm:text-4xl font-bold mb-4" style={{ letterSpacing: '-0.02em' }}>
+            <div className="text-center mb-12" style={{ position: 'relative' }}>
+              <SparkDoodle style={{ position: 'absolute', top: '-20px', left: '-24px', width: '28px', height: '28px', opacity: 0.8 }} />
+              <CircleDoodle style={{ position: 'absolute', top: '-10px', right: '-20px', width: '50px', height: '50px' }} />
+              <h2 className="text-3xl sm:text-4xl font-bold mb-3" style={{ letterSpacing: '-0.02em' }}>
                 We check their history before
                 <br />
                 you catch feelings.
               </h2>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                <div style={{ width: '280px' }}>
+                  <ScribbleUnderline color="#22c55e" />
+                </div>
+              </div>
               <p className="text-base sm:text-lg leading-relaxed max-w-xl mx-auto" style={{ color: '#6b7280' }}>
                 Every repo gets a health score — calculated from real commits, star growth,
                 forks and activity.
@@ -1791,11 +1946,18 @@ export function RepoverseLanding() {
                 />
 
                 <div className="relative">
-                  <h2 className="text-3xl sm:text-4xl font-bold mb-4" style={{ letterSpacing: '-0.02em' }}>
+                  <DotGrid style={{ position: 'absolute', top: '-24px', right: '10%', width: '44px', height: '44px', opacity: 0.5 }} />
+                  <SparkDoodle style={{ position: 'absolute', top: '-20px', left: '8%', width: '28px', height: '28px', opacity: 0.6 }} />
+                  <h2 className="text-3xl sm:text-4xl font-bold mb-3" style={{ letterSpacing: '-0.02em' }}>
                     Ready to find repos worth
                     <br />
                     committing to?
                   </h2>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                    <div style={{ width: '220px' }}>
+                      <ScribbleUnderline color="#2563eb" />
+                    </div>
+                  </div>
                   <p className="text-sm mb-10" style={{ color: '#6b7280' }}>
                     No broken dependencies. No ghosted issues. Promise.
                   </p>
