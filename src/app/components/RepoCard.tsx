@@ -7,6 +7,7 @@ import { githubService } from '@/services/github.service';
 import { ReadmeModal } from './ReadmeModal';
 import { showToast } from '@/utils/toast';
 import { trackShare } from '@/utils/analytics';
+import { formatTimeAgo } from '@/utils/date.utils';
 
 // ─── Language → colour mapping (GitHub palette) ──────────────────────────────
 const LANG_COLORS: Record<string, string> = {
@@ -330,7 +331,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
             </div>
             <div className="flex items-center gap-1.5" style={{ color: '#8b949e' }}>
               <Clock className="w-4 h-4" />
-              <span className="text-sm">{repo.lastUpdated}</span>
+              <span className="text-sm">{formatTimeAgo(repo.lastUpdated)}</span>
             </div>
           </div>
 
