@@ -1,324 +1,275 @@
 import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2, BookOpen } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
-import { useRef, useEffect, useState, memo } from 'react';
+import { useRef, useState, memo } from 'react';
 import { shareService } from '@/services/share.service';
 import { githubService } from '@/services/github.service';
 import { ReadmeModal } from './ReadmeModal';
 import { showToast } from '@/utils/toast';
-import { trackShare, trackRepoInteraction } from '@/utils/analytics';
+import { trackShare } from '@/utils/analytics';
+
+// Language → colour mapping (GitHub palette)
+const LANG_COLORS: Record<string, string> = {
+  JavaScript:   '#f1e05a',
+  TypeScript:   '#3178c6',
+  Python:       '#3572A5',
+  Java:         '#b07219',
+  'C++':        '#f34b7d',
+  'C#':         '#178600',
+  C:            '#555555',
+  Go:           '#00ADD8',
+  Rust:         '#dea584',
+  Ruby:         '#701516',
+  PHP:          '#4F5D95',
+  Swift:        '#F05138',
+  Kotlin:       '#A97BFF',
+  Dart:         '#00B4AB',
+  Scala:        '#c22d40',
+  Shell:        '#89e051',
+  HTML:         '#e34c26',
+  CSS:          '#563d7c',
+  Vue:          '#41b883',
+  Svelte:       '#ff3e00',
+  Elixir:       '#6e4a7e',
+  Haskell:      '#5e5086',
+  Clojure:      '#db5855',
+  'Jupyter Notebook': '#DA5B0B',
+};
+
+function getLangColor(lang: string | undefined): string {
+  if (!lang) return '#6b7280';
+  return LANG_COLORS[lang] || '#6b7280';
+}
 
 interface RepoCardProps {
   repo: Repository;
   style?: React.CSSProperties;
   onSave?: () => void;
-  isFirstCard?: boolean; // Mark first card for LCP optimization
+  isFirstCard?: boolean;
 }
 
 export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCard = false }: RepoCardProps) {
-  const scrollableRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const footerRef = useRef<HTMLDivElement>(null);
-  const [scrollableHeight, setScrollableHeight] = useState<number | undefined>(undefined);
   const scrollEndTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isReadmeOpen, setIsReadmeOpen] = useState(false);
   const [readme, setReadme] = useState<string | null>(null);
   const [readmeLoading, setReadmeLoading] = useState(false);
   const [readmeError, setReadmeError] = useState<string | null>(null);
-  
-  useEffect(() => {
-    const calculateHeight = () => {
-      if (!cardRef.current || !footerRef.current) return;
-      
-      // Get the actual computed heights
-      const cardRect = cardRef.current.getBoundingClientRect();
-      const cardHeight = cardRect.height;
-      const footerRect = footerRef.current.getBoundingClientRect();
-      const footerHeight = footerRect.height;
-      
-      // Account for padding (p-6 = 24px top + 24px bottom = 48px total)
-      const padding = 48;
-      // Account for margin (mt-4 = 16px)
-      const margin = 16;
-      // Extra safety buffer
-      const buffer = 20;
-      
-      // Calculate available height for scrollable content
-      const availableHeight = cardHeight - footerHeight - padding - margin - buffer;
-      
-      if (availableHeight > 100) { // Only set if we have reasonable space
-        setScrollableHeight(availableHeight);
-      } else {
-        // Fallback: use a calculated percentage-based height
-        const fallbackHeight = cardHeight * 0.65; // Use 65% of card height
-        setScrollableHeight(fallbackHeight);
+
+  const langColor = getLangColor(repo.language);
+
+  const openReadme = async (e: React.MouseEvent | React.PointerEvent) => {
+    e.stopPropagation();
+    setIsReadmeOpen(true);
+    if (!readme && !readmeLoading && !readmeError) {
+      setReadmeLoading(true);
+      setReadmeError(null);
+      try {
+        const fullName = repo.fullName || repo.name;
+        const content = await githubService.getRepoReadme(fullName);
+        setReadme(content ?? null);
+      } catch (err) {
+        console.error('Failed to load README:', err);
+        setReadmeError('Unable to load README from GitHub.');
+      } finally {
+        setReadmeLoading(false);
       }
-    };
-    
-    // Debounced calculation function
-    let debounceTimer: NodeJS.Timeout;
-    const debouncedCalculate = () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(calculateHeight, 100);
-    };
-    
-    // Calculate immediately
-    calculateHeight();
-    
-    // Also calculate after a delay to ensure DOM is fully rendered
-    const timeoutId1 = setTimeout(calculateHeight, 100);
-    
-    const resizeObserver = new ResizeObserver(debouncedCalculate);
-    
-    if (cardRef.current) {
-      resizeObserver.observe(cardRef.current);
     }
-    if (footerRef.current) {
-      resizeObserver.observe(footerRef.current);
-    }
-    
-    return () => {
-      clearTimeout(timeoutId1);
-      clearTimeout(debounceTimer);
-      if (scrollEndTimerRef.current) {
-        clearTimeout(scrollEndTimerRef.current);
-      }
-      resizeObserver.disconnect();
-    };
-  }, []);
-  
+  };
+
   return (
-    <div ref={cardRef} className="h-full w-full" style={{ ...style, maxHeight: '100%', height: '100%', overflow: 'visible' }}>
-      <SignatureCard 
-        className="h-full max-h-full p-6 md:p-8 flex flex-col relative overflow-hidden" 
+    <div className="h-full w-full" style={{ ...style, maxHeight: '100%', height: '100%', overflow: 'visible' }}>
+      <SignatureCard
+        className="h-full max-h-full flex flex-col relative overflow-hidden"
+        style={{ padding: 0 }}
         showLayers={false}
         showParticles={false}
       >
-        {/* Fit Score Badge */}
-        {repo.fitScore && (
-          <div className="absolute top-4 right-4 md:top-6 md:right-6 bg-gray-100 text-gray-900 text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-20">
-            {repo.fitScore}% fit
-          </div>
-        )}
-        
-        {/* Scrollable content area */}
-        <div 
-          ref={scrollableRef}
-          className="overflow-y-auto overflow-x-hidden pr-2 scrollable-content flex-1 min-h-0"
-          style={{
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#4B5563 #1F2937',
-            WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-y', // Only allow vertical scrolling - let parent handle horizontal swipes
-            overscrollBehavior: 'contain',
-            maxHeight: scrollableHeight ? `${scrollableHeight}px` : 'calc(100% - 200px)', // Fallback: reserve space for footer
-            height: scrollableHeight ? `${scrollableHeight}px` : 'auto',
-          }}
-          onWheel={(e) => {
-            // Allow native wheel scrolling - disable drag while scrolling
-            const parent = e.currentTarget.closest('[data-swipeable-card]');
-            if (parent) {
-              parent.dispatchEvent(new CustomEvent('disableDrag'));
-              
-              // Clear existing timer
-              if (scrollEndTimerRef.current) {
-                clearTimeout(scrollEndTimerRef.current);
-              }
-              
-              // Set a timer to re-enable drag after scrolling stops
-              scrollEndTimerRef.current = setTimeout(() => {
-                if (parent) {
-                  parent.dispatchEvent(new CustomEvent('enableDrag'));
-                }
-                scrollEndTimerRef.current = null;
-              }, 150);
-            }
-          }}
-          onScroll={() => {
-            // Keep drag disabled while scrolling
-            const parent = document.querySelector('[data-swipeable-card]');
-            if (parent) {
-              parent.dispatchEvent(new CustomEvent('disableDrag'));
-              
-              // Clear existing timer
-              if (scrollEndTimerRef.current) {
-                clearTimeout(scrollEndTimerRef.current);
-              }
-              
-              // Set a timer to re-enable drag after scrolling stops
-              scrollEndTimerRef.current = setTimeout(() => {
-                if (parent) {
-                  parent.dispatchEvent(new CustomEvent('enableDrag'));
-                }
-                scrollEndTimerRef.current = null;
-              }, 150);
-            }
-          }}
-        >
-          <div className="flex flex-col gap-3 md:gap-5 pt-2 md:pt-0 pr-12 md:pr-24 pb-4 md:pb-6">
-            {/* Owner and Repo name */}
-            <div className="pr-8 md:pr-20">
-              <div className="flex items-center gap-2 mb-1">
-                {repo.owner?.avatarUrl && (
-                  <img 
-                    src={repo.owner.avatarUrl} 
-                    alt={repo.owner.login}
-                    className="w-6 h-6 rounded-full"
-                    width="24"
-                    height="24"
-                    loading={isFirstCard ? "eager" : "lazy"}
-                    fetchpriority={isFirstCard ? "high" : "auto"}
-                    decoding="async"
-                  />
-                )}
-                <span className="text-sm font-mono" style={{ color: '#8E8E93' }}>{repo.owner?.login || ''}</span>
-              </div>
-              <h2
-                className="text-xl md:text-3xl leading-tight break-words font-mono"
-                style={{ color: '#FFFFFF', fontWeight: 600 }}
+        {/* ── HEADER ─────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-5 pt-5 pb-3 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {repo.owner?.avatarUrl ? (
+              <img
+                src={repo.owner.avatarUrl}
+                alt={repo.owner.login}
+                className="w-8 h-8 rounded-full flex-shrink-0 border"
+                style={{ borderColor: '#30363d' }}
+                width="32"
+                height="32"
+                loading={isFirstCard ? 'eager' : 'lazy'}
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                style={{ background: '#21262d', color: '#8b949e' }}
               >
-                {repo.fullName || repo.name}
+                {(repo.owner?.login || repo.name || '?')[0].toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-mono truncate" style={{ color: '#8b949e' }}>
+                {repo.owner?.login || ''}
+              </p>
+              <h2
+                className="text-base md:text-lg font-semibold font-mono leading-tight truncate"
+                style={{ color: '#e6edf3' }}
+              >
+                {repo.fullName?.split('/')[1] || repo.name}
               </h2>
             </div>
-            
-            {/* Description */}
-            <p
-              className="text-sm md:text-lg leading-relaxed line-clamp-3"
-              style={{ color: '#B3B3B8' }}
-            >
-              {repo.description}
-            </p>
-
-            {/* README preview button — opens bottom-sheet modal */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  setIsReadmeOpen(true);
-
-                  // Lazy-load README the first time the user opens it
-                  if (!readme && !readmeLoading && !readmeError) {
-                    setReadmeLoading(true);
-                    setReadmeError(null);
-                    try {
-                      const fullName = repo.fullName || repo.name;
-                      const content = await githubService.getRepoReadme(fullName);
-                      setReadme(content ?? null);
-                    } catch (err) {
-                      console.error('Failed to load README:', err);
-                      setReadmeError('Unable to load README from GitHub.');
-                    } finally {
-                      setReadmeLoading(false);
-                    }
-                  }
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1.5 text-xs md:text-sm font-medium transition-colors"
-                style={{ color: '#8b949e' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#e6edf3')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#8b949e')}
-              >
-                <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                Preview README
-              </button>
-            </div>
-            
-            {/* Tech stack tags and topics */}
-            {(repo.tags.length > 0 || repo.topics) && (() => {
-              // Create a set of existing tags (case-insensitive) to avoid duplicates
-              const existingTags = new Set(repo.tags.map(t => t.toLowerCase()));
-              
-              // Get additional topics that aren't already in tags
-              const additionalTopics = repo.topics 
-                ? repo.topics.filter(topic => !existingTags.has(topic.toLowerCase()))
-                : [];
-              
-              return (
-                <div className="flex flex-wrap gap-2">
-                  {/* Show tags (language + first few topics) */}
-                  {repo.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-colors cursor-default"
-                      style={{ background: '#1f2937', color: '#60a5fa' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#263548'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#1f2937'; }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {/* Show additional topics that aren't duplicates */}
-                  {additionalTopics.map((topic) => (
-                    <span
-                      key={topic}
-                      className="px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-colors cursor-default"
-                      style={{ background: '#1f2937', color: '#60a5fa', border: '1px solid #2d3f55' }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#263548'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#1f2937'; }}
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-              );
-            })()}
           </div>
+
+          {/* Fit score badge */}
+          {repo.fitScore && (
+            <div
+              className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{ background: 'rgba(37,99,235,0.15)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.25)' }}
+            >
+              {repo.fitScore}% fit
+            </div>
+          )}
         </div>
-        
-        {/* Fixed stats and metadata row at bottom */}
-        <div ref={footerRef} className="footer-section flex-shrink-0 pt-3 md:pt-6 mt-3 md:mt-4 mb-2 md:mb-4 border-t-2 border-gray-700 space-y-2 md:space-y-3 overflow-hidden">
-          {/* Primary stats */}
-            <div className="flex items-center flex-wrap gap-3 md:gap-6">
-              <div className="flex items-center gap-2" style={{ color: '#8E8E93' }}>
-                <Star
-                  className="w-4 h-4 md:w-5 md:h-5"
-                  style={{ color: '#0A84FF' }}
-                  fill="currentColor"
-                />
-                <span className="font-medium text-sm md:text-base">{repo.stars.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center gap-2" style={{ color: '#8E8E93' }}>
-                <GitFork className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="font-medium text-sm md:text-base">{repo.forks.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center gap-2" style={{ color: '#8E8E93' }}>
-                <Clock className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="font-medium text-sm md:text-base">{repo.lastUpdated}</span>
+
+        {/* ── DESCRIPTION ────────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-5 pb-3">
+          <p
+            className="text-sm md:text-base leading-relaxed line-clamp-3"
+            style={{ color: '#8b949e' }}
+          >
+            {repo.description || 'No description provided.'}
+          </p>
+        </div>
+
+        {/* ── PREVIEW README BUTTON ──────────────────────────────── */}
+        <div className="flex-shrink-0 px-5 pb-3">
+          <button
+            type="button"
+            onClick={openReadme}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-2 text-xs font-medium rounded-lg px-3 py-1.5 transition-all"
+            style={{
+              background: 'rgba(139,148,158,0.08)',
+              border: '1px solid #30363d',
+              color: '#8b949e',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(139,148,158,0.15)';
+              e.currentTarget.style.color = '#e6edf3';
+              e.currentTarget.style.borderColor = '#484f58';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(139,148,158,0.08)';
+              e.currentTarget.style.color = '#8b949e';
+              e.currentTarget.style.borderColor = '#30363d';
+            }}
+          >
+            <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+            Preview README
+          </button>
+        </div>
+
+        {/* ── TAGS (scrollable) ──────────────────────────────────── */}
+        {(repo.tags?.length > 0 || repo.topics?.length > 0) && (() => {
+          const existingTags = new Set((repo.tags || []).map((t: string) => t.toLowerCase()));
+          const additionalTopics = (repo.topics || []).filter(
+            (topic: string) => !existingTags.has(topic.toLowerCase())
+          );
+          const allTags = [...(repo.tags || []), ...additionalTopics];
+
+          return (
+            <div
+              className="flex-shrink-0 px-5 pb-3"
+              onWheel={(e) => {
+                const parent = e.currentTarget.closest('[data-swipeable-card]');
+                if (parent) {
+                  parent.dispatchEvent(new CustomEvent('disableDrag'));
+                  if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
+                  scrollEndTimerRef.current = setTimeout(() => {
+                    parent?.dispatchEvent(new CustomEvent('enableDrag'));
+                    scrollEndTimerRef.current = null;
+                  }, 150);
+                }
+              }}
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {allTags.slice(0, 8).map((tag: string) => (
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-default transition-colors"
+                    style={{ background: '#161b22', color: '#60a5fa', border: '1px solid #21262d' }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = '#1f2937';
+                      (e.currentTarget as HTMLElement).style.borderColor = '#2d3f55';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = '#161b22';
+                      (e.currentTarget as HTMLElement).style.borderColor = '#21262d';
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             </div>
-          
-          {/* License and language */}
-          <div className="flex items-center flex-wrap gap-3 md:gap-4 text-xs md:text-sm" style={{ color: '#8E8E93' }}>
+          );
+        })()}
+
+        {/* ── SPACER ─────────────────────────────────────────────── */}
+        <div className="flex-1 min-h-0" />
+
+        {/* ── FOOTER ─────────────────────────────────────────────── */}
+        <div
+          className="flex-shrink-0 px-5 pt-3 pb-4 space-y-3"
+          style={{ borderTop: '1px solid #21262d' }}
+        >
+          {/* Stats row */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-1.5" style={{ color: '#8b949e' }}>
+              <Star className="w-4 h-4" style={{ color: '#e3b341' }} fill="#e3b341" />
+              <span className="text-sm font-medium tabular-nums">{repo.stars.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1.5" style={{ color: '#8b949e' }}>
+              <GitFork className="w-4 h-4" />
+              <span className="text-sm tabular-nums">{repo.forks.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1.5" style={{ color: '#8b949e' }}>
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">{repo.lastUpdated}</span>
+            </div>
+          </div>
+
+          {/* Meta: license + language */}
+          <div className="flex items-center gap-4 flex-wrap text-xs" style={{ color: '#6b7280' }}>
             {repo.license && (
-              <div className="flex items-center gap-2">
-                <Scale className="w-4 h-4" />
+              <div className="flex items-center gap-1.5">
+                <Scale className="w-3.5 h-3.5" />
                 <span>{repo.license}</span>
               </div>
             )}
             {repo.language && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-gray-100"></div>
-                <span>{repo.language}</span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ background: langColor }}
+                />
+                <span style={{ color: '#8b949e' }}>{repo.language}</span>
               </div>
             )}
           </div>
-          
-          {/* GitHub link and Share button */}
-          <div className="flex items-center gap-3 md:gap-4 flex-wrap pt-1">
+
+          {/* Action links */}
+          <div className="flex items-center gap-4">
             {repo.url && (
               <a
                 href={repo.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm font-medium transition-colors"
-                style={{ color: '#0A84FF' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#4DA3FF')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#0A84FF')}
+                className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
+                style={{ color: '#2563eb' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#60a5fa')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#2563eb')}
               >
-                <ExternalLink className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="hidden sm:inline">View on GitHub</span>
-                <span className="sm:hidden">GitHub</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+                View on GitHub
               </a>
             )}
             <button
@@ -333,45 +284,42 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
                 }
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm font-medium transition-colors"
-              style={{ color: '#0A84FF' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#4DA3FF')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#0A84FF')}
+              className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
+              style={{ color: '#6b7280' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#8b949e')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7280')}
             >
-              <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span>Share</span>
+              <Share2 className="w-3.5 h-3.5" />
+              Share
             </button>
           </div>
-          
-          {/* Save button - integrated in card */}
+
+          {/* Save button */}
           {onSave && (
-            <div className="pt-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSave();
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-                className="w-full px-4 md:px-6 py-2.5 md:py-3 font-semibold rounded-full text-xs md:text-sm flex items-center justify-center gap-2 transition-all duration-200"
-                style={{
-                  backgroundColor: '#2C2C2E',
-                  borderRadius: '999px',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#FFFFFF',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#0A84FF';
-                  e.currentTarget.style.transform = 'scale(1.01)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-                  e.currentTarget.style.transform = 'scale(1.0)';
-                }}
-              >
-                <Bookmark className="w-5 h-5" />
-                Save
-              </button>
-            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSave();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: '#21262d',
+                border: '1px solid #30363d',
+                color: '#e6edf3',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#2d333b';
+                e.currentTarget.style.borderColor = '#484f58';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#21262d';
+                e.currentTarget.style.borderColor = '#30363d';
+              }}
+            >
+              <Bookmark className="w-4 h-4" />
+              Save
+            </button>
           )}
         </div>
       </SignatureCard>
