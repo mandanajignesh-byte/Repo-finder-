@@ -1,11 +1,10 @@
-import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2 } from 'lucide-react';
+import { Star, Clock, GitFork, Scale, ExternalLink, Bookmark, Share2, BookOpen } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { Repository } from '@/lib/types';
 import { useRef, useEffect, useState, memo } from 'react';
 import { shareService } from '@/services/share.service';
 import { githubService } from '@/services/github.service';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { ReadmeModal } from './ReadmeModal';
 import { showToast } from '@/utils/toast';
 import { trackShare, trackRepoInteraction } from '@/utils/analytics';
 
@@ -190,109 +189,40 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
               {repo.description}
             </p>
 
-            {/* README preview toggle */}
-            <div className="pt-2">
+            {/* README preview button — opens bottom-sheet modal */}
+            <div className="pt-1">
               <button
                 type="button"
                 onClick={async (e) => {
                   e.stopPropagation();
-                  const nextOpen = !isReadmeOpen;
-                  setIsReadmeOpen(nextOpen);
+                  setIsReadmeOpen(true);
 
                   // Lazy-load README the first time the user opens it
-                  if (nextOpen && !readme && !readmeLoading && !readmeError) {
+                  if (!readme && !readmeLoading && !readmeError) {
                     setReadmeLoading(true);
                     setReadmeError(null);
                     try {
                       const fullName = repo.fullName || repo.name;
                       const content = await githubService.getRepoReadme(fullName);
-                      if (!content) {
-                        setReadme('No README found for this repository.');
-                      } else {
-                        setReadme(content);
-                      }
+                      setReadme(content ?? null);
                     } catch (err) {
-                      console.error('Failed to load README preview:', err);
-                      setReadmeError('Unable to load README preview from GitHub.');
+                      console.error('Failed to load README:', err);
+                      setReadmeError('Unable to load README from GitHub.');
                     } finally {
                       setReadmeLoading(false);
                     }
                   }
                 }}
-                className="text-xs md:text-sm font-medium underline underline-offset-4"
-                style={{ color: '#E5E5EA' }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 text-xs md:text-sm font-medium transition-colors"
+                style={{ color: '#8b949e' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#e6edf3')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#8b949e')}
               >
-                {isReadmeOpen ? 'Hide README preview' : 'Preview README'}
+                <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                Preview README
               </button>
             </div>
-
-            {isReadmeOpen && (
-              <div className="mt-3 rounded-xl border border-gray-700 bg-black/40 p-3 md:p-4">
-                {readmeLoading && (
-                  <p className="text-xs md:text-sm" style={{ color: '#8E8E93' }}>
-                    Loading README from GitHub…
-                  </p>
-                )}
-                {!readmeLoading && readmeError && (
-                  <p className="text-xs md:text-sm" style={{ color: '#8E8E93' }}>
-                    {readmeError}
-                  </p>
-                )}
-                {!readmeLoading && !readmeError && readme && (
-                  <div className="text-xs md:text-sm leading-relaxed space-y-2 readme-markdown">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h1: ({ node, ...props }) => (
-                          <h1 className="text-sm md:text-base font-semibold text-white mt-2 mb-1" {...props} />
-                        ),
-                        h2: ({ node, ...props }) => (
-                          <h2 className="text-xs md:text-sm font-semibold text-white mt-2 mb-1" {...props} />
-                        ),
-                        h3: ({ node, ...props }) => (
-                          <h3 className="text-xs md:text-sm font-semibold text-gray-100 mt-2 mb-1" {...props} />
-                        ),
-                        p: ({ node, ...props }) => (
-                          <p className="text-[11px] md:text-sm text-gray-200 mb-1" {...props} />
-                        ),
-                        a: ({ node, ...props }) => (
-                          <a
-                            className="underline underline-offset-2 text-blue-400 hover:text-blue-300 break-words"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            {...props}
-                          />
-                        ),
-                        li: ({ node, ...props }) => (
-                          <li className="ml-4 list-disc text-[11px] md:text-sm text-gray-200" {...props} />
-                        ),
-                        code: ({ node, inline, ...props }) =>
-                          inline ? (
-                            <code
-                              className="px-1 py-0.5 rounded bg-black/60 border border-gray-700 text-[10px] md:text-xs"
-                              {...props}
-                            />
-                          ) : (
-                            <code
-                              className="block p-2 rounded bg-black/70 border border-gray-700 text-[10px] md:text-xs overflow-x-auto"
-                              {...props}
-                            />
-                          ),
-                        img: ({ node, ...props }) => (
-                          <img
-                            className="max-h-32 md:max-h-40 w-auto rounded border border-gray-700 object-contain"
-                            loading="lazy"
-                            {...props}
-                          />
-                        ),
-                      }}
-                    >
-                      {readme}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            )}
             
             {/* Tech stack tags and topics */}
             {(repo.tags.length > 0 || repo.topics) && (() => {
@@ -445,6 +375,19 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
           )}
         </div>
       </SignatureCard>
+
+      {/* ── README bottom-sheet modal (portal to body) ── */}
+      <ReadmeModal
+        isOpen={isReadmeOpen}
+        onClose={() => setIsReadmeOpen(false)}
+        repoFullName={repo.fullName || repo.name}
+        repoUrl={repo.url}
+        ownerAvatarUrl={repo.owner?.avatarUrl}
+        onSave={onSave}
+        readme={readme}
+        loading={readmeLoading}
+        error={readmeError}
+      />
     </div>
   );
 });
