@@ -15,6 +15,7 @@ const DiscoveryScreen = lazy(() => import('@/app/components/DiscoveryScreen').th
 const TrendingScreen = lazy(() => import('@/app/components/TrendingScreen').then(m => ({ default: m.TrendingScreen })));
 const AgentScreen = lazy(() => import('@/app/components/AgentScreen').then(m => ({ default: m.AgentScreen })));
 const ProfileScreen = lazy(() => import('@/app/components/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
+const GitHubCallbackPage = lazy(() => import('@/app/components/GitHubCallbackPage').then(m => ({ default: m.GitHubCallbackPage })));
 // SupportScreen removed — buy me a coffee page removed
 
 // Redirects /r/:owner/:repo → /app/r/:owner/:repo so shared links open inside the app shell
@@ -194,6 +195,9 @@ function AppContent() {
             />
             <Route path="/app/profile"
               element={<Suspense fallback={<LoadingFallback />}><ProfileScreen onClose={() => window.history.back()} /></Suspense>}
+            />
+            <Route path="/app/github-callback"
+              element={<Suspense fallback={<LoadingFallback />}><GitHubCallbackPage /></Suspense>}
             />
             {/* /app/support removed — buy me a coffee page removed */}
 

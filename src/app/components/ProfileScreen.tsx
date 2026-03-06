@@ -4,12 +4,15 @@
  * Changes sync to Supabase and optimize recommendations
  */
 
-import { useState, useEffect } from 'react';
-import { Edit2, Save, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Edit2, Save, ArrowLeft, RefreshCw, Star, ExternalLink, Search } from 'lucide-react';
 import { SignatureCard } from './SignatureCard';
 import { UserPreferences } from '@/lib/types';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { repoPoolService } from '@/services/repo-pool.service';
+import { useGitHubAuth } from '@/hooks/useGitHubAuth';
+import { StarredRepo } from '@/services/github-auth.service';
+import { formatTimeAgo } from '@/utils/date.utils';
 
 interface ProfileScreenProps {
   onClose: () => void;
@@ -197,6 +200,401 @@ function SelectChip({
   );
 }
 
+// ─── Language colour dot ─────────────────────────────────────────────────────
+const LANG_DOT: Record<string, string> = {
+  JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572A5',
+  Java: '#b07219', Go: '#00ADD8', Rust: '#dea584', 'C++': '#f34b7d',
+  'C#': '#178600', Ruby: '#701516', PHP: '#4F5D95', Swift: '#F05138',
+  Kotlin: '#A97BFF', Dart: '#00B4AB', Scala: '#c22d40', Shell: '#89e051',
+  CSS: '#563d7c', HTML: '#e34c26', Vue: '#41b883', Svelte: '#ff3e00',
+};
+
+// ─── GitHub Connection Card ───────────────────────────────────────────────────
+function GitHubSection() {
+  const { connection, loading, syncing, syncProgress, error, connect, disconnect, sync, getStarredRepos } = useGitHubAuth();
+  const [starredRepos, setStarredRepos] = useState<StarredRepo[]>([]);
+  const [reposLoading, setReposLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+
+  // Load starred repos when connection is present
+  const loadStarred = useCallback(async () => {
+    if (!connection) return;
+    setReposLoading(true);
+    const repos = await getStarredRepos(30, 0);
+    setStarredRepos(repos);
+    setReposLoading(false);
+  }, [connection, getStarredRepos]);
+
+  useEffect(() => { loadStarred(); }, [loadStarred]);
+
+  const filteredRepos = searchQuery.trim()
+    ? starredRepos.filter(r =>
+        r.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.language ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : starredRepos;
+
+  const fmtCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  const dotColor = (lang: string | null) => lang ? (LANG_DOT[lang] ?? '#8b949e') : '#8b949e';
+
+  // ── Not connected ──────────────────────────────────────────────────────────
+  if (!loading && !connection) {
+    return (
+      <div
+        className="p-5 mb-4 rounded-2xl"
+        style={{ background: '#161b22', border: '1px solid #30363d' }}
+      >
+        {/* Header row */}
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: '#0d1117', border: '1px solid #30363d' }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" style={{ color: '#e6edf3' }}>
+              <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: '#e6edf3' }}>Connect GitHub Account</p>
+            <p className="text-xs mt-0.5" style={{ color: '#8b949e' }}>Sync your starred repos and improve recommendations</p>
+          </div>
+        </div>
+
+        {/* Benefits */}
+        <div className="space-y-2 mb-4">
+          {[
+            ['⭐', 'Sync all your GitHub starred repos'],
+            ['🔍', 'Browse your stars right here in the app'],
+            ['🤖', 'AI uses your stars to improve discover recommendations'],
+          ].map(([icon, text]) => (
+            <div key={text} className="flex items-center gap-2">
+              <span className="text-sm">{icon}</span>
+              <span className="text-xs" style={{ color: '#8b949e' }}>{text}</span>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ color: '#f87171', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            {error}
+          </p>
+        )}
+
+        <button
+          onClick={connect}
+          className="w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+          style={{ background: '#238636', color: '#fff', border: '1px solid #2ea043' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2ea043'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#238636'; }}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
+          </svg>
+          Connect with GitHub
+        </button>
+      </div>
+    );
+  }
+
+  // ── Loading skeleton ───────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="p-5 mb-4 rounded-2xl animate-pulse" style={{ background: '#161b22', border: '1px solid #30363d', height: 80 }} />
+    );
+  }
+
+  // ── Connected ─────────────────────────────────────────────────────────────
+  if (!connection) return null;
+
+  const syncPercent = syncProgress && syncProgress.total > 0
+    ? Math.round((syncProgress.synced / syncProgress.total) * 100)
+    : null;
+
+  return (
+    <div className="mb-4">
+      {/* Connection card */}
+      <div
+        className="p-5 rounded-2xl mb-3"
+        style={{ background: '#161b22', border: '1px solid #30363d' }}
+      >
+        {/* Profile row */}
+        <div className="flex items-center gap-3 mb-4">
+          <img
+            src={connection.githubAvatarUrl}
+            alt={connection.githubLogin}
+            className="w-12 h-12 rounded-full flex-shrink-0"
+            style={{ border: '2px solid #30363d' }}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-sm truncate" style={{ color: '#e6edf3' }}>
+                {connection.githubName ?? connection.githubLogin}
+              </p>
+              <span
+                className="px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
+                style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}
+              >
+                Connected
+              </span>
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: '#8b949e' }}>@{connection.githubLogin}</p>
+          </div>
+          {/* Disconnect */}
+          <button
+            onClick={() => setShowDisconnectConfirm(true)}
+            className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0 transition-all"
+            style={{ color: '#8b949e', background: '#0d1117', border: '1px solid #30363d' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8b949e'; }}
+          >
+            Disconnect
+          </button>
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-1.5">
+            <Star className="w-3.5 h-3.5" style={{ color: '#e3b341' }} />
+            <span className="text-sm font-semibold" style={{ color: '#e6edf3' }}>{fmtCount(connection.starredReposCount)}</span>
+            <span className="text-xs" style={{ color: '#8b949e' }}>starred repos</span>
+          </div>
+          {connection.lastSyncedAt && (
+            <span className="text-xs" style={{ color: '#8b949e' }}>
+              Synced {formatTimeAgo(connection.lastSyncedAt)}
+            </span>
+          )}
+        </div>
+
+        {/* Sync progress */}
+        {syncing && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs" style={{ color: '#8b949e' }}>
+                Syncing {syncProgress?.synced ?? 0}{syncProgress?.total ? ` / ${syncProgress.total}` : ''} repos…
+              </span>
+              {syncPercent !== null && (
+                <span className="text-xs" style={{ color: '#60a5fa' }}>{syncPercent}%</span>
+              )}
+            </div>
+            <div style={{ height: 3, background: '#21262d', borderRadius: 999, overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  borderRadius: 999,
+                  background: '#2563eb',
+                  width: syncPercent !== null ? `${syncPercent}%` : '40%',
+                  transition: 'width 0.3s ease',
+                  animation: syncPercent === null ? 'ghpulse 1.4s ease-in-out infinite' : undefined,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Re-sync button */}
+        {!syncing && (
+          <button
+            onClick={async () => { await sync(); await loadStarred(); }}
+            className="w-full py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all"
+            style={{ background: '#0d1117', color: '#8b949e', border: '1px solid #30363d' }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#e6edf3'; el.style.borderColor = '#484f58'; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#8b949e'; el.style.borderColor = '#30363d'; }}
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Re-sync starred repos
+          </button>
+        )}
+
+        {error && (
+          <p className="text-xs mt-2 px-3 py-1.5 rounded-lg" style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            {error}
+          </p>
+        )}
+      </div>
+
+      {/* Disconnect confirm modal */}
+      {showDisconnectConfirm && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 px-6"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-full max-w-sm p-6 rounded-2xl"
+            style={{ background: '#161b22', border: '1px solid #30363d' }}
+          >
+            <p className="font-semibold mb-2" style={{ color: '#e6edf3' }}>Disconnect GitHub?</p>
+            <p className="text-sm mb-5" style={{ color: '#8b949e' }}>
+              This will remove your GitHub connection and delete all synced starred repos from our servers.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDisconnectConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{ background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => { await disconnect(); setShowDisconnectConfirm(false); setStarredRepos([]); }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Starred Repos ───────────────────────────────────────────── */}
+      {connection.starredReposCount > 0 && (
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ background: '#161b22', border: '1px solid #30363d' }}
+        >
+          {/* Starred repos header */}
+          <div className="px-5 pt-4 pb-3" style={{ borderBottom: '1px solid #21262d' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4" style={{ color: '#e3b341' }} />
+                <span className="font-semibold text-sm" style={{ color: '#e6edf3' }}>
+                  Starred Repos
+                </span>
+                <span
+                  className="px-2 py-0.5 rounded-full text-xs"
+                  style={{ background: '#21262d', color: '#8b949e' }}
+                >
+                  {fmtCount(connection.starredReposCount)}
+                </span>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: '#8b949e' }} />
+              <input
+                type="text"
+                placeholder="Search your stars…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg outline-none"
+                style={{
+                  background: '#0d1117',
+                  border: '1px solid #30363d',
+                  color: '#e6edf3',
+                }}
+                onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = '#2563eb'; }}
+                onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = '#30363d'; }}
+              />
+            </div>
+          </div>
+
+          {/* Repos list */}
+          <div className="divide-y" style={{ borderColor: '#21262d' }}>
+            {reposLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="px-5 py-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: '#21262d' }} />
+                    <div className="flex-1">
+                      <div className="h-3.5 rounded w-2/5 mb-2" style={{ background: '#21262d' }} />
+                      <div className="h-3 rounded w-3/5" style={{ background: '#21262d' }} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : filteredRepos.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <p className="text-sm" style={{ color: '#8b949e' }}>
+                  {searchQuery ? 'No results for your search' : 'No starred repos yet'}
+                </p>
+              </div>
+            ) : (
+              filteredRepos.map(repo => (
+                <a
+                  key={repo.id}
+                  href={repo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 px-5 py-4 group transition-colors"
+                  style={{ textDecoration: 'none' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#1c2128'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                >
+                  {/* Avatar */}
+                  <img
+                    src={repo.ownerAvatarUrl}
+                    alt={repo.ownerLogin}
+                    className="w-7 h-7 rounded-full flex-shrink-0 mt-0.5"
+                    style={{ border: '1px solid #30363d' }}
+                  />
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span
+                        className="text-xs font-semibold truncate"
+                        style={{ color: '#58a6ff', fontFamily: 'JetBrains Mono, monospace' }}
+                      >
+                        {repo.fullName}
+                      </span>
+                      <ExternalLink
+                        className="w-3 h-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ color: '#8b949e' }}
+                      />
+                    </div>
+                    {repo.description && (
+                      <p className="text-xs leading-relaxed line-clamp-2 mb-2" style={{ color: '#8b949e' }}>
+                        {repo.description}
+                      </p>
+                    )}
+                    {/* Meta row */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3 h-3" style={{ color: '#e3b341' }} />
+                        <span className="text-xs" style={{ color: '#8b949e' }}>{fmtCount(repo.stars)}</span>
+                      </div>
+                      {repo.language && (
+                        <div className="flex items-center gap-1">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ background: dotColor(repo.language) }}
+                          />
+                          <span className="text-xs" style={{ color: '#8b949e' }}>{repo.language}</span>
+                        </div>
+                      )}
+                      <span className="text-xs" style={{ color: '#8b949e' }}>
+                        starred {formatTimeAgo(repo.starredAt)}
+                      </span>
+                    </div>
+                  </div>
+                </a>
+              ))
+            )}
+          </div>
+
+          {/* Show more hint */}
+          {!searchQuery && connection.starredReposCount > 30 && (
+            <div className="px-5 py-3" style={{ borderTop: '1px solid #21262d' }}>
+              <p className="text-xs text-center" style={{ color: '#8b949e' }}>
+                Showing 30 of {fmtCount(connection.starredReposCount)} — use search to find more
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes ghpulse {
+          0%   { width: 10%; } 50%  { width: 70%; } 100% { width: 10%; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export function ProfileScreen({ onClose }: ProfileScreenProps) {
   const { preferences, updatePreferences, loaded } = useUserPreferences();
@@ -305,6 +703,9 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             Preferences updated. Recommendations will be optimized.
           </div>
         )}
+
+        {/* ── GitHub Connection ─────────────────────────────────── */}
+        <GitHubSection />
 
         {/* ── Experience Level ──────────────────────────────────── */}
         <SignatureCard className="p-6 mb-4" showLayers={false}>
