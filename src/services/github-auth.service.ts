@@ -139,6 +139,7 @@ class GitHubAuthService {
 
   /**
    * Upsert the GitHub connection record into Supabase.
+   * Throws on failure so the callback page can surface the error.
    */
   async saveConnection(userId: string, profile: GitHubProfile, token: string): Promise<void> {
     const { error } = await supabase.from('github_connections').upsert(
@@ -153,7 +154,10 @@ class GitHubAuthService {
       },
       { onConflict: 'user_id' }
     );
-    if (error) console.error('saveConnection error:', error);
+    if (error) {
+      console.error('saveConnection error:', error);
+      throw new Error(`Failed to save GitHub connection: ${error.message} (code: ${error.code})`);
+    }
   }
 
   /**
