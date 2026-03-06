@@ -62,58 +62,85 @@ class GitHubAuthService {
 
   /**
    * Handle the OAuth redirect.
-   * Waits for Supabase to fire an auth state change (SIGNED_IN) which happens
-   * automatically when the URL contains the #access_token hash — even with
-   * persistSession:false, supabase-js detects & parses the hash.
+   *
+   * Strategy (most-reliable-first):
+   *  1. Parse provider_token directly from the URL hash — always present right
+   *     after the GitHub → Supabase → app redirect, zero async dependency.
+   *  2. Fall back to supabase.auth.getSession() in case the hash was already
+   *     consumed by a previous call.
+   *  3. Fall back to onAuthStateChange for the rare race where session isn't
+   *     ready yet at call time.
+   *  4. Hard timeout after 15 s.
    */
   async handleCallback(userId: string): Promise<{ profile: GitHubProfile; token: string } | null> {
-    return new Promise((resolve) => {
+    // ── Strategy 1: parse URL hash directly ────────────────────────────────
+    // Supabase puts provider_token in the fragment after OAuth redirect.
+    // This works even when the auth-state-change event fires before our
+    // listener is registered (race condition on React mount).
+    const hash = window.location.hash;
+    if (hash) {
+      const params = new URLSearchParams(hash.replace(/^#/, ''));
+      const providerToken = params.get('provider_token');
+
+      if (providerToken) {
+        try {
+          const profile = await this.fetchGitHubProfile(providerToken);
+          if (profile) {
+            await this.saveConnection(userId, profile, providerToken);
+            // Clear the hash from the URL so back-navigation doesn't re-trigger
+            window.history.replaceState(null, '', window.location.pathname);
+            // Sign out of the temporary Supabase OAuth session
+            await supabase.auth.signOut().catch(() => {});
+            return { profile, token: providerToken };
+          }
+        } catch (err) {
+          console.error('handleCallback (hash path) error:', err);
+          throw err; // let the caller surface it
+        }
+      }
+    }
+
+    // ── Strategy 2 & 3: session object / auth-state-change ─────────────────
+    return new Promise((resolve, reject) => {
       let settled = false;
 
-      const settle = (result: { profile: GitHubProfile; token: string } | null) => {
+      const settle = (result: { profile: GitHubProfile; token: string } | null, err?: Error) => {
         if (settled) return;
         settled = true;
         subscription.unsubscribe();
-        resolve(result);
+        if (err) reject(err);
+        else resolve(result);
       };
 
-      // Listen for the SIGNED_IN event Supabase fires after parsing the URL hash
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          const token = session.provider_token;
-          if (!token) {
-            console.error('No provider_token — check Supabase GitHub provider scopes');
-            settle(null);
-            return;
-          }
+      const process = async (token: string) => {
+        const profile = await this.fetchGitHubProfile(token);
+        if (!profile) { settle(null); return; }
+        await this.saveConnection(userId, profile, token); // throws on error
+        await supabase.auth.signOut().catch(() => {});
+        settle({ profile, token });
+      };
 
-          const profile = await this.fetchGitHubProfile(token);
-          if (!profile) { settle(null); return; }
-
-          await this.saveConnection(userId, profile, token);
-          await supabase.auth.signOut(); // clear GitHub session — not our primary auth
-          settle({ profile, token });
+      // Listener (strategy 3)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.provider_token) {
+          process(session.provider_token).catch((err) => settle(null, err));
         }
       });
 
-      // Also try getSession() immediately in case the event already fired
+      // Immediate session check (strategy 2)
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.provider_token && !settled) {
-          const token = session.provider_token;
-          this.fetchGitHubProfile(token).then(async (profile) => {
-            if (!profile) { settle(null); return; }
-            await this.saveConnection(userId, profile, token);
-            await supabase.auth.signOut();
-            settle({ profile, token });
-          });
+          process(session.provider_token).catch((err) => settle(null, err));
         }
       });
 
-      // Timeout fallback after 15s
+      // Hard timeout
       setTimeout(() => {
         if (!settled) {
-          console.error('handleCallback timed out — no auth state change received');
-          settle(null);
+          console.error('handleCallback timed out — no GitHub token found');
+          settle(null, new Error(
+            'Could not retrieve GitHub token. Make sure pop-ups are not blocked and try again.'
+          ));
         }
       }, 15_000);
     });
