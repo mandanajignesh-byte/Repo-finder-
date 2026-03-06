@@ -265,13 +265,46 @@ function GitHubSection() {
         {/* Benefits */}
         <div className="space-y-2 mb-4">
           {[
-            ['⭐', 'Sync all your GitHub starred repos'],
-            ['🔍', 'Browse your stars right here in the app'],
-            ['🤖', 'AI uses your stars to improve discover recommendations'],
-          ].map(([icon, text]) => (
-            <div key={text} className="flex items-center gap-2">
-              <span className="text-sm">{icon}</span>
-              <span className="text-xs" style={{ color: '#8b949e' }}>{text}</span>
+            {
+              icon: (
+                <svg viewBox="0 0 16 16" fill="#e3b341" width="14" height="14">
+                  <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 11.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.873 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
+                </svg>
+              ),
+              bg: 'rgba(227,179,65,0.1)',
+              text: 'Sync all your GitHub starred repos',
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 16 16" fill="#60a5fa" width="14" height="14">
+                  <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z" />
+                </svg>
+              ),
+              bg: 'rgba(96,165,250,0.1)',
+              text: 'Browse your stars right here in the app',
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 16 16" fill="#a78bfa" width="14" height="14">
+                  <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004Z" />
+                </svg>
+              ),
+              bg: 'rgba(167,139,250,0.1)',
+              text: 'AI uses your stars to improve discover recommendations',
+            },
+          ].map((item) => (
+            <div key={item.text} className="flex items-center gap-2.5">
+              <div
+                style={{
+                  width: 28, height: 28, borderRadius: 8,
+                  background: item.bg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {item.icon}
+              </div>
+              <span className="text-xs" style={{ color: '#8b949e' }}>{item.text}</span>
             </div>
           ))}
         </div>

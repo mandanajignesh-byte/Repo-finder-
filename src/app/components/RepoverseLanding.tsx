@@ -1633,6 +1633,227 @@ function PersonalisationSection() {
   );
 }
 
+// ─── GitHub Octicon SVGs ──────────────────────────────────────────────────────
+function OcticonStar({ size = 18, color = '#e3b341' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill={color}>
+      <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 11.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.873 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
+    </svg>
+  );
+}
+function OcticonRepo({ size = 18, color = '#8b949e' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill={color}>
+      <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z" />
+    </svg>
+  );
+}
+function OcticonZap({ size = 18, color = '#a78bfa' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill={color}>
+      <path d="M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004Z" />
+    </svg>
+  );
+}
+function OcticonSync({ size = 18, color = '#60a5fa' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill={color}>
+      <path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z" />
+    </svg>
+  );
+}
+
+// ─── GitHub Connect Section (landing page) ────────────────────────────────────
+function GitHubConnectSection({ onStartSwiping }: { onStartSwiping: () => void }) {
+  const BENEFITS = [
+    {
+      icon: <OcticonStar size={16} color="#e3b341" />,
+      bg: 'rgba(227,179,65,0.12)',
+      border: 'rgba(227,179,65,0.25)',
+      title: 'Sync your starred repos',
+      body: 'All your GitHub stars, browseable right inside Repoverse.',
+    },
+    {
+      icon: <OcticonZap size={16} color="#a78bfa" />,
+      bg: 'rgba(167,139,250,0.12)',
+      border: 'rgba(167,139,250,0.25)',
+      title: 'Smarter recommendations',
+      body: 'Our AI uses your taste in repos to personalise every discover session.',
+    },
+    {
+      icon: <OcticonRepo size={16} color="#34d399" />,
+      bg: 'rgba(52,211,153,0.12)',
+      border: 'rgba(52,211,153,0.25)',
+      title: 'One place for everything',
+      body: 'Trending repos, your stars, new discoveries — all together, no tab switching.',
+    },
+    {
+      icon: <OcticonSync size={16} color="#60a5fa" />,
+      bg: 'rgba(96,165,250,0.12)',
+      border: 'rgba(96,165,250,0.25)',
+      title: 'Always up to date',
+      body: 'One tap re-sync keeps your library fresh as your GitHub activity grows.',
+    },
+  ];
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      {/* Two-col layout on desktop */}
+      <div
+        className="relative overflow-hidden"
+        style={{
+          borderRadius: '24px',
+          background: 'linear-gradient(135deg, rgba(36,41,47,0.9) 0%, rgba(13,17,23,0.95) 100%)',
+          border: '1px solid rgba(48,54,61,0.8)',
+          boxShadow: '0 0 0 1px rgba(255,255,255,0.03), 0 32px 64px rgba(0,0,0,0.4)',
+        }}
+      >
+        {/* Ambient glows */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: '-80px', right: '-80px', width: '320px', height: '320px',
+            background: 'radial-gradient(circle, rgba(36,41,47,0.6) 0%, transparent 70%)',
+          }}
+        />
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            bottom: '-60px', left: '-60px', width: '280px', height: '280px',
+            background: 'radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 70%)',
+          }}
+        />
+
+        <div className="relative grid grid-cols-1 md:grid-cols-2 gap-0">
+          {/* LEFT SIDE — copy */}
+          <div
+            className="p-8 sm:p-10 flex flex-col justify-center"
+            style={{ borderRight: '1px solid rgba(48,54,61,0.6)' }}
+          >
+            {/* GitHub logo + badge */}
+            <div className="flex items-center gap-3 mb-6">
+              <div
+                style={{
+                  width: 48, height: 48, borderRadius: 14,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {/* Official GitHub logo */}
+                <svg viewBox="0 0 24 24" fill="#e6edf3" width="26" height="26">
+                  <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: '#e6edf3' }}>GitHub Integration</p>
+                <div
+                  className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
+                  Free feature
+                </div>
+              </div>
+            </div>
+
+            <h2
+              className="text-2xl sm:text-3xl font-bold mb-3"
+              style={{ letterSpacing: '-0.02em', lineHeight: 1.25 }}
+            >
+              Connect your
+              <br />
+              GitHub profile.
+            </h2>
+
+            {/* Scribble underline under "GitHub profile" */}
+            <svg viewBox="0 0 160 10" fill="none" className="mb-4" style={{ width: 140 }}>
+              <path d="M2 7 C30 2, 70 9, 110 5 S148 2, 158 6" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.7" />
+            </svg>
+
+            <p className="text-sm leading-relaxed mb-6" style={{ color: '#8b949e' }}>
+              One OAuth tap. Your GitHub stars flow in, and every recommendation gets sharper.
+            </p>
+
+            {/* CTA */}
+            <a
+              href="/app/profile"
+              onClick={(e) => { e.preventDefault(); onStartSwiping(); }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all"
+              style={{
+                background: '#238636',
+                color: '#fff',
+                border: '1px solid #2ea043',
+                textDecoration: 'none',
+                alignSelf: 'flex-start',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2ea043'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#238636'; }}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
+              </svg>
+              Connect in the app
+            </a>
+
+            {/* App store nudge */}
+            <a
+              href={APP_STORE_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mt-3 text-xs transition-colors"
+              style={{ color: '#6b7280', textDecoration: 'none' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#9ca3af'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#6b7280'; }}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" style={{ opacity: 0.7 }}>
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+              </svg>
+              Also available on iOS — download free
+            </a>
+          </div>
+
+          {/* RIGHT SIDE — benefit cards */}
+          <div className="p-8 sm:p-10 flex flex-col gap-4">
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: '#484f58' }}>
+              What you get
+            </p>
+            {BENEFITS.map((b) => (
+              <div
+                key={b.title}
+                className="flex items-start gap-3"
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: b.bg,
+                  border: `1px solid ${b.border}`,
+                }}
+              >
+                <div
+                  style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    background: 'rgba(0,0,0,0.25)',
+                    border: `1px solid ${b.border}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {b.icon}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold mb-0.5" style={{ color: '#e6edf3' }}>{b.title}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: '#8b949e' }}>{b.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 export function RepoverseLanding() {
   const { visible, setRef } = useFadeIn();
@@ -1976,6 +2197,19 @@ export function RepoverseLanding() {
               Cheaper than a coffee. More useful than that Medium article you bookmarked in 2023.
             </p>
           </div>
+        </FadeSection>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            SECTION 6b — GITHUB CONNECTION
+        ══════════════════════════════════════════════════════════════════ */}
+        <FadeSection
+          id="github"
+          visible={visible['github']}
+          setRef={setRef('github')}
+          className="py-20 sm:py-28 px-4"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+        >
+          <GitHubConnectSection onStartSwiping={handleStartSwiping} />
         </FadeSection>
 
         {/* ══════════════════════════════════════════════════════════════════
