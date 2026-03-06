@@ -229,6 +229,15 @@ const LANDING_CSS = `
   .lp-section-hidden  { opacity: 1 !important; transform: none !important; }
   .lp-section-visible { animation: none !important; opacity: 1 !important; }
 }
+
+/* ── Mobile performance: kill expensive animations on small screens ── */
+@media (max-width: 767px) {
+  .lp-badge-1, .lp-badge-2, .lp-badge-3 { animation: none !important; transform: none !important; }
+  .lp-grad-border::before { animation: none !important; background: rgba(37,99,235,0.3) !important; }
+  .lp-section-hidden  { opacity: 1 !important; transform: none !important; }
+  .lp-section-visible { animation: none !important; opacity: 1 !important; }
+  .lp-feature-card:hover { transform: none !important; }
+}
 `;
 
 // ─── useFadeIn ─────────────────────────────────────────────────────────────────
@@ -278,11 +287,14 @@ function useScrollVisible(threshold = 0.2) {
 }
 
 // ─── useParallax ──────────────────────────────────────────────────────────────
+// Disabled on mobile (< 768px) to avoid jank — not perceptible on touch anyway
 function useParallax(factor = 0.04) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (window.innerWidth < 768) return; // skip on mobile
     const el = ref.current;
     if (!el) return;
+    el.style.willChange = 'transform'; // promote to own GPU layer
     let rafId = 0;
     const update = () => {
       const rect = el.getBoundingClientRect();
@@ -295,7 +307,11 @@ function useParallax(factor = 0.04) {
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     update();
-    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafId); };
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(rafId);
+      if (el) el.style.willChange = 'auto';
+    };
   }, [factor]);
   return ref;
 }
@@ -317,14 +333,13 @@ function PhoneMockup({ children, glowColor = 'rgba(37,99,235,0.2)' }: {
 }) {
   return (
     <div style={{ position: 'relative', margin: '0 auto', maxWidth: '300px' }}>
-      {/* Ambient glow */}
+      {/* Ambient glow — no blur filter (CSS gradient is GPU-free) */}
       <div style={{
         position: 'absolute',
         inset: '-60px -40px',
         background: `radial-gradient(ellipse at 50% 45%, ${glowColor} 0%, transparent 65%)`,
         pointerEvents: 'none',
         zIndex: 0,
-        filter: 'blur(12px)',
       }} />
       {/* Gradient border frame */}
       <div style={{
@@ -1263,61 +1278,19 @@ function DiscoverSection() {
           </div>
         </div>
 
-        {/* ── Screenshot ── */}
+        {/* ── Phone mockup with video ── */}
         <div style={{ order: 1, position: 'relative' }} ref={parallaxRef}>
-          {/* SKIP label */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '-16px',
-              transform: 'translateY(-50%)',
-              zIndex: 10,
-              padding: '8px 14px',
-              borderRadius: '999px',
-              fontSize: '13px',
-              fontWeight: 600,
-              background: 'rgba(239,68,68,0.1)',
-              border: '1px solid rgba(239,68,68,0.3)',
-              color: '#ef4444',
-              pointerEvents: 'none',
-            }}
-          >
-            ← SKIP
-          </div>
-          {/* SAVE label */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              right: '-16px',
-              transform: 'translateY(-50%)',
-              zIndex: 10,
-              padding: '8px 14px',
-              borderRadius: '999px',
-              fontSize: '13px',
-              fontWeight: 600,
-              background: 'rgba(34,197,94,0.1)',
-              border: '1px solid rgba(34,197,94,0.3)',
-              color: '#22c55e',
-              pointerEvents: 'none',
-            }}
-          >
-            SAVE →
-          </div>
-          {/* Phone mockup with video */}
-          <div className="lp-rock">
-            <PhoneMockup glowColor="rgba(37,99,235,0.28)">
-              <video
-                src="/discover-demo.mp4"
-                autoPlay
-                loop
-                muted
-                playsInline
-                style={{ width: '100%', display: 'block' }}
-              />
-            </PhoneMockup>
-          </div>
+          <PhoneMockup glowColor="rgba(37,99,235,0.28)">
+            <video
+              src="/discover-demo.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="none"
+              style={{ width: '100%', display: 'block' }}
+            />
+          </PhoneMockup>
         </div>
       </div>
     </section>
@@ -1373,6 +1346,8 @@ function TrendingFeatureSection() {
             <img
               src="/trending-screenshot.jpg"
               alt="Repoverse Trending page"
+              loading="lazy"
+              decoding="async"
               style={{ width: '100%', display: 'block' }}
             />
           </PhoneMockup>
@@ -1468,6 +1443,8 @@ function AgentFeatureSection() {
             <img
               src="/agent-screenshot.jpg"
               alt="Repoverse AI Agent"
+              loading="lazy"
+              decoding="async"
               style={{ width: '100%', display: 'block' }}
             />
           </PhoneMockup>
