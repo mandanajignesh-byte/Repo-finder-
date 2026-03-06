@@ -3,8 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_preferences.dart';
 
-/// Service for app-specific Supabase operations
-/// Uses app_users and app_user_preferences tables
+/// Unified Supabase service — mirrors the web app's table structure so that
+/// iOS and web users share the same `users`, `user_preferences`, and
+/// `user_interactions` tables, enabling cross-platform sync.
 class AppSupabaseService extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   String? _userId;
@@ -13,77 +14,75 @@ class AppSupabaseService extends ChangeNotifier {
   String? get userId => _userId;
   UserPreferences? get preferences => _preferences;
 
-  // Get or create app user ID
-  // Prefers Supabase auth user ID (from Apple Sign In), falls back to anonymous ID
+  // ---------------------------------------------------------------------------
+  // USER IDENTITY
+  // ---------------------------------------------------------------------------
+
+  /// Returns the current user's ID.
+  ///
+  /// Priority:
+  ///  1. Supabase auth session (Apple Sign In) → use UUID
+  ///  2. Persisted anonymous ID from SharedPreferences
+  ///  3. Generate a new anonymous ID (format: `app_user_<timestamp>`)
+  ///
+  /// Writes to the unified `users` table (same as web).
   Future<String> getOrCreateUserId({String? name}) async {
     if (_userId != null) return _userId!;
 
-    // First, check if there's a Supabase auth session (Apple Sign In)
+    // 1. Prefer Supabase auth user (Apple Sign In)
     final authUser = _supabase.auth.currentUser;
     if (authUser != null) {
       _userId = authUser.id;
-      // Save to SharedPreferences for consistency
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('app_user_id', _userId!);
     } else {
-      // Fallback to anonymous user ID (legacy/offline)
+      // 2. Fallback to stored anonymous ID
       final prefs = await SharedPreferences.getInstance();
       _userId = prefs.getString('app_user_id');
 
+      // 3. Create new anonymous ID
       if (_userId == null) {
-        _userId = 'app_user_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
+        _userId =
+            'app_user_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
         await prefs.setString('app_user_id', _userId!);
       }
     }
 
-    // Ensure user exists in Supabase app_users table
+    // Upsert into unified `users` table (same as web app)
     try {
-      final data = await _supabase
-          .from('app_users')
+      final existing = await _supabase
+          .from('users')
           .select('id')
           .eq('id', _userId!)
           .maybeSingle();
 
-      if (data == null) {
-        await _supabase.from('app_users').insert({
+      if (existing == null) {
+        await _supabase.from('users').insert({
           'id': _userId!,
           'name': name,
-          'device_id': _userId!, // Use user_id as device_id for now
-          'platform': defaultTargetPlatform == TargetPlatform.android 
-              ? 'android' 
-              : defaultTargetPlatform == TargetPlatform.iOS 
-                  ? 'ios' 
-                  : 'unknown',
           'created_at': DateTime.now().toIso8601String(),
-          'last_active_at': DateTime.now().toIso8601String(),
         });
       } else if (name != null) {
-        await _supabase
-            .from('app_users')
-            .update({
-              'name': name,
-              'last_active_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', _userId!);
-      } else {
-        // Update last_active_at
-        await _supabase
-            .from('app_users')
-            .update({'last_active_at': DateTime.now().toIso8601String()})
-            .eq('id', _userId!);
+        await _supabase.from('users').update({
+          'name': name,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', _userId!);
       }
     } catch (e) {
-      debugPrint('Error ensuring app user exists: $e');
+      debugPrint('Error ensuring user exists in users table: $e');
     }
 
     return _userId!;
   }
 
-  // Get user preferences
+  // ---------------------------------------------------------------------------
+  // USER PREFERENCES  (unified `user_preferences` table)
+  // ---------------------------------------------------------------------------
+
   Future<UserPreferences?> getUserPreferences(String userId) async {
     try {
       final data = await _supabase
-          .from('app_user_preferences')
+          .from('user_preferences') // unified — same as web
           .select()
           .eq('user_id', userId)
           .maybeSingle();
@@ -100,7 +99,8 @@ class AppSupabaseService extends ChangeNotifier {
         experienceLevel: data['experience_level'] ?? 'intermediate',
         activityPreference: data['activity_preference'] ?? 'any',
         popularityWeight: data['popularity_weight'] ?? 'medium',
-        documentationImportance: data['documentation_importance'] ?? 'important',
+        documentationImportance:
+            data['documentation_importance'] ?? 'important',
         licensePreference: List<String>.from(data['license_preference'] ?? []),
         repoSize: List<String>.from(data['repo_size'] ?? []),
         onboardingCompleted: data['onboarding_completed'] ?? false,
@@ -108,15 +108,15 @@ class AppSupabaseService extends ChangeNotifier {
       notifyListeners();
       return _preferences;
     } catch (e) {
-      debugPrint('Error getting app user preferences: $e');
+      debugPrint('Error getting user preferences: $e');
       return null;
     }
   }
 
-  // Save user preferences
-  Future<void> saveUserPreferences(String userId, UserPreferences preferences) async {
+  Future<void> saveUserPreferences(
+      String userId, UserPreferences preferences) async {
     try {
-      await _supabase.from('app_user_preferences').upsert({
+      await _supabase.from('user_preferences').upsert({
         'user_id': userId,
         'primary_cluster': preferences.primaryCluster,
         'secondary_clusters': preferences.secondaryClusters,
@@ -137,37 +137,48 @@ class AppSupabaseService extends ChangeNotifier {
       _preferences = preferences;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error saving app user preferences: $e');
+      debugPrint('Error saving user preferences: $e');
       rethrow;
     }
   }
 
-  // Check if onboarding is completed
   Future<bool> isOnboardingCompleted(String userId) async {
     final prefs = await getUserPreferences(userId);
     return prefs?.onboardingCompleted ?? false;
   }
 
-  // Track user interaction (for recommendations)
+  // ---------------------------------------------------------------------------
+  // INTERACTIONS  (unified `user_interactions` table)
+  // ---------------------------------------------------------------------------
+
+  /// Track a user interaction.
+  ///
+  /// [repoGithubId] — the integer GitHub repo ID (stored as text `repo_id`
+  ///                  so it matches what the web app stores).
+  /// [action]       — 'like', 'save', 'skip', 'view', 'swipe_up'
   Future<void> trackInteraction({
     required String userId,
     required int repoGithubId,
-    required String action, // 'like', 'save', 'skip', 'view', 'swipe_up'
+    required String action,
   }) async {
     try {
-      await _supabase.from('app_user_interactions').insert({
+      await _supabase.from('user_interactions').insert({
         'user_id': userId,
-        'repo_github_id': repoGithubId,
+        'repo_id': repoGithubId.toString(), // text — matches web schema
         'action': action,
         'created_at': DateTime.now().toIso8601String(),
       });
     } catch (e) {
-      // Ignore duplicate errors (unique constraint)
       debugPrint('Error tracking interaction: $e');
     }
   }
 
-  // Save new onboarding data structure
+  // ---------------------------------------------------------------------------
+  // ONBOARDING  (legacy iOS recommendation tables — unchanged)
+  // ---------------------------------------------------------------------------
+
+  /// Saves structured onboarding data to the iOS-specific recommendation tables
+  /// AND updates the unified `user_preferences` row.
   Future<void> saveOnboardingData({
     required String userId,
     required List<String> interests,
@@ -178,11 +189,9 @@ class AppSupabaseService extends ChangeNotifier {
     required String? currentProject,
   }) async {
     try {
-      // 1. Save user_interests
+      // 1. user_interests (iOS recommendation engine)
       if (interests.isNotEmpty) {
-        // Delete existing interests first
         await _supabase.from('user_interests').delete().eq('user_id', userId);
-        
         for (int i = 0; i < interests.length; i++) {
           final weight = i == 0 ? 1.0 : (i == 1 ? 0.8 : (i == 2 ? 0.6 : 0.5));
           await _supabase.from('user_interests').insert({
@@ -193,11 +202,9 @@ class AppSupabaseService extends ChangeNotifier {
         }
       }
 
-      // 2. Save user_tech_stack
+      // 2. user_tech_stack (iOS recommendation engine)
       if (techStack.isNotEmpty) {
-        // Delete existing tech stack first
         await _supabase.from('user_tech_stack').delete().eq('user_id', userId);
-        
         for (int i = 0; i < techStack.length; i++) {
           final weight = i == 0 ? 1.0 : (i == 1 ? 0.9 : 0.8);
           await _supabase.from('user_tech_stack').insert({
@@ -208,35 +215,26 @@ class AppSupabaseService extends ChangeNotifier {
         }
       }
 
-      // 3. Save user_profile (skill_level + complexity_vector)
-      if (skillLevel != null) {
-        Map<String, double> complexityVector = {};
-        if (skillLevel == 'beginner') {
-          complexityVector = {
-            'tutorial': 1.0,
-            'boilerplate': 0.8,
-            'full_app': 0.3,
-            'infra': 0.0,
-            'framework': 0.0,
-          };
-        } else if (skillLevel == 'intermediate') {
-          complexityVector = {
-            'tutorial': 0.4,
-            'boilerplate': 0.7,
-            'full_app': 1.0,
-            'infra': 0.3,
-            'framework': 0.2,
-          };
-        } else if (skillLevel == 'advanced') {
-          complexityVector = {
-            'tutorial': 0.1,
-            'boilerplate': 0.3,
-            'full_app': 0.7,
-            'infra': 1.0,
-            'framework': 1.0,
-          };
-        }
+      // 3. user_profile (skill level / complexity vector)
+      Map<String, double> complexityVector = {};
+      if (skillLevel == 'beginner') {
+        complexityVector = {
+          'tutorial': 1.0, 'boilerplate': 0.8,
+          'full_app': 0.3, 'infra': 0.0, 'framework': 0.0,
+        };
+      } else if (skillLevel == 'intermediate') {
+        complexityVector = {
+          'tutorial': 0.4, 'boilerplate': 0.7,
+          'full_app': 1.0, 'infra': 0.3, 'framework': 0.2,
+        };
+      } else if (skillLevel == 'advanced') {
+        complexityVector = {
+          'tutorial': 0.1, 'boilerplate': 0.3,
+          'full_app': 0.7, 'infra': 1.0, 'framework': 1.0,
+        };
+      }
 
+      if (skillLevel != null) {
         await _supabase.from('user_profile').upsert({
           'user_id': userId,
           'skill_level': skillLevel,
@@ -244,11 +242,9 @@ class AppSupabaseService extends ChangeNotifier {
         }, onConflict: 'user_id');
       }
 
-      // 4. Save user_goals
+      // 4. user_goals (iOS recommendation engine)
       if (goals.isNotEmpty) {
-        // Delete existing goals first
         await _supabase.from('user_goals').delete().eq('user_id', userId);
-        
         for (final goal in goals) {
           await _supabase.from('user_goals').insert({
             'user_id': userId,
@@ -257,73 +253,25 @@ class AppSupabaseService extends ChangeNotifier {
         }
       }
 
-      // 5. Save user_preferences (repo_size_pref)
-      if (repoSizePref != null) {
-        double sizeWeight = 0.6; // default medium
-        if (repoSizePref == 'small') sizeWeight = 0.3;
-        else if (repoSizePref == 'medium') sizeWeight = 0.6;
-        else if (repoSizePref == 'large') sizeWeight = 1.0;
-
-        await _supabase.from('user_preferences').upsert({
-          'user_id': userId,
-          'repo_size_pref': repoSizePref,
-          'size_weight': sizeWeight,
-        }, onConflict: 'user_id');
-      }
-
-      // 6. Save user_current_projects (if provided)
+      // 5. user_current_projects
       if (currentProject != null && currentProject.isNotEmpty) {
         await _supabase.from('user_current_projects').upsert({
           'user_id': userId,
           'text_input': currentProject,
-          'extracted_clusters': {}, // Will be populated by backend
+          'extracted_clusters': {},
         }, onConflict: 'user_id');
       }
 
-      // 7. Generate and save user_vectors
-      Map<String, double> interestVector = {};
-      for (int i = 0; i < interests.length; i++) {
-        final weight = i == 0 ? 0.9 : (i == 1 ? 0.7 : (i == 2 ? 0.5 : 0.3));
-        interestVector[interests[i]] = weight;
-      }
-
-      Map<String, double> techVector = {};
-      for (int i = 0; i < techStack.length; i++) {
-        final weight = i == 0 ? 1.0 : (i == 1 ? 0.6 : 0.4);
-        techVector[techStack[i]] = weight;
-      }
-
-      Map<String, double> goalVector = {};
-      for (final goal in goals) {
-        goalVector[goal] = 1.0;
-      }
-
-      Map<String, double> complexityVector = {};
-      if (skillLevel == 'beginner') {
-        complexityVector = {
-          'tutorial': 1.0,
-          'boilerplate': 0.8,
-          'full_app': 0.3,
-          'infra': 0.0,
-          'framework': 0.0,
-        };
-      } else if (skillLevel == 'intermediate') {
-        complexityVector = {
-          'tutorial': 0.4,
-          'boilerplate': 0.7,
-          'full_app': 1.0,
-          'infra': 0.3,
-          'framework': 0.2,
-        };
-      } else if (skillLevel == 'advanced') {
-        complexityVector = {
-          'tutorial': 0.1,
-          'boilerplate': 0.3,
-          'full_app': 0.7,
-          'infra': 1.0,
-          'framework': 1.0,
-        };
-      }
+      // 6. user_vectors (composite recommendation vector)
+      final interestVector = {
+        for (int i = 0; i < interests.length; i++)
+          interests[i]: i == 0 ? 0.9 : (i == 1 ? 0.7 : (i == 2 ? 0.5 : 0.3))
+      };
+      final techVector = {
+        for (int i = 0; i < techStack.length; i++)
+          techStack[i]: i == 0 ? 1.0 : (i == 1 ? 0.6 : 0.4)
+      };
+      final goalVector = {for (final g in goals) g: 1.0};
 
       await _supabase.from('user_vectors').upsert({
         'user_id': userId,
@@ -331,6 +279,18 @@ class AppSupabaseService extends ChangeNotifier {
         'tech_vector': techVector,
         'complexity_vector': complexityVector,
         'goal_vector': goalVector,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id');
+
+      // 7. Also update the unified user_preferences row so
+      //    preferences are visible cross-platform on the web too.
+      await _supabase.from('user_preferences').upsert({
+        'user_id': userId,
+        'tech_stack': techStack,
+        'interests': interests,
+        'goals': goals,
+        'experience_level': skillLevel ?? 'intermediate',
+        'onboarding_completed': true,
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'user_id');
     } catch (e) {

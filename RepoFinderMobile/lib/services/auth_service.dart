@@ -168,7 +168,8 @@ class AuthService extends ChangeNotifier {
         return;
       }
 
-      // Skip if old ID is already a Supabase UUID (already migrated)
+      // Skip if old ID is already a Supabase UUID (already an Apple-auth user)
+      // Anonymous iOS IDs are prefixed with 'app_user_'
       if (!oldUserId.startsWith('app_user_')) {
         debugPrint('Old user ID is not anonymous, skipping migration');
         return;
@@ -176,19 +177,19 @@ class AuthService extends ChangeNotifier {
 
       debugPrint('🔄 Migrating data from $oldUserId → $newUserId');
 
-      // Migrate each table — update user_id references
-      // Using try/catch per table so one failure doesn't block others
+      // Migrate each table — update user_id references.
+      // All tables now use the unified schema (same as web app).
       final tables = [
-        'app_users',
-        'app_user_preferences',
-        'user_interests',
-        'user_tech_stack',
-        'user_profile',
-        'user_goals',
-        'user_preferences',
+        'user_preferences',   // unified (was app_user_preferences)
+        'user_interactions',  // unified (was app_user_interactions)
+        'saved_repos',        // unified (was app_saved_repos)
+        'liked_repos',        // unified (was app_liked_repos)
+        'user_interests',     // iOS recommendation engine
+        'user_tech_stack',    // iOS recommendation engine
+        'user_profile',       // iOS recommendation engine
+        'user_goals',         // iOS recommendation engine
         'user_current_projects',
         'user_vectors',
-        'app_user_interactions',
       ];
 
       for (final table in tables) {
@@ -203,17 +204,17 @@ class AuthService extends ChangeNotifier {
         }
       }
 
-      // Special case: app_users uses 'id' not 'user_id'
+      // Special case: users table uses 'id' as primary key (not 'user_id')
       try {
         await _supabase
-            .from('app_users')
+            .from('users') // unified (was app_users)
             .update({
               'id': newUserId,
-              'last_active_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('id', oldUserId);
       } catch (e) {
-        debugPrint('  Migration skipped for app_users.id: $e');
+        debugPrint('  Migration skipped for users.id: $e');
       }
 
       debugPrint('✅ Data migration complete');
