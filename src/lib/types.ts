@@ -28,6 +28,8 @@ export interface TrendingRepo extends Repository {
   healthGrade?: string;   // e.g. "A+", "B", "F"
   healthStatus?: string;  // e.g. "Very Active", "Stable", "Dormant"
   category?: string;      // e.g. "ai-ml", "frontend"
+  starsToday?: number;    // stars gained in last 24 hours
+  starsThisWeek?: number; // stars gained in last 7 days
 }
 
 export interface GitHubApiRepo {

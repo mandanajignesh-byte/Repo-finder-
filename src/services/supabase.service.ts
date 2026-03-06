@@ -833,6 +833,8 @@ class SupabaseService {
         health_grade:          row.health_grade  || null,
         health_status:         row.health_status || null,
         category:              row.category      || null,
+        stars_last_24_hours:   row.stars_last_24_hours || 0,
+        stars_last_7_days:     row.stars_last_7_days   || 0,
         rank:                  idx + 1,
       }));
     } catch (error) {

@@ -219,7 +219,7 @@ export function TrendingScreen() {
                   {repos.map((repo, index) => (
                     <SignatureCard
                       key={repo.id}
-                      className="p-3 md:p-4 cursor-pointer rounded-xl"
+                      className="relative p-3 md:p-4 cursor-pointer rounded-xl"
                       showLayers={false}
                       onClick={() => window.open(repo.url, '_blank')}
                       style={{
@@ -236,12 +236,42 @@ export function TrendingScreen() {
                         el.style.boxShadow = 'none';
                       }}
                     >
-                      <div className="flex items-start gap-3 md:gap-4">
-                        {/* Rank badge */}
+                      {/* ── Health grade badge — absolute top-right ── */}
+                      {repo.healthGrade && (
                         <div
-                          className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-lg font-bold flex items-center justify-center text-xs md:text-sm shadow-md"
+                          className="absolute top-3 right-3 text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none"
                           style={{
-                            background: index === 0 ? '#2563eb' : '#1f2937',
+                            background:
+                              repo.healthGrade === 'A+' || repo.healthGrade === 'A' ? 'rgba(34,197,94,0.15)' :
+                              repo.healthGrade === 'B+' || repo.healthGrade === 'B' ? 'rgba(59,130,246,0.15)' :
+                              repo.healthGrade === 'C+' || repo.healthGrade === 'C' ? 'rgba(234,179,8,0.15)'  :
+                              'rgba(239,68,68,0.15)',
+                            color:
+                              repo.healthGrade === 'A+' || repo.healthGrade === 'A' ? '#4ade80' :
+                              repo.healthGrade === 'B+' || repo.healthGrade === 'B' ? '#60a5fa' :
+                              repo.healthGrade === 'C+' || repo.healthGrade === 'C' ? '#facc15' :
+                              '#f87171',
+                            border: '1px solid',
+                            borderColor:
+                              repo.healthGrade === 'A+' || repo.healthGrade === 'A' ? 'rgba(74,222,128,0.3)'  :
+                              repo.healthGrade === 'B+' || repo.healthGrade === 'B' ? 'rgba(96,165,250,0.3)'  :
+                              repo.healthGrade === 'C+' || repo.healthGrade === 'C' ? 'rgba(250,204,21,0.3)'  :
+                              'rgba(248,113,113,0.3)',
+                          }}
+                        >
+                          {repo.healthGrade}
+                        </div>
+                      )}
+
+                      <div className="flex items-start gap-3 md:gap-4">
+                        {/* ── Rank badge — 32×32, radius 8px ── */}
+                        <div
+                          className="flex-shrink-0 font-bold flex items-center justify-center text-xs shadow-md"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: index === 0 ? '#2563eb' : index === 1 ? '#1d2d44' : '#1f2937',
                             color: index === 0 ? '#fff' : '#8b949e',
                             boxShadow: index === 0 ? '0 0 10px rgba(37,99,235,0.4)' : undefined,
                           }}
@@ -249,37 +279,15 @@ export function TrendingScreen() {
                           {index + 1}
                         </div>
                         
-                        <div className="flex-1 min-w-0">
-                          {/* Repo name and trending badge */}
-                          <div className="flex items-start sm:items-center gap-1.5 md:gap-2 mb-1 md:mb-1.5 flex-wrap">
+                        <div className="flex-1 min-w-0 pr-10">
+                          {/* Repo name + health status label */}
+                          <div className="flex items-center gap-2 mb-1 md:mb-1.5 flex-wrap">
                             <h3 className="font-bold text-base md:text-lg text-white hover:text-gray-200 transition-colors font-mono break-words">
                               {repo.fullName}
                             </h3>
-                            {/* Health grade badge */}
-                            {repo.healthGrade && (
-                              <span
-                                className="flex-shrink-0 text-[10px] md:text-xs font-bold px-1.5 md:px-2 py-0.5 rounded-md"
-                                style={{
-                                  background:
-                                    repo.healthGrade === 'A+' || repo.healthGrade === 'A' ? 'rgba(34,197,94,0.15)' :
-                                    repo.healthGrade === 'B+' || repo.healthGrade === 'B' ? 'rgba(59,130,246,0.15)' :
-                                    repo.healthGrade === 'C+' || repo.healthGrade === 'C' ? 'rgba(234,179,8,0.15)'  :
-                                    'rgba(239,68,68,0.15)',
-                                  color:
-                                    repo.healthGrade === 'A+' || repo.healthGrade === 'A' ? '#4ade80' :
-                                    repo.healthGrade === 'B+' || repo.healthGrade === 'B' ? '#60a5fa' :
-                                    repo.healthGrade === 'C+' || repo.healthGrade === 'C' ? '#facc15' :
-                                    '#f87171',
-                                  border: '1px solid currentColor',
-                                }}
-                              >
-                                {repo.healthGrade}
-                              </span>
-                            )}
-                            {/* Health status */}
                             {repo.healthStatus && (
-                              <span className="flex-shrink-0 text-[10px] md:text-xs text-gray-400">
-                                {repo.healthStatus}
+                              <span className="text-[10px] text-gray-500 hidden sm:inline">
+                                · {repo.healthStatus}
                               </span>
                             )}
                           </div>
@@ -304,24 +312,55 @@ export function TrendingScreen() {
                             </div>
                             
                             <div className="flex items-center gap-2 md:gap-3">
+                              {/* Stars total */}
                               <div className="flex items-center gap-1 text-gray-300">
-                                <Star className="w-3.5 h-3.5 md:w-4 md:h-4 fill-yellow-400 text-yellow-400" />
-                                <span className="text-xs md:text-sm font-medium">
-                                  {(repo.stars / 1000).toFixed(1)}k
+                                <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                                <span className="text-xs font-medium">
+                                  {repo.stars >= 1000
+                                    ? `${(repo.stars / 1000).toFixed(1)}k`
+                                    : repo.stars}
                                 </span>
                               </div>
+
+                              {/* ── Growth pill ── */}
+                              {!!repo.starsToday && repo.starsToday > 0 && (
+                                <span
+                                  className="text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full"
+                                  style={{
+                                    background: 'rgba(37,99,235,0.15)',
+                                    color: '#60a5fa',
+                                    border: '1px solid rgba(37,99,235,0.2)',
+                                  }}
+                                >
+                                  +{repo.starsToday.toLocaleString()} today
+                                </span>
+                              )}
+                              {/* Fallback: show weekly stars if no daily data */}
+                              {(!repo.starsToday || repo.starsToday === 0) && !!repo.starsThisWeek && repo.starsThisWeek > 0 && (
+                                <span
+                                  className="text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full"
+                                  style={{
+                                    background: 'rgba(37,99,235,0.15)',
+                                    color: '#60a5fa',
+                                    border: '1px solid rgba(37,99,235,0.2)',
+                                  }}
+                                >
+                                  +{repo.starsThisWeek.toLocaleString()} this week
+                                </span>
+                              )}
+
                               <button
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   await shareService.shareRepositoryWithPlatformLink(repo);
                                 }}
-                                className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+                                className="flex items-center gap-1 transition-colors"
                                 style={{ color: '#8E8E93' }}
                                 onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
                                 onMouseLeave={(e) => (e.currentTarget.style.color = '#8E8E93')}
                               >
-                                <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                <span className="text-[10px] md:text-xs">Share</span>
+                                <Share2 className="w-3.5 h-3.5" />
+                                <span className="text-[10px]">Share</span>
                               </button>
                             </div>
                           </div>
