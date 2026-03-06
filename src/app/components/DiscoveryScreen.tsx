@@ -178,23 +178,19 @@ export function DiscoveryScreen() {
       const { supabaseService } = await import('@/services/supabase.service');
       const actualUserId = await supabaseService.getOrCreateUserId();
 
-      // OPTIMIZATION: Run ALL operations in parallel to minimize wait time
-      // 1. Build repo pool (this is the slowest operation)
-      // 2. Load saved/liked repos (can happen in parallel)
-      // 3. Get seen repo IDs (needed for filtering) - NOW IN PARALLEL!
-      const [, allSeenRepoIds, savedAndLiked] = await Promise.all([
-      // Build or get repo pool (pre-fetched 100+ repos)
-        repoPoolService.buildPool(preferences),
-        
-        // Get seen repo IDs in parallel (was sequential before - this was a bottleneck!)
+      // OPTIMIZATION: Fetch seen IDs + saved/liked in parallel FIRST, then pass
+      // seen IDs into buildPool so it doesn't make a second redundant DB call.
+      const [allSeenRepoIds, savedAndLiked] = await Promise.all([
         supabaseService.getAllSeenRepoIds(actualUserId),
-        
-        // Load saved and liked repos in parallel
         Promise.all([
           supabaseService.getSavedRepositories(actualUserId),
           supabaseService.getLikedRepositories(actualUserId),
         ]),
       ]);
+
+      // Build (or get from cache) the repo pool, passing the already-fetched seen IDs
+      // so buildPool skips its own getAllSeenRepoIds DB call entirely.
+      await repoPoolService.buildPool(preferences, allSeenRepoIds);
 
       // Update saved/liked repos state
       const [saved, liked] = savedAndLiked;

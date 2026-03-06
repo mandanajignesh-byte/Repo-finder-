@@ -37,10 +37,12 @@ class RepoPoolService {
    * HYBRID APPROACH:
    * 1. First-time users: Use pre-curated clusters (0 API calls)
    * 2. Engaged users: Mix of pre-curated + dynamic (minimal API calls)
-   * 
-   * CRITICAL OPTIMIZATION: Check in-memory cache first to avoid redundant queries
+   *
+   * CRITICAL OPTIMIZATION: Check in-memory cache first to avoid redundant queries.
+   * Also accepts pre-fetched seenRepoIds to avoid a duplicate DB round-trip when
+   * the caller has already fetched them in parallel.
    */
-  async buildPool(preferences: UserPreferences): Promise<Repository[]> {
+  async buildPool(preferences: UserPreferences, preFetchedSeenIds?: string[]): Promise<Repository[]> {
     try {
       const userId = await supabaseService.getOrCreateUserId();
       const preferencesHash = this.hashPreferences(preferences);
@@ -55,12 +57,13 @@ class RepoPoolService {
         return cached.data;
       }
       
-      // OPTIMIZATION: Get seen repo IDs in parallel with primary cluster fetch
-      // This was a sequential bottleneck - now runs in parallel!
-      // REDUCED LIMIT: Fetch fewer repos initially for faster loading
+      // OPTIMIZATION: Use pre-fetched seen IDs if provided, otherwise fetch in parallel
+      // with primary cluster to eliminate sequential bottleneck.
       const primaryCluster = preferences.primaryCluster;
       const [allSeenRepoIds, primaryRepos] = await Promise.all([
-        supabaseService.getAllSeenRepoIds(userId),
+        preFetchedSeenIds !== undefined
+          ? Promise.resolve(preFetchedSeenIds)   // caller already fetched – reuse
+          : supabaseService.getAllSeenRepoIds(userId),
         primaryCluster ? clusterService.getBestOfCluster(
           primaryCluster,
           100, // Increased to 100 to ensure enough repos after filtering seen repos (users may have seen 30+)
@@ -695,53 +698,44 @@ class RepoPoolService {
   }
 
   /**
-   * Filter repos by user preferences (tech stack, goals, project types)
+   * Filter repos by user preferences (tech stack only – soft filter).
+   *
+   * RATIONALE: The cluster assignment is already the primary personalization signal
+   * (frontend cluster → React/Vue/etc. repos).  Applying a strict AND filter on
+   * goals + projectTypes on top of that caused severe pool starvation:
+   *
+   *   user techStack=['react'] + goals=['learning-new-tech']
+   *   → only repos with 'react' AND 'tutorial/learn/course' in text
+   *   → 5–10 repos out of 100, pool immediately exhausted
+   *
+   * Fix: Only hard-filter on tech-stack presence (the strongest explicit signal).
+   * Goals and project-type preferences are handled as SCORING signals downstream
+   * by enhancedRecommendationService.calculateContentScore, so they still influence
+   * ranking without gutting the candidate set.
    */
   private filterReposByPreferences(repos: Repository[], preferences: UserPreferences): Repository[] {
+    // If no tech stack specified, return all repos unfiltered
+    if (!preferences.techStack || preferences.techStack.length === 0) {
+      return repos;
+    }
+
     return repos.filter(repo => {
-      // Check tech stack match
-      if (preferences.techStack && preferences.techStack.length > 0) {
-        const repoText = `${repo.name} ${repo.description} ${repo.language || ''} ${(repo.topics || []).join(' ')}`.toLowerCase();
-        const hasTechMatch = preferences.techStack.some(tech => 
-          repoText.includes(tech.toLowerCase()) ||
-          (repo.language && repo.language.toLowerCase() === tech.toLowerCase())
+      const repoText = [
+        repo.name,
+        repo.description,
+        repo.language || '',
+        ...(repo.topics || []),
+        ...(repo.tags || []),
+      ].join(' ').toLowerCase();
+
+      // Accept the repo if ANY tech-stack item matches anywhere in the repo metadata
+      return preferences.techStack.some(tech => {
+        const t = tech.toLowerCase();
+        return (
+          repoText.includes(t) ||
+          (repo.language && repo.language.toLowerCase() === t)
         );
-        if (!hasTechMatch) return false;
-      }
-      
-      // Check goals match (project types)
-      if (preferences.goals && preferences.goals.length > 0) {
-        const repoText = `${repo.name} ${repo.description} ${(repo.topics || []).join(' ')}`.toLowerCase();
-        const hasGoalMatch = preferences.goals.some(goal => {
-          if (goal === 'learning-new-tech' || goal === 'learning') {
-            return repoText.includes('tutorial') || repoText.includes('learn') || repoText.includes('course');
-          } else if (goal === 'building-project') {
-            return repoText.includes('boilerplate') || repoText.includes('starter') || repoText.includes('template');
-          } else if (goal === 'finding-solutions') {
-            return repoText.includes('library') || repoText.includes('package') || repoText.includes('tool');
-          }
-          return true;
-        });
-        if (!hasGoalMatch) return false;
-      }
-      
-      // Check project types match
-      if (preferences.projectTypes && preferences.projectTypes.length > 0) {
-        const repoText = `${repo.name} ${repo.description} ${(repo.topics || []).join(' ')}`.toLowerCase();
-        const hasTypeMatch = preferences.projectTypes.some(type => {
-          if (type === 'tutorial') {
-            return repoText.includes('tutorial') || repoText.includes('course') || repoText.includes('learn');
-          } else if (type === 'boilerplate') {
-            return repoText.includes('boilerplate') || repoText.includes('starter') || repoText.includes('template');
-          } else if (type === 'library') {
-            return repoText.includes('library') || repoText.includes('package');
-          }
-          return true;
-        });
-        if (!hasTypeMatch) return false;
-      }
-      
-      return true;
+      });
     });
   }
 

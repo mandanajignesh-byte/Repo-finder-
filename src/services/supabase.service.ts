@@ -453,8 +453,10 @@ class SupabaseService {
       if (error) {
         console.error('Error tracking interaction:', error);
       } else {
-        // Invalidate seen repo IDs cache after interaction (for view/skip actions)
-        if (interaction.action === 'view' || interaction.action === 'skip') {
+        // Invalidate seen repo IDs cache only for intent signals (skip / save / like).
+        // 'view' is a passive analytics event – busting the cache on every view causes
+        // redundant Supabase round-trips on each page load (10 view events = 10 cache busts).
+        if (interaction.action === 'skip' || interaction.action === 'save' || interaction.action === 'like') {
           this.invalidateSeenRepoIdsCache(userId);
         }
       }
@@ -514,12 +516,18 @@ class SupabaseService {
       }
 
       // OPTIMIZATION: Run all queries in parallel instead of sequentially for 3x faster loading
+      // NOTE: We intentionally exclude 'view' here.
+      //   - 'view' is a passive analytics event fired when cards load into the queue.
+      //   - Including it causes rapid pool exhaustion: loading 10 cards = 10 "seen" repos
+      //     even if the user never interacted with them.
+      //   - Only explicit intent signals (skip / save / like) should block a repo from
+      //     appearing again.
       const [interactionsResult, savedResult, likedResult] = await Promise.all([
         supabase
         .from(TABLES.user_interactions)
         .select('repo_id')
         .eq('user_id', userId)
-          .in('action', ['save', 'like', 'skip', 'view']),
+          .in('action', ['save', 'like', 'skip']), // 'view' intentionally excluded
         supabase
           .from(TABLES.saved_repos)
           .select('repo_id')
