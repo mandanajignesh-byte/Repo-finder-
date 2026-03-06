@@ -39,7 +39,7 @@ export function DiscoveryScreen() {
   const [showPWAInstallPrompt, setShowPWAInstallPrompt] = useState(false);
   const [isPWAInstalledState, setIsPWAInstalledState] = useState(false);
 
-  // ── Undo (session-only, max 10) ───────────────────────────────────────────
+  // ── Undo (persisted via Supabase, max 10 in-session stack) ──────────────
   const [skippedRepos, setSkippedRepos] = useState<Repository[]>([]);
   const [undoEntry, setUndoEntry] = useState(false);
 
@@ -994,7 +994,9 @@ export function DiscoveryScreen() {
     setUndoEntry(true);
     setCards(prev => [toRestore, ...prev]);
     // Reset undoEntry flag after the entry animation finishes
-    setTimeout(() => setUndoEntry(false), 400);
+    setTimeout(() => setUndoEntry(false), 450);
+    // Remove skip interaction from localStorage + Supabase so it stays undone next session
+    interactionService.undoSkip(toRestore.id);
   }, [skippedRepos]);
 
   const handleSwipe = useCallback((direction: 'left' | 'right') => {
@@ -1065,13 +1067,27 @@ export function DiscoveryScreen() {
 
   // Keyboard navigation support
   useEffect(() => {
-    if (showSaved || showLiked || cards.length === 0) return;
-
     const handleKeyPress = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // Escape always closes panels
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowSaved(false);
+        setShowLiked(false);
         return;
       }
+
+      // Z / Ctrl+Z / Cmd+Z = undo last skip (works anywhere in discover)
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      // Arrow keys and Enter only when panels are closed and cards exist
+      if (showSaved || showLiked || cards.length === 0) return;
 
       switch (e.key) {
         case 'ArrowLeft':
@@ -1086,16 +1102,12 @@ export function DiscoveryScreen() {
           e.preventDefault();
           handleSave();
           break;
-        case 'Escape':
-          e.preventDefault();
-          setShowSaved(false);
-          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [cards.length, showSaved, handleSwipe, handleSave]);
+  }, [cards.length, showSaved, showLiked, handleSwipe, handleSave, handleUndo]);
 
   // Show onboarding if needed
   if (showOnboarding) {
@@ -1127,149 +1139,31 @@ export function DiscoveryScreen() {
   }
 
   if (showSaved) {
-    return (
-      <div className="h-full p-4 md:p-6 overflow-y-auto pb-24 md:pb-0" style={{ background: '#0d1117' }}>
-        <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
-          <h2 className="text-2xl text-white" style={{ fontWeight: 700 }}>Saved Repos</h2>
-          <motion.button
-            whileHover={{ scale: 1.1, rotate: 90 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowSaved(false)}
-            className="text-gray-400 hover:bg-gray-700 p-2 rounded-full transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </motion.button>
-        </div>
-        
-        {savedRepos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <SignatureCard className="p-8 text-center">
-              <Bookmark className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-300">No saved repos yet.</p>
-              <p className="text-gray-400 text-sm mt-2">Click the Save button to save repositories!</p>
-            </SignatureCard>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
-            {savedRepos.map((repo) => (
-              <SignatureCard key={repo.id} className="p-4 relative group" showLayers={false}>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => handleRemoveSaved(repo.id)}
-                  className="absolute top-2 right-2 opacity-70 hover:opacity-100 active:opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-200 z-10"
-                  title="Remove from saved"
-                  aria-label="Remove from saved"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </motion.button>
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white text-gray-900 font-bold flex items-center justify-center text-xs shadow-md">
-                    {repo.fitScore || 'N/A'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg mb-1 text-white font-mono">{repo.fullName || repo.name}</h3>
-                    <p className="text-gray-300 text-sm mb-3 line-clamp-2">{repo.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {repo.tags && repo.tags.length > 0 ? (
-                        repo.tags.map((tag: string) => (
-                        <span
-                          key={tag}
-                          className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
-                        >
-                          {tag}
-                        </span>
-                        ))
-                      ) : (
-                        <span className="text-gray-400 text-xs">No tags</span>
-                      )}
-                    </div>
-                    {repo.url && (
-                      <a
-                        href={repo.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-block text-gray-100 hover:text-white text-sm font-medium"
-                      >
-                        View on GitHub →
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </SignatureCard>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    return <HistoryPanel
+      title="Saved Repos"
+      icon={<Bookmark className="w-5 h-5" style={{ color: '#60a5fa' }} />}
+      repos={savedRepos}
+      emptyIcon={<Bookmark className="w-10 h-10" style={{ color: '#30363d' }} />}
+      emptyText="No saved repos yet"
+      emptySubtext="Tap the bookmark button on any card to save it here."
+      accentColor="#2563eb"
+      actionLabel="Remove"
+      onAction={handleRemoveSaved}
+      onClose={() => setShowSaved(false)}
+    />;
   }
 
   if (showLiked) {
-    return (
-      <div className="h-full p-4 md:p-6 overflow-y-auto pb-24 md:pb-0" style={{ background: '#0d1117' }}>
-        <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
-          <h2 className="text-2xl text-white" style={{ fontWeight: 700 }}>Liked Repos</h2>
-          <motion.button
-            whileHover={{ scale: 1.1, rotate: 90 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowLiked(false)}
-            className="text-gray-400 hover:bg-gray-700 p-2 rounded-full transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </motion.button>
-        </div>
-        
-        {likedRepos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <SignatureCard className="p-8 text-center">
-              <Heart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-300">No liked repos yet.</p>
-              <p className="text-gray-400 text-sm mt-2">Swipe right to like repositories!</p>
-            </SignatureCard>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
-            {likedRepos.map((repo) => (
-              <SignatureCard key={repo.id} className="p-4" showLayers={false}>
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white text-gray-900 font-bold flex items-center justify-center text-xs shadow-md">
-                    {repo.fitScore || 'N/A'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg mb-1 text-white font-mono">{repo.fullName || repo.name}</h3>
-                    <p className="text-gray-300 text-sm mb-3 line-clamp-2">{repo.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {repo.tags && repo.tags.length > 0 ? (
-                        repo.tags.map((tag: string) => (
-                        <span
-                          key={tag}
-                          className="px-3 py-1 bg-gray-700 text-gray-200 rounded-full text-xs font-medium"
-                        >
-                          {tag}
-                        </span>
-                        ))
-                      ) : (
-                        <span className="text-gray-400 text-xs">No tags</span>
-                      )}
-                    </div>
-                    {repo.url && (
-                      <a
-                        href={repo.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-block text-gray-100 hover:text-white text-sm font-medium"
-                      >
-                        View on GitHub →
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </SignatureCard>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    return <HistoryPanel
+      title="Liked Repos"
+      icon={<Heart className="w-5 h-5" style={{ color: '#f43f5e' }} />}
+      repos={likedRepos}
+      emptyIcon={<Heart className="w-10 h-10" style={{ color: '#30363d' }} />}
+      emptyText="No liked repos yet"
+      emptySubtext="Swipe right or tap ♥ to like a repo."
+      accentColor="#f43f5e"
+      onClose={() => setShowLiked(false)}
+    />;
   }
 
   // Loading state for shared repo
@@ -1587,6 +1481,210 @@ export function DiscoveryScreen() {
   );
 }
 
+// ─── Language colour map (matches GitHub colours) ────────────────────────────
+const LANG_COLORS: Record<string, string> = {
+  JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572A5',
+  Java: '#b07219', Go: '#00ADD8', Rust: '#dea584', 'C++': '#f34b7d',
+  'C#': '#178600', Ruby: '#701516', PHP: '#4F5D95', Swift: '#F05138',
+  Kotlin: '#A97BFF', Dart: '#00B4AB', Scala: '#c22d40', Shell: '#89e051',
+  CSS: '#563d7c', HTML: '#e34c26', Vue: '#41b883', Svelte: '#ff3e00',
+  Elixir: '#6e4a7e', Haskell: '#5e5086', Lua: '#000080', R: '#198CE7',
+};
+
+// ─── History panel repo card ──────────────────────────────────────────────────
+function HistoryRepoCard({
+  repo,
+  accentColor,
+  actionLabel,
+  onAction,
+}: {
+  repo: Repository;
+  accentColor: string;
+  actionLabel?: string;
+  onAction?: (id: string) => void;
+}) {
+  const ownerLogin = repo.owner?.login || repo.fullName?.split('/')[0] || '';
+  const avatarUrl  = repo.owner?.avatarUrl;
+  const tags = (repo.topics?.length ? repo.topics : repo.tags || []).slice(0, 2);
+  const langColor  = repo.language ? (LANG_COLORS[repo.language] ?? '#8b949e') : null;
+  const fmtStars = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+
+  return (
+    <div
+      className="group relative flex flex-col gap-3 p-4 rounded-2xl transition-colors"
+      style={{ background: '#161b22', border: '1px solid #21262d' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#30363d'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#21262d'; }}
+    >
+      {/* Remove button */}
+      {actionLabel && onAction && (
+        <button
+          onClick={() => onAction(repo.id)}
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity p-1.5 rounded-lg"
+          style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+          title={actionLabel}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* Header: avatar + full name */}
+      <div className="flex items-center gap-2 pr-8">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={ownerLogin} className="w-5 h-5 rounded-full flex-shrink-0" />
+        ) : (
+          <div
+            className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold"
+            style={{ background: accentColor + '22', color: accentColor }}
+          >
+            {ownerLogin.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span className="text-xs truncate" style={{ color: '#8b949e', fontFamily: 'JetBrains Mono, monospace' }}>
+          {repo.fullName || repo.name}
+        </span>
+      </div>
+
+      {/* Description */}
+      <p className="text-sm leading-relaxed line-clamp-2" style={{ color: '#c9d1d9' }}>
+        {repo.description || <span style={{ color: '#484f58' }}>No description</span>}
+      </p>
+
+      {/* Tags */}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map(t => (
+            <span
+              key={t}
+              className="px-2 py-0.5 rounded-full text-xs"
+              style={{ background: 'rgba(255,255,255,0.04)', color: '#8b949e', border: '1px solid #30363d' }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Footer: language + stars + link */}
+      <div className="flex items-center justify-between mt-auto pt-1">
+        <div className="flex items-center gap-3">
+          {langColor && repo.language && (
+            <div className="flex items-center gap-1.5">
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: langColor, flexShrink: 0 }} />
+              <span className="text-xs" style={{ color: '#8b949e' }}>{repo.language}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <svg viewBox="0 0 16 16" fill="#e3b341" width="12" height="12">
+              <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 11.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.873 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
+            </svg>
+            <span className="text-xs" style={{ color: '#8b949e' }}>{fmtStars(repo.stars || 0)}</span>
+          </div>
+        </div>
+        {repo.url && (
+          <a
+            href={repo.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs flex items-center gap-1 transition-colors"
+            style={{ color: '#8b949e', textDecoration: 'none' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#60a5fa'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8b949e'; }}
+          >
+            GitHub
+            <svg viewBox="0 0 16 16" fill="currentColor" width="11" height="11">
+              <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z" />
+            </svg>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── History full-screen panel ────────────────────────────────────────────────
+function HistoryPanel({
+  title, icon, repos, emptyIcon, emptyText, emptySubtext,
+  accentColor, actionLabel, onAction, onClose,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  repos: Repository[];
+  emptyIcon: React.ReactNode;
+  emptyText: string;
+  emptySubtext: string;
+  accentColor: string;
+  actionLabel?: string;
+  onAction?: (id: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="h-full flex flex-col overflow-hidden"
+      style={{ background: '#0d1117' }}
+    >
+      {/* Header */}
+      <div
+        className="flex-shrink-0 flex items-center justify-between px-4 md:px-6 py-4"
+        style={{ borderBottom: '1px solid #21262d' }}
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-lg font-semibold" style={{ color: '#e6edf3' }}>{title}</h2>
+          {repos.length > 0 && (
+            <span
+              className="px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ background: accentColor + '22', color: accentColor }}
+            >
+              {repos.length}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-xl transition-colors"
+          style={{ color: '#8b949e', background: 'transparent' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#161b22'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        {repos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 py-20 text-center">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: '#161b22', border: '1px solid #21262d' }}
+            >
+              {emptyIcon}
+            </div>
+            <div>
+              <p className="font-semibold mb-1" style={{ color: '#e6edf3' }}>{emptyText}</p>
+              <p className="text-sm" style={{ color: '#8b949e' }}>{emptySubtext}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-5xl mx-auto">
+            {repos.map(repo => (
+              <HistoryRepoCard
+                key={repo.id}
+                repo={repo}
+                accentColor={accentColor}
+                actionLabel={actionLabel}
+                onAction={onAction}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 interface SwipeableCardProps {
   repo: Repository;
   onSwipe: (direction: 'left' | 'right') => void;

@@ -434,6 +434,25 @@ class SupabaseService {
   }
 
   /**
+   * Remove a specific skip interaction so undo works across sessions.
+   */
+  async removeSkipInteraction(userId: string, repoId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from(TABLES.user_interactions)
+        .delete()
+        .eq('user_id', userId)
+        .eq('repo_id', repoId)
+        .eq('action', 'skip');
+      if (!error) {
+        this.invalidateSeenRepoIdsCache(userId);
+      }
+    } catch (err) {
+      console.error('Error removing skip interaction:', err);
+    }
+  }
+
+  /**
    * Track user interaction
    */
   async trackInteraction(userId: string, interaction: UserInteraction): Promise<void> {

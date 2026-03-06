@@ -131,6 +131,23 @@ class InteractionService {
   }
 
   /**
+   * Remove a skip interaction from localStorage and Supabase (called on undo).
+   * This makes undo persistent across sessions.
+   */
+  undoSkip(repoId: string): void {
+    // Remove from localStorage
+    const updated = this.getInteractions().filter(
+      i => !(i.repoId === repoId && i.action === 'skip')
+    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Remove from Supabase in background
+    supabaseService.getOrCreateUserId().then(userId =>
+      supabaseService.removeSkipInteraction(userId, repoId)
+    ).catch(err => console.error('undoSkip Supabase cleanup failed:', err));
+  }
+
+  /**
    * Check if repo was saved
    */
   isSaved(repoId: string): boolean {
