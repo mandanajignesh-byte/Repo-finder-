@@ -1,133 +1,191 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowRight, TrendingUp, Home, Menu, X, Globe } from 'lucide-react';
 
 const APP_STORE_LINK = 'https://apps.apple.com/us/app/repoverse/id6759513548';
 
-function AppleIcon({ className = 'w-4 h-4' }: { className?: string }) {
+// ── Apple logo SVG ───────────────────────────────────────────────────────────
+function AppleIcon({ size = 16 }: { size?: number }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
       <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 21.99 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 21.99C7.79 22.03 6.8 20.68 5.96 19.47C4.25 16.97 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z" />
     </svg>
   );
 }
 
+// ── Animated hamburger → × (3 lines morph) ──────────────────────────────────
+function HamburgerIcon({ open }: { open: boolean }) {
+  const base: React.CSSProperties = {
+    display: 'block',
+    height: '1.5px',
+    borderRadius: '2px',
+    background: '#e6edf3',
+    transformOrigin: 'center',
+    transition: 'transform 0.3s cubic-bezier(0.32,0.72,0,1), opacity 0.2s ease, width 0.25s ease',
+  };
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '22px' }}>
+      <span style={{
+        ...base,
+        width: '22px',
+        transform: open ? 'translateY(6.5px) rotate(45deg)' : 'none',
+      }} />
+      <span style={{
+        ...base,
+        width: open ? '22px' : '16px',
+        opacity: open ? 0 : 1,
+        transform: open ? 'scaleX(0)' : 'none',
+      }} />
+      <span style={{
+        ...base,
+        width: '22px',
+        transform: open ? 'translateY(-6.5px) rotate(-45deg)' : 'none',
+      }} />
+    </span>
+  );
+}
+
+// ── Trending up arrow SVG ────────────────────────────────────────────────────
+function TrendingIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  );
+}
+
+// ── Arrow right SVG ──────────────────────────────────────────────────────────
+function ArrowRight({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 /**
- * Sticky navigation bar shared by the public landing page ("/") and
- * the public trending page ("/trending").
- *
- * Mobile: hamburger menu with App Store link.
- * Desktop: inline nav links + CTA.
+ * Public nav — used on "/" and "/trending".
+ * Desktop: logo · center links · CTA buttons
+ * Mobile:  logo · hamburger → full-screen overlay menu
  */
 export function PublicNav() {
   const location = useLocation();
-  const [scrolled, setScrolled] = useState(false);
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled,    setScrolled]    = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
 
   const isLanding  = location.pathname === '/';
   const isTrending = location.pathname === '/trending';
 
+  // Scroll effect
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const fn = () => setScrolled(window.scrollY > 12);
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
   }, []);
 
-  // Close mobile menu on resize to desktop
+  // Lock body scroll when mobile menu is open
   useEffect(() => {
-    const onResize = () => { if (window.innerWidth >= 640) setMobileOpen(false); };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
+  // Auto-close on desktop resize
+  useEffect(() => {
+    const fn = () => { if (window.innerWidth >= 768) setMobileOpen(false); };
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
   }, []);
 
-  const navLinkStyle = (active: boolean, id: string): React.CSSProperties => ({
-    display:        'inline-flex',
-    alignItems:     'center',
-    gap:            '6px',
-    padding:        '6px 14px',
-    borderRadius:   '8px',
-    fontSize:       '14px',
-    fontWeight:     500,
-    color:          active ? '#e6edf3' : hovered === id ? '#c9d1d9' : '#8b949e',
-    textDecoration: 'none',
-    background:     active ? 'rgba(255,255,255,0.07)' : hovered === id ? 'rgba(255,255,255,0.04)' : 'transparent',
-    border:         active ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
-    transition:     'all 0.15s ease',
-    cursor:         'pointer',
-  });
+  const close = () => setMobileOpen(false);
 
   return (
     <>
+      {/* ─────────────────────── NAV BAR ─────────────────────────── */}
       <nav
         style={{
           position:            'sticky',
           top:                 0,
-          zIndex:              200,
-          background:          scrolled ? 'rgba(13,17,23,0.95)' : 'rgba(13,17,23,0.75)',
-          backdropFilter:      'blur(14px)',
-          WebkitBackdropFilter:'blur(14px)',
+          zIndex:              300,
+          background:          scrolled || mobileOpen
+            ? 'rgba(13,17,23,0.98)'
+            : 'rgba(13,17,23,0.72)',
+          backdropFilter:      'blur(20px)',
+          WebkitBackdropFilter:'blur(20px)',
           borderBottom:        scrolled
-            ? '1px solid rgba(255,255,255,0.07)'
-            : '1px solid rgba(255,255,255,0.04)',
-          transition:          'background 0.25s ease, border-color 0.25s ease',
+            ? '1px solid rgba(255,255,255,0.08)'
+            : '1px solid transparent',
+          transition:          'background 0.3s ease, border-color 0.3s ease',
         }}
       >
-        {/* Main bar */}
         <div
           style={{
-            height:          '60px',
-            display:         'flex',
-            alignItems:      'center',
-            justifyContent:  'space-between',
-            padding:         '0 20px',
-            maxWidth:        '1200px',
-            margin:          '0 auto',
+            height:         '60px',
+            maxWidth:       '1200px',
+            margin:         '0 auto',
+            padding:        '0 20px',
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'space-between',
           }}
         >
-          {/* ── Logo ────────────────────────────────────────────────── */}
+          {/* ── Logo ─────────────────────────────────────────────── */}
           <Link
             to="/"
+            onClick={close}
             style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', flexShrink: 0 }}
           >
             <img
               src="/logo.png"
               alt="RepoVerse"
-              style={{ width: '28px', height: '28px', borderRadius: '8px', objectFit: 'contain' }}
+              style={{ width: '30px', height: '30px', borderRadius: '8px', objectFit: 'contain' }}
             />
-            <span style={{ fontWeight: 700, fontSize: '16px', color: '#e6edf3', letterSpacing: '-0.01em' }}>
+            <span style={{ fontWeight: 700, fontSize: '16px', color: '#e6edf3', letterSpacing: '-0.02em' }}>
               RepoVerse
             </span>
           </Link>
 
-          {/* ── Desktop center nav links ─────────────────────────────── */}
+          {/* ── Desktop center nav ───────────────────────────────── */}
           <div
-            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-            className="hidden sm:flex"
+            style={{
+              display:        'flex',
+              alignItems:     'center',
+              gap:            '2px',
+              background:     'rgba(255,255,255,0.04)',
+              border:         '1px solid rgba(255,255,255,0.07)',
+              borderRadius:   '12px',
+              padding:        '3px',
+            }}
+            className="hidden md:flex"
           >
-            <Link
-              to="/"
-              style={navLinkStyle(isLanding, 'home')}
-              onMouseEnter={() => setHovered('home')}
-              onMouseLeave={() => setHovered(null)}
-            >
-              <Home size={14} strokeWidth={1.5} />
-              Home
-            </Link>
-
-            <Link
-              to="/trending"
-              style={navLinkStyle(isTrending, 'trending')}
-              onMouseEnter={() => setHovered('trending')}
-              onMouseLeave={() => setHovered(null)}
-            >
-              <TrendingUp size={14} strokeWidth={1.5} />
-              Trending
-            </Link>
+            {[
+              { to: '/',         label: 'Home',     active: isLanding  },
+              { to: '/trending', label: 'Trending',  active: isTrending },
+            ].map(({ to, label, active }) => (
+              <Link
+                key={to}
+                to={to}
+                style={{
+                  padding:        '6px 16px',
+                  borderRadius:   '9px',
+                  fontSize:       '13px',
+                  fontWeight:     500,
+                  color:          active ? '#e6edf3' : '#6b7280',
+                  textDecoration: 'none',
+                  background:     active ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  border:         active ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
+                  transition:     'all 0.15s ease',
+                  whiteSpace:     'nowrap',
+                }}
+              >
+                {label}
+              </Link>
+            ))}
           </div>
 
-          {/* ── Desktop right side ───────────────────────────────────── */}
-          <div className="hidden sm:flex items-center gap-3">
+          {/* ── Desktop right CTA ────────────────────────────────── */}
+          <div className="hidden md:flex items-center gap-2.5">
             {/* App Store pill */}
             <a
               href={APP_STORE_LINK}
@@ -141,22 +199,24 @@ export function PublicNav() {
                 borderRadius:   '10px',
                 fontSize:       '13px',
                 fontWeight:     600,
-                color:          '#e6edf3',
+                color:          '#c9d1d9',
                 textDecoration: 'none',
                 background:     'rgba(255,255,255,0.05)',
                 border:         '1px solid rgba(255,255,255,0.1)',
                 transition:     'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.1)';
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.18)';
+                const el = e.currentTarget as HTMLElement;
+                el.style.background = 'rgba(255,255,255,0.09)';
+                el.style.color = '#e6edf3';
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.05)';
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.1)';
+                const el = e.currentTarget as HTMLElement;
+                el.style.background = 'rgba(255,255,255,0.05)';
+                el.style.color = '#c9d1d9';
               }}
             >
-              <AppleIcon className="w-3.5 h-3.5" />
+              <AppleIcon size={14} />
               App Store
             </a>
 
@@ -169,29 +229,33 @@ export function PublicNav() {
                 gap:            '6px',
                 padding:        '8px 18px',
                 borderRadius:   '10px',
-                fontSize:       '14px',
+                fontSize:       '13px',
                 fontWeight:     600,
                 color:          '#fff',
                 textDecoration: 'none',
-                background:     'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                boxShadow:      hovered === 'cta'
-                  ? '0 0 24px rgba(37,99,235,0.5)'
-                  : '0 0 14px rgba(37,99,235,0.3)',
-                transform:      hovered === 'cta' ? 'scale(1.03)' : 'scale(1)',
+                background:     'linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)',
+                boxShadow:      '0 0 16px rgba(37,99,235,0.35)',
                 transition:     'all 0.15s ease',
                 whiteSpace:     'nowrap',
               }}
-              onMouseEnter={() => setHovered('cta')}
-              onMouseLeave={() => setHovered(null)}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.boxShadow = '0 0 28px rgba(37,99,235,0.55)';
+                el.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.boxShadow = '0 0 16px rgba(37,99,235,0.35)';
+                el.style.transform = 'none';
+              }}
             >
               Try Web App
-              <ArrowRight size={14} strokeWidth={2} />
+              <ArrowRight size={13} />
             </Link>
           </div>
 
-          {/* ── Mobile right side: App pill + hamburger ──────────────── */}
-          <div className="flex sm:hidden items-center gap-2">
-            {/* Compact App Store button */}
+          {/* ── Mobile: compact get-app + hamburger ─────────────── */}
+          <div className="flex md:hidden items-center gap-2">
             <a
               href={APP_STORE_LINK}
               target="_blank"
@@ -203,14 +267,15 @@ export function PublicNav() {
                 padding:        '6px 12px',
                 borderRadius:   '999px',
                 fontSize:       '12px',
-                fontWeight:     600,
+                fontWeight:     700,
                 color:          '#0d1117',
-                textDecoration: 'none',
                 background:     '#ffffff',
+                textDecoration: 'none',
+                letterSpacing:  '-0.01em',
                 whiteSpace:     'nowrap',
               }}
             >
-              <AppleIcon className="w-3 h-3" />
+              <AppleIcon size={12} />
               Get App
             </a>
 
@@ -218,127 +283,215 @@ export function PublicNav() {
             <button
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Toggle menu"
+              aria-expanded={mobileOpen}
               style={{
                 display:         'flex',
                 alignItems:      'center',
                 justifyContent:  'center',
-                width:           '36px',
-                height:          '36px',
-                borderRadius:    '10px',
-                border:          '1px solid rgba(255,255,255,0.1)',
-                background:      mobileOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
-                color:           '#e6edf3',
+                width:           '40px',
+                height:          '40px',
+                borderRadius:    '12px',
+                background:      mobileOpen ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                border:          '1px solid rgba(255,255,255,0.08)',
                 cursor:          'pointer',
-                transition:      'all 0.15s ease',
+                color:           '#e6edf3',
+                transition:      'background 0.2s ease',
+                flexShrink:      0,
               }}
             >
-              {mobileOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
+              <HamburgerIcon open={mobileOpen} />
             </button>
           </div>
         </div>
+      </nav>
 
-        {/* ── Mobile dropdown ─────────────────────────────────────────────── */}
-        {mobileOpen && (
-          <div
-            className="sm:hidden"
+      {/* ─────────────── FULL-SCREEN MOBILE OVERLAY ────────────────── */}
+      {/* Backdrop */}
+      <div
+        onClick={close}
+        style={{
+          position:   'fixed',
+          inset:      0,
+          zIndex:     200,
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          opacity:    mobileOpen ? 1 : 0,
+          pointerEvents: mobileOpen ? 'auto' : 'none',
+          transition: 'opacity 0.3s ease',
+        }}
+        className="md:hidden"
+      />
+
+      {/* Slide-down panel */}
+      <div
+        style={{
+          position:   'fixed',
+          top:        '60px',
+          left:       0,
+          right:      0,
+          zIndex:     250,
+          background: 'rgba(13,17,23,0.99)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '0 0 20px 20px',
+          padding:    '8px 16px 20px',
+          transform:  mobileOpen ? 'translateY(0)' : 'translateY(-110%)',
+          opacity:    mobileOpen ? 1 : 0,
+          transition: 'transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.25s ease',
+          pointerEvents: mobileOpen ? 'auto' : 'none',
+        }}
+        className="md:hidden"
+      >
+        {/* Nav links */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '12px' }}>
+          {[
+            {
+              to: '/',
+              label: 'Home',
+              sub: 'Back to the main page',
+              active: isLanding,
+              icon: (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/>
+                  <path d="M9 21V12h6v9"/>
+                </svg>
+              ),
+              accent: '#a78bfa',
+            },
+            {
+              to: '/trending',
+              label: 'Trending',
+              sub: 'Top repos rising right now',
+              active: isTrending,
+              icon: <TrendingIcon size={18} />,
+              accent: '#34d399',
+            },
+            {
+              to: '/app/discover',
+              label: 'Try Web Version',
+              sub: 'Discover repos in the app',
+              active: false,
+              icon: (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+                </svg>
+              ),
+              accent: '#60a5fa',
+            },
+          ].map(({ to, label, sub, active, icon, accent }) => (
+            <Link
+              key={to}
+              to={to}
+              onClick={close}
+              style={{
+                display:        'flex',
+                alignItems:     'center',
+                gap:            '14px',
+                padding:        '12px 14px',
+                borderRadius:   '12px',
+                textDecoration: 'none',
+                background:     active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                border:         active ? '1px solid rgba(255,255,255,0.07)' : '1px solid transparent',
+                transition:     'background 0.15s ease',
+              }}
+            >
+              {/* Icon circle */}
+              <span
+                style={{
+                  width:          '36px',
+                  height:         '36px',
+                  borderRadius:   '10px',
+                  background:     `${accent}18`,
+                  border:         `1px solid ${accent}30`,
+                  display:        'flex',
+                  alignItems:     'center',
+                  justifyContent: 'center',
+                  color:          accent,
+                  flexShrink:     0,
+                }}
+              >
+                {icon}
+              </span>
+
+              {/* Text */}
+              <span style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: active ? '#e6edf3' : '#c9d1d9', letterSpacing: '-0.01em' }}>
+                  {label}
+                </span>
+                <span style={{ fontSize: '11px', color: '#4b5563', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {sub}
+                </span>
+              </span>
+
+              {/* Active dot */}
+              {active && (
+                <span
+                  style={{
+                    marginLeft:  'auto',
+                    width:       '6px',
+                    height:      '6px',
+                    borderRadius:'50%',
+                    background:  accent,
+                    flexShrink:  0,
+                  }}
+                />
+              )}
+            </Link>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '12px' }} />
+
+        {/* App Store CTA — full width */}
+        <a
+          href={APP_STORE_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={close}
+          style={{
+            display:        'flex',
+            alignItems:     'center',
+            gap:            '12px',
+            padding:        '14px 16px',
+            borderRadius:   '14px',
+            textDecoration: 'none',
+            background:     '#ffffff',
+            color:          '#0d1117',
+          }}
+        >
+          <span
             style={{
-              borderTop:          '1px solid rgba(255,255,255,0.06)',
-              background:         'rgba(13,17,23,0.97)',
-              backdropFilter:     'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              padding:            '8px 16px 16px',
+              width:          '36px',
+              height:         '36px',
+              borderRadius:   '10px',
+              background:     '#0d1117',
+              display:        'flex',
+              alignItems:     'center',
+              justifyContent: 'center',
+              color:          '#ffffff',
+              flexShrink:     0,
             }}
           >
-            {/* Home */}
-            <Link
-              to="/"
-              onClick={() => setMobileOpen(false)}
-              style={{
-                display:        'flex',
-                alignItems:     'center',
-                gap:            '12px',
-                padding:        '12px 16px',
-                borderRadius:   '10px',
-                fontSize:       '14px',
-                fontWeight:     500,
-                color:          isLanding ? '#e6edf3' : '#8b949e',
-                textDecoration: 'none',
-                background:     isLanding ? 'rgba(255,255,255,0.06)' : 'transparent',
-                marginBottom:   '2px',
-              }}
-            >
-              <Home size={16} strokeWidth={1.5} color="#8b949e" />
-              Home
-            </Link>
-
-            {/* Trending */}
-            <Link
-              to="/trending"
-              onClick={() => setMobileOpen(false)}
-              style={{
-                display:        'flex',
-                alignItems:     'center',
-                gap:            '12px',
-                padding:        '12px 16px',
-                borderRadius:   '10px',
-                fontSize:       '14px',
-                fontWeight:     500,
-                color:          isTrending ? '#e6edf3' : '#8b949e',
-                textDecoration: 'none',
-                background:     isTrending ? 'rgba(255,255,255,0.06)' : 'transparent',
-                marginBottom:   '2px',
-              }}
-            >
-              <TrendingUp size={16} strokeWidth={1.5} color="#a78bfa" />
-              Trending Repos
-            </Link>
-
-            {/* Try Web Version */}
-            <Link
-              to="/app/discover"
-              onClick={() => setMobileOpen(false)}
-              style={{
-                display:        'flex',
-                alignItems:     'center',
-                gap:            '12px',
-                padding:        '12px 16px',
-                borderRadius:   '10px',
-                fontSize:       '14px',
-                fontWeight:     500,
-                color:          '#8b949e',
-                textDecoration: 'none',
-                marginBottom:   '8px',
-              }}
-            >
-              <Globe size={16} strokeWidth={1.5} color="#60a5fa" />
-              Try Web Version
-            </Link>
-
-            {/* App Store — full width pill */}
-            <a
-              href={APP_STORE_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display:        'flex',
-                alignItems:     'center',
-                gap:            '12px',
-                padding:        '13px 16px',
-                borderRadius:   '12px',
-                fontSize:       '14px',
-                fontWeight:     600,
-                color:          '#0d1117',
-                textDecoration: 'none',
-                background:     '#ffffff',
-              }}
-            >
-              <AppleIcon className="w-4 h-4" />
-              <span style={{ flex: 1 }}>Download on the App Store</span>
-              <ArrowRight size={15} strokeWidth={2} />
-            </a>
-          </div>
-        )}
-      </nav>
+            <AppleIcon size={18} />
+          </span>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: '#374151', letterSpacing: '0.01em' }}>
+              DOWNLOAD ON THE
+            </span>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: '#0d1117', letterSpacing: '-0.02em', lineHeight: 1 }}>
+              App Store
+            </span>
+          </span>
+          <span style={{ marginLeft: 'auto', color: '#374151', flexShrink: 0 }}>
+            <ArrowRight size={16} />
+          </span>
+        </a>
+      </div>
     </>
   );
 }
