@@ -310,6 +310,40 @@ const SCREENSHOT_STYLE: React.CSSProperties = {
   width: '100%',
 };
 
+// ─── Phone mockup frame ────────────────────────────────────────────────────────
+function PhoneMockup({ children, glowColor = 'rgba(37,99,235,0.2)' }: {
+  children: React.ReactNode;
+  glowColor?: string;
+}) {
+  return (
+    <div style={{ position: 'relative', margin: '0 auto', maxWidth: '300px' }}>
+      {/* Ambient glow */}
+      <div style={{
+        position: 'absolute',
+        inset: '-60px -40px',
+        background: `radial-gradient(ellipse at 50% 45%, ${glowColor} 0%, transparent 65%)`,
+        pointerEvents: 'none',
+        zIndex: 0,
+        filter: 'blur(12px)',
+      }} />
+      {/* Gradient border frame */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        borderRadius: '44px',
+        padding: '2.5px',
+        background: 'linear-gradient(145deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.10) 100%)',
+        boxShadow: '0 48px 96px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.12)',
+      }}>
+        {/* Screen */}
+        <div style={{ borderRadius: '42px', overflow: 'hidden', background: '#000', lineHeight: 0 }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Section label pill ────────────────────────────────────────────────────────
 const SECTION_PILL_STYLE: React.CSSProperties = {
   display: 'inline-flex',
@@ -1143,14 +1177,18 @@ function DiscoverSection() {
     <section
       ref={ref}
       className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
-      style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+      style={{
+        padding: '96px 24px',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        background: 'radial-gradient(ellipse at 0% 55%, rgba(37,99,235,0.08) 0%, transparent 55%)',
+      }}
     >
       <div
         style={{
           maxWidth: '1120px',
           margin: '0 auto',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '64px',
           alignItems: 'center',
         }}
@@ -1233,13 +1271,18 @@ function DiscoverSection() {
           >
             SAVE →
           </div>
-          {/* Rocking screenshot */}
+          {/* Phone mockup with video */}
           <div className="lp-rock">
-            <img
-              src="/discover-screenshot.png"
-              alt="Repoverse Discover page — swipe repos"
-              style={SCREENSHOT_STYLE}
-            />
+            <PhoneMockup glowColor="rgba(37,99,235,0.28)">
+              <video
+                src="/discover-demo.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{ width: '100%', display: 'block' }}
+              />
+            </PhoneMockup>
           </div>
         </div>
       </div>
@@ -1274,35 +1317,31 @@ function TrendingFeatureSection() {
     <section
       ref={ref}
       className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
-      style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+      style={{
+        padding: '96px 24px',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        background: 'radial-gradient(ellipse at 100% 50%, rgba(167,139,250,0.07) 0%, transparent 55%)',
+      }}
     >
       <div
         style={{
           maxWidth: '1120px',
           margin: '0 auto',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '64px',
           alignItems: 'center',
         }}
       >
-        {/* ── Screenshot (left on desktop, top on mobile) ── */}
+        {/* ── Phone mockup (left on desktop, top on mobile) ── */}
         <div style={{ position: 'relative' }} ref={parallaxRef}>
-          {/* Blue glow */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: '-40px',
-              background: 'radial-gradient(circle at center, rgba(37,99,235,0.08) 0%, transparent 70%)',
-              pointerEvents: 'none',
-              borderRadius: '50%',
-            }}
-          />
-          <img
-            src="/trending-screenshot.png"
-            alt="Repoverse Trending page"
-            style={SCREENSHOT_STYLE}
-          />
+          <PhoneMockup glowColor="rgba(167,139,250,0.25)">
+            <img
+              src="/trending-screenshot.jpg"
+              alt="Repoverse Trending page"
+              style={{ width: '100%', display: 'block' }}
+            />
+          </PhoneMockup>
         </div>
 
         {/* ── Text (right on desktop) ── */}
@@ -1365,9 +1404,13 @@ function AgentFeatureSection() {
     <section
       ref={ref}
       className={isVisible ? 'lp-section-visible' : 'lp-section-hidden'}
-      style={{ padding: '96px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}
+      style={{
+        padding: '96px 24px',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        background: 'radial-gradient(ellipse at 50% 30%, rgba(34,211,238,0.06) 0%, transparent 55%)',
+      }}
     >
-        <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+        <div style={{ maxWidth: '860px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
         {/* Scattered doodles */}
         <SparkDoodle style={{ position: 'absolute', top: '-24px', left: '0px', width: '28px', height: '28px', opacity: 0.6 }} />
         <DotGrid style={{ position: 'absolute', top: '-16px', right: '0px', width: '44px', height: '44px' }} />
@@ -1385,13 +1428,15 @@ function AgentFeatureSection() {
           Direct from GitHub. Right now.
         </p>
 
-        {/* Screenshot */}
-        <div ref={parallaxRef} style={{ marginBottom: '40px' }}>
-          <img
-            src="/agent-screenshot.png"
-            alt="Repoverse AI Agent"
-            style={{ ...SCREENSHOT_STYLE, margin: '0 auto' }}
-          />
+        {/* Phone mockup */}
+        <div ref={parallaxRef} style={{ marginBottom: '48px', maxWidth: '300px', margin: '0 auto 48px' }}>
+          <PhoneMockup glowColor="rgba(34,211,238,0.22)">
+            <img
+              src="/agent-screenshot.jpg"
+              alt="Repoverse AI Agent"
+              style={{ width: '100%', display: 'block' }}
+            />
+          </PhoneMockup>
         </div>
 
         {/* Comparison table */}
