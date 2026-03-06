@@ -61,40 +61,62 @@ class GitHubAuthService {
   }
 
   /**
-   * Handle the OAuth redirect. Supabase processes the URL hash on page load,
-   * creating an in-memory session (even with persistSession:false). We extract
-   * the provider_token, save it, then immediately sign out of Supabase Auth.
+   * Handle the OAuth redirect.
+   * Waits for Supabase to fire an auth state change (SIGNED_IN) which happens
+   * automatically when the URL contains the #access_token hash — even with
+   * persistSession:false, supabase-js detects & parses the hash.
    */
   async handleCallback(userId: string): Promise<{ profile: GitHubProfile; token: string } | null> {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error || !session) {
-        console.error('No Supabase session after OAuth redirect:', error);
-        return null;
-      }
+    return new Promise((resolve) => {
+      let settled = false;
 
-      // provider_token is the actual GitHub OAuth access token
-      const token = session.provider_token;
-      if (!token) {
-        console.error('No provider_token in session — check Supabase GitHub provider config');
-        return null;
-      }
+      const settle = (result: { profile: GitHubProfile; token: string } | null) => {
+        if (settled) return;
+        settled = true;
+        subscription.unsubscribe();
+        resolve(result);
+      };
 
-      // Fetch GitHub profile
-      const profile = await this.fetchGitHubProfile(token);
-      if (!profile) return null;
+      // Listen for the SIGNED_IN event Supabase fires after parsing the URL hash
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          const token = session.provider_token;
+          if (!token) {
+            console.error('No provider_token — check Supabase GitHub provider scopes');
+            settle(null);
+            return;
+          }
 
-      // Persist connection linked to our userId
-      await this.saveConnection(userId, profile, token);
+          const profile = await this.fetchGitHubProfile(token);
+          if (!profile) { settle(null); return; }
 
-      // Sign out of Supabase Auth — we don't use Supabase sessions
-      await supabase.auth.signOut();
+          await this.saveConnection(userId, profile, token);
+          await supabase.auth.signOut(); // clear GitHub session — not our primary auth
+          settle({ profile, token });
+        }
+      });
 
-      return { profile, token };
-    } catch (err) {
-      console.error('handleCallback error:', err);
-      return null;
-    }
+      // Also try getSession() immediately in case the event already fired
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.provider_token && !settled) {
+          const token = session.provider_token;
+          this.fetchGitHubProfile(token).then(async (profile) => {
+            if (!profile) { settle(null); return; }
+            await this.saveConnection(userId, profile, token);
+            await supabase.auth.signOut();
+            settle({ profile, token });
+          });
+        }
+      });
+
+      // Timeout fallback after 15s
+      setTimeout(() => {
+        if (!settled) {
+          console.error('handleCallback timed out — no auth state change received');
+          settle(null);
+        }
+      }, 15_000);
+    });
   }
 
   /**
@@ -142,7 +164,7 @@ class GitHubAuthService {
       .from('github_connections')
       .select('github_login, github_name, github_avatar_url, starred_repos_count, connected_at, last_synced_at')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle(); // maybeSingle returns null (not error) when no row exists
 
     if (error || !data) return null;
     return {
@@ -177,7 +199,7 @@ class GitHubAuthService {
       .from('github_connections')
       .select('github_access_token')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (!conn?.github_access_token) throw new Error('No GitHub token — please reconnect');
     const token = conn.github_access_token;
