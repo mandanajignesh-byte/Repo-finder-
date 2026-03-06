@@ -3,7 +3,7 @@
   "short_name": "RepoVerse",
   "description": "Discover and explore the best GitHub repositories. Swipe through trending repos, get AI-powered recommendations, and find your next project.",
   "start_url": "/",
-  "display": "standalone",
+  "display": "minimal-ui",
   "background_color": "#0B0B0F",
   "theme_color": "#0B0B0F",
   "orientation": "portrait-primary",
