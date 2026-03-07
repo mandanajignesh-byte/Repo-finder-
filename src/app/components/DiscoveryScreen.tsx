@@ -947,7 +947,13 @@ export function DiscoveryScreen() {
       const userId = await supabaseService.getOrCreateUserId();
       
       // Save interaction to database (this marks repo as "seen")
-      await supabaseService.saveInteraction(userId, repoToSkip.id, 'skip').catch(err => {
+      await supabaseService.trackInteraction(userId, {
+        repoId: repoToSkip.id,
+        repoName: repoToSkip.name,
+        repoFullName: repoToSkip.fullName,
+        action: 'skip',
+        timestamp: new Date().toISOString()
+      }).catch(err => {
         console.error('Error saving skip to database:', err);
       });
 
@@ -1046,7 +1052,13 @@ export function DiscoveryScreen() {
       const userId = await supabaseService.getOrCreateUserId();
       
       // Save interaction to database (this marks repo as "seen")
-      await supabaseService.saveInteraction(userId, repoToLike.id, 'like').catch(err => {
+      await supabaseService.trackInteraction(userId, {
+        repoId: repoToLike.id,
+        repoName: repoToLike.name,
+        repoFullName: repoToLike.fullName,
+        action: 'like',
+        timestamp: new Date().toISOString()
+      }).catch(err => {
         console.error('Error saving like to database:', err);
       });
       
@@ -1143,7 +1155,13 @@ export function DiscoveryScreen() {
       const userId = await supabaseService.getOrCreateUserId();
       
       // Save interaction to database (this marks repo as "seen")
-      await supabaseService.saveInteraction(userId, repoToSave.id, 'save').catch(err => {
+      await supabaseService.trackInteraction(userId, {
+        repoId: repoToSave.id,
+        repoName: repoToSave.name,
+        repoFullName: repoToSave.fullName,
+        action: 'save',
+        timestamp: new Date().toISOString()
+      }).catch(err => {
         console.error('Error saving save to database:', err);
       });
       
