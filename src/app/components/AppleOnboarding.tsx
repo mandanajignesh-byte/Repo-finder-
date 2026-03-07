@@ -72,16 +72,34 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
   const [selectedGoal, setSelectedGoal] = useState<string>('');
 
   const handleComplete = () => {
+    // Map the onboarding data to match user_preferences table structure
     const preferences: Partial<UserPreferences> = {
+      // Primary cluster (STEP 1: What interests you?)
       primaryCluster: selectedInterest,
+      
+      // Secondary clusters (empty for now, user selected only one)
       secondaryClusters: [],
+      
+      // Tech stack (STEP 2: What do you use?)
       techStack: selectedTech,
+      
+      // Goals (STEP 3: What's your goal?)
       goals: [selectedGoal],
-      experienceLevel: 'intermediate',
+      
+      // Interests (same as primaryCluster for compatibility)
+      interests: [selectedInterest],
+      
+      // Default values for other required fields
+      projectTypes: [],
+      experienceLevel: 'intermediate', // Default
       activityPreference: 'any',
       popularityWeight: 'medium',
       documentationImportance: 'important',
+      licensePreference: ['any'],
+      repoSize: ['any'],
+      onboardingCompleted: true,
     };
+    
     onComplete(preferences);
   };
 
