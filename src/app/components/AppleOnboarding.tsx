@@ -177,10 +177,55 @@ const TECH_STACK = [
 
 // STEP 3: What's your goal?
 const GOALS = [
-  { id: 'learning', label: 'Learning & Exploring', emoji: '📚' },
-  { id: 'building', label: 'Building Projects', emoji: '🛠️' },
-  { id: 'contributing', label: 'Contributing to Open Source', emoji: '🤝' },
-  { id: 'research', label: 'Research & Discovery', emoji: '🔍' },
+  { 
+    id: 'learning', 
+    label: 'Learning & Exploring',
+    icon: (
+      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    gradient: 'from-blue-500 to-cyan-500'
+  },
+  { 
+    id: 'building', 
+    label: 'Building Projects',
+    icon: (
+      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14.7 6.3C15.1 5.9 15.1 5.3 14.7 4.9L13.1 3.3C12.7 2.9 12.1 2.9 11.7 3.3L10.3 4.7L13.3 7.7L14.7 6.3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M9 6L3 12V17C3 17.5304 3.21071 18.0391 3.58579 18.4142C3.96086 18.7893 4.46957 19 5 19H10L16 13L9 6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M14.5 10.5L17.5 13.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M21 15L15 21L12 18L18 12L21 15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    gradient: 'from-orange-500 to-red-500'
+  },
+  { 
+    id: 'contributing', 
+    label: 'Contributing to Open Source',
+    icon: (
+      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    gradient: 'from-purple-500 to-pink-500'
+  },
+  { 
+    id: 'research', 
+    label: 'Research & Discovery',
+    icon: (
+      <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M11 8C10.606 8 10.2159 8.0776 9.85195 8.22836C9.48797 8.37913 9.15726 8.6001 8.87868 8.87868C8.6001 9.15726 8.37913 9.48797 8.22836 9.85195C8.0776 10.2159 8 10.606 8 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    gradient: 'from-teal-500 to-emerald-500'
+  },
 ];
 
 export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
@@ -265,27 +310,27 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center space-y-3 sm:space-y-4"
+                className="text-center space-y-2 sm:space-y-3"
               >
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">
                   What interests you?
                 </h1>
-                <p className="text-lg sm:text-xl text-white/60">
+                <p className="text-base sm:text-lg text-white/60">
                   Choose your primary area to get started
                 </p>
               </motion.div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[55vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                 {INTERESTS.map((interest, index) => (
                   <motion.button
                     key={interest.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + index * 0.05 }}
-                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedInterest(interest.id)}
-                    className={`group relative p-5 sm:p-6 rounded-3xl transition-all duration-500 backdrop-blur-xl ${
+                    className={`group relative p-4 sm:p-5 rounded-2xl transition-all duration-500 backdrop-blur-xl ${
                       selectedInterest === interest.id
                         ? `bg-gradient-to-br ${interest.gradient} bg-opacity-20 border-2 border-white/30 shadow-2xl shadow-purple-500/30`
                         : 'bg-white/5 border-2 border-white/10 hover:border-white/20 hover:bg-white/10 hover:shadow-xl'
@@ -295,20 +340,20 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                     {selectedInterest === interest.id && (
                       <motion.div
                         layoutId="selected-interest"
-                        className={`absolute inset-0 bg-gradient-to-br ${interest.gradient} opacity-10 rounded-3xl`}
+                        className={`absolute inset-0 bg-gradient-to-br ${interest.gradient} opacity-10 rounded-2xl`}
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
                     
-                    <div className="relative flex items-center gap-4">
-                      <div className={`p-3 rounded-2xl bg-gradient-to-br ${interest.gradient} text-white shadow-lg`}>
+                    <div className="relative flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl bg-gradient-to-br ${interest.gradient} text-white shadow-lg`}>
                         {interest.icon}
                       </div>
                       <div className="flex-1 text-left">
-                        <div className="text-base sm:text-lg font-semibold text-white mb-1">
+                        <div className="text-sm sm:text-base font-semibold text-white mb-0.5">
                           {interest.label}
                         </div>
-                        <div className="text-xs sm:text-sm text-white/50">
+                        <div className="text-xs text-white/50">
                           {interest.repos.toLocaleString()} repos
                         </div>
                       </div>
@@ -316,9 +361,9 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className={`w-7 h-7 rounded-full bg-gradient-to-br ${interest.gradient} flex items-center justify-center shadow-lg`}
+                          className={`w-6 h-6 rounded-full bg-gradient-to-br ${interest.gradient} flex items-center justify-center shadow-lg`}
                         >
-                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         </motion.div>
@@ -337,24 +382,24 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center space-y-3 sm:space-y-4"
+                className="text-center space-y-2 sm:space-y-3"
               >
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">
                   What do you use?
                 </h1>
-                <p className="text-lg sm:text-xl text-white/60">
+                <p className="text-base sm:text-lg text-white/60">
                   Select the technologies you work with
                 </p>
               </motion.div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-[55vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                 {TECH_STACK.map((tech, index) => (
                   <motion.button
                     key={tech.id}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.3 + index * 0.03 }}
-                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       if (selectedTech.includes(tech.id)) {
@@ -363,7 +408,7 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                         setSelectedTech([...selectedTech, tech.id]);
                       }
                     }}
-                    className={`relative px-4 py-3.5 rounded-2xl text-sm font-medium transition-all duration-500 backdrop-blur-xl ${
+                    className={`relative px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-500 backdrop-blur-xl ${
                       selectedTech.includes(tech.id)
                         ? 'bg-gradient-to-br from-purple-500/30 to-pink-500/30 border-2 border-purple-500/60 text-white shadow-xl shadow-purple-500/30'
                         : 'bg-white/5 border-2 border-white/10 text-white/70 hover:border-white/20 hover:bg-white/10 hover:text-white hover:shadow-lg'
@@ -372,7 +417,7 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                     {selectedTech.includes(tech.id) && (
                       <motion.div
                         layoutId={`tech-${tech.id}`}
-                        className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl"
+                        className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
@@ -400,58 +445,54 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center space-y-3 sm:space-y-4"
+                className="text-center space-y-2 sm:space-y-3"
               >
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">
                   What's your goal?
                 </h1>
-                <p className="text-lg sm:text-xl text-white/60">
+                <p className="text-base sm:text-lg text-white/60">
                   How can we help you today?
                 </p>
               </motion.div>
 
-              <div className="grid grid-cols-1 gap-4 max-w-2xl mx-auto">
+              <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto">
                 {GOALS.map((goal, index) => (
                   <motion.button
                     key={goal.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + index * 0.1 }}
-                    whileHover={{ scale: 1.02, x: 4 }}
+                    whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedGoal(goal.id)}
-                    className={`group relative p-6 sm:p-7 rounded-3xl transition-all duration-500 backdrop-blur-xl ${
+                    className={`group relative p-5 rounded-2xl transition-all duration-500 backdrop-blur-xl ${
                       selectedGoal === goal.id
-                        ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-2 border-purple-500/60 shadow-2xl shadow-purple-500/30'
+                        ? `bg-gradient-to-br ${goal.gradient} bg-opacity-20 border-2 border-white/30 shadow-2xl shadow-purple-500/30`
                         : 'bg-white/5 border-2 border-white/10 hover:border-white/20 hover:bg-white/10 hover:shadow-xl'
                     }`}
                   >
                     {selectedGoal === goal.id && (
                       <motion.div
                         layoutId="selected-goal"
-                        className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-3xl"
+                        className={`absolute inset-0 bg-gradient-to-br ${goal.gradient} opacity-10 rounded-2xl`}
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
                     
-                    <div className="relative flex items-center gap-5">
-                      <motion.div
-                        animate={selectedGoal === goal.id ? { rotate: [0, -10, 10, -10, 0] } : {}}
-                        transition={{ duration: 0.5 }}
-                        className="text-4xl sm:text-5xl"
-                      >
-                        {goal.emoji}
-                      </motion.div>
-                      <div className="flex-1 text-left text-lg sm:text-xl font-semibold text-white">
+                    <div className="relative flex items-center gap-4">
+                      <div className={`p-2.5 rounded-xl bg-gradient-to-br ${goal.gradient} text-white shadow-lg`}>
+                        {goal.icon}
+                      </div>
+                      <div className="flex-1 text-left text-base sm:text-lg font-semibold text-white">
                         {goal.label}
                       </div>
                       {selectedGoal === goal.id && (
                         <motion.div
                           initial={{ scale: 0, rotate: -180 }}
                           animate={{ scale: 1, rotate: 0 }}
-                          className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg"
+                          className={`w-6 h-6 rounded-full bg-gradient-to-br ${goal.gradient} flex items-center justify-center shadow-lg`}
                         >
-                          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         </motion.div>
