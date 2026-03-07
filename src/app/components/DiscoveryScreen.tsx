@@ -1302,7 +1302,7 @@ export function DiscoveryScreen() {
   // Show onboarding if needed
   if (showOnboarding) {
     return (
-      <OnboardingQuestionnaire
+      <AppleOnboarding
         onComplete={handleOnboardingComplete}
         onSkip={async () => {
           // Track onboarding skipped
