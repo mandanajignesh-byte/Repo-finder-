@@ -89,7 +89,7 @@ class EnhancedRecommendationService {
    */
   private calculateGoalMatch(repo: Repository, goals: string[]): number {
     const description = (repo.description || '').toLowerCase();
-    const tags = repo.tags.map(t => t.toLowerCase()).join(' ');
+    const tags = (repo.tags || []).map(t => t.toLowerCase()).join(' ');
     const name = repo.name.toLowerCase();
     const fullName = repo.fullName.toLowerCase();
     const topics = (repo.topics || []).map(t => t.toLowerCase());
@@ -163,7 +163,7 @@ class EnhancedRecommendationService {
    */
   private calculateProjectTypeMatch(repo: Repository, projectTypes: string[]): number {
     const description = (repo.description || '').toLowerCase();
-    const tags = repo.tags.map(t => t.toLowerCase()).join(' ');
+    const tags = (repo.tags || []).map(t => t.toLowerCase()).join(' ');
     const name = repo.name.toLowerCase();
     const fullName = repo.fullName.toLowerCase();
     const topics = (repo.topics || []).map(t => t.toLowerCase());
@@ -729,7 +729,7 @@ class EnhancedRecommendationService {
       const repo = allRepos.find(r => r.id === interaction.repoId);
       if (repo) {
         repo.topics?.forEach(t => preferredTopics.add(t));
-        repo.tags.forEach(t => preferredTopics.add(t));
+        (repo.tags || []).forEach(t => preferredTopics.add(t));
       }
     });
 
@@ -739,7 +739,7 @@ class EnhancedRecommendationService {
       const repo = allRepos.find(r => r.id === interaction.repoId);
       if (repo) {
         repo.topics?.forEach(t => avoidedTopics.add(t));
-        repo.tags.forEach(t => avoidedTopics.add(t));
+        (repo.tags || []).forEach(t => avoidedTopics.add(t));
       }
     });
 
@@ -751,12 +751,12 @@ class EnhancedRecommendationService {
 
         // Positive signals from preferred topics
         const preferredMatches = (repo.topics || []).filter(t => preferredTopics.has(t)).length +
-                                 repo.tags.filter(t => preferredTopics.has(t)).length;
+                                 (repo.tags || []).filter(t => preferredTopics.has(t)).length;
         sessionScore += preferredMatches * 0.5;
 
         // Negative signals from avoided topics
         const avoidedMatches = (repo.topics || []).filter(t => avoidedTopics.has(t)).length +
-                               repo.tags.filter(t => avoidedTopics.has(t)).length;
+                               (repo.tags || []).filter(t => avoidedTopics.has(t)).length;
         sessionScore -= avoidedMatches * 0.3;
 
         // Boost if similar to recently saved repos
