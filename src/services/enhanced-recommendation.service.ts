@@ -30,7 +30,7 @@ class EnhancedRecommendationService {
 
     // Tech stack match (30 points)
     if (preferences.techStack.length > 0) {
-      const matchingTags = repo.tags.filter(tag =>
+      const matchingTags = (repo.tags || []).filter(tag =>
         preferences.techStack.some(tech =>
           tag.toLowerCase().includes(tech.toLowerCase()) ||
           tech.toLowerCase().includes(tag.toLowerCase())
