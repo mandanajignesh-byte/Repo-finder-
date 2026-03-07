@@ -8,6 +8,7 @@ import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
 import { SignatureCard } from './SignatureCard';
 import { OnboardingQuestionnaire } from './OnboardingQuestionnaire';
+import { AppleOnboarding } from './AppleOnboarding';
 import { OnboardingPopup } from './OnboardingPopup';
 import { RepoLoadingScreen } from './RepoLoadingScreen';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
