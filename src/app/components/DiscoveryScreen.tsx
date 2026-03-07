@@ -952,7 +952,7 @@ export function DiscoveryScreen() {
         repoName: repoToSkip.name,
         repoFullName: repoToSkip.fullName,
         action: 'skip',
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       }).catch(err => {
         console.error('Error saving skip to database:', err);
       });
@@ -1057,7 +1057,7 @@ export function DiscoveryScreen() {
         repoName: repoToLike.name,
         repoFullName: repoToLike.fullName,
         action: 'like',
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       }).catch(err => {
         console.error('Error saving like to database:', err);
       });
@@ -1160,7 +1160,7 @@ export function DiscoveryScreen() {
         repoName: repoToSave.name,
         repoFullName: repoToSave.fullName,
         action: 'save',
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       }).catch(err => {
         console.error('Error saving save to database:', err);
       });
