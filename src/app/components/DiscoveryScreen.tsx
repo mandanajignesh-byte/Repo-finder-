@@ -221,8 +221,16 @@ export function DiscoveryScreen() {
     }
   }, [cards.length]);
 
-  const loadPersonalizedRepos = useCallback(async (append = false) => {
+  const loadPersonalizedRepos = useCallback(async (append = false, retryCount = 0) => {
     try {
+      // CRITICAL: Prevent infinite loops - max 3 attempts
+      const MAX_RETRIES = 3;
+      if (retryCount >= MAX_RETRIES) {
+        console.warn(`⚠️ Max retries (${MAX_RETRIES}) reached, falling back to random repos`);
+        await loadRandomRepos(append);
+        return;
+      }
+      
       // CRITICAL: Show loading screen for batch loading (no background processing)
       if (!append) {
         setIsLoadingBatch(true);
@@ -235,8 +243,7 @@ export function DiscoveryScreen() {
       const { supabaseService } = await import('@/services/supabase.service');
       const actualUserId = await supabaseService.getOrCreateUserId();
 
-      // OPTIMIZATION: Fetch seen IDs + saved/liked in parallel FIRST, then pass
-      // seen IDs into buildPool so it doesn't make a second redundant DB call.
+      // OPTIMIZATION: Fetch seen IDs + saved/liked in parallel FIRST
       const [allSeenRepoIds, savedAndLiked] = await Promise.all([
         supabaseService.getAllSeenRepoIds(actualUserId),
         Promise.all([
@@ -245,39 +252,109 @@ export function DiscoveryScreen() {
         ]),
       ]);
 
-      // Build (or get from cache) the repo pool, passing the already-fetched seen IDs
-      // so buildPool skips its own getAllSeenRepoIds DB call entirely.
-      await repoPoolService.buildPool(preferences, allSeenRepoIds);
-
       // Update saved/liked repos state
       const [saved, liked] = savedAndLiked;
       if (saved.length > 0) setSavedRepos(saved);
       if (liked.length > 0) setLikedRepos(liked);
       
-      // Refine pool based on interactions (this is fast, synchronous)
-      if (sessionHistory.length > 0) {
-        repoPoolService.refinePoolBasedOnInteractions(
-          sessionHistory.map(i => ({ repoId: i.repoId, action: i.action }))
-        );
-      }
-      
       // Also exclude currently shown repos in this session
       const shownIds = new Set(cards.map(card => card?.id).filter(Boolean));
       const excludeIds = [...new Set([...allSeenRepoIds, ...Array.from(shownIds)])];
 
-      // CRITICAL: Fetch exactly 5-10 repos per batch (no background processing)
-      const batchSize = append ? 10 : 8; // 8 for initial, 10 for subsequent batches
+      // CRITICAL: Fetch exactly 5-10 repos per batch
+      const batchSize = append ? 10 : 8;
+      let recommended: Repository[] = [];
       
-      let recommended = await repoPoolService.getRecommendations(
-        actualUserId, 
-        preferences, 
-        batchSize * 4, // Fetch 4x to account for aggressive deduplication
-        Array.from(shownIds), // Pass currently shown repo IDs
-        allSeenRepoIds // OPTIMIZATION: Pass pre-fetched seen repo IDs to avoid duplicate call
-      );
+      // FALLBACK HIERARCHY:
+      // 1. Try primary cluster + tech stack (most specific)
+      // 2. Try primary cluster only (less specific)
+      // 3. Try any repos from tech stack tags (broader)
+      // 4. Try random repos from any cluster (fallback)
       
-      // CRITICAL: Simple deduplication - only filter by current cards in queue
-      // Don't use session tracker - let database handle "seen" tracking
+      console.log(`🔍 Attempt ${retryCount + 1}/${MAX_RETRIES}: Loading personalized repos...`);
+      
+      // STEP 1: Try primary cluster + tech stack (most specific)
+      if (preferences.primaryCluster && preferences.techStack && preferences.techStack.length > 0) {
+        console.log(`🎯 Trying: ${preferences.primaryCluster} cluster + tech stack [${preferences.techStack.join(', ')}]`);
+        
+        await repoPoolService.buildPool(preferences, allSeenRepoIds);
+        
+        if (sessionHistory.length > 0) {
+          repoPoolService.refinePoolBasedOnInteractions(
+            sessionHistory.map(i => ({ repoId: i.repoId, action: i.action }))
+          );
+        }
+        
+        recommended = await repoPoolService.getRecommendations(
+          actualUserId, 
+          preferences, 
+          batchSize * 4,
+          Array.from(shownIds),
+          allSeenRepoIds
+        );
+        
+        console.log(`   Found: ${recommended.length} repos with cluster + tech stack`);
+      }
+      
+      // STEP 2: If not enough, try primary cluster only
+      if (recommended.length < 3 && preferences.primaryCluster) {
+        console.log(`🎯 Trying: ${preferences.primaryCluster} cluster only (no tech filter)`);
+        
+        const clusterRepos = await clusterService.getBestOfCluster(
+          preferences.primaryCluster,
+          batchSize * 4,
+          excludeIds,
+          actualUserId
+        );
+        
+        console.log(`   Found: ${clusterRepos.length} repos from cluster`);
+        recommended = [...recommended, ...clusterRepos];
+      }
+      
+      // STEP 3: If still not enough, try tech stack tags from any cluster
+      if (recommended.length < 3 && preferences.techStack && preferences.techStack.length > 0) {
+        console.log(`🎯 Trying: Tech stack tags from any cluster [${preferences.techStack.join(', ')}]`);
+        
+        // Get repos from repos_master table filtered by tech stack tags
+        const { data: techRepos } = await supabase
+          .from('repos_master')
+          .select('*')
+          .contains('tags', preferences.techStack)
+          .not('id', 'in', `(${excludeIds.join(',')})`)
+          .limit(batchSize * 2);
+        
+        if (techRepos && techRepos.length > 0) {
+          const { reposMasterService } = await import('@/services/repos-master.service');
+          const mappedTechRepos = techRepos.map((repo: any) => reposMasterService.mapToRepository(repo));
+          console.log(`   Found: ${mappedTechRepos.length} repos from tech tags`);
+          recommended = [...recommended, ...mappedTechRepos];
+        }
+      }
+      
+      // STEP 4: Last resort - random repos from any active cluster
+      if (recommended.length < 3) {
+        console.log(`🎯 Fallback: Loading random repos from any cluster`);
+        
+        const { data: clusters } = await supabase
+          .from('cluster_metadata')
+          .select('cluster_name')
+          .eq('is_active', true);
+        
+        if (clusters && clusters.length > 0) {
+          const randomCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
+          const randomRepos = await clusterService.getBestOfCluster(
+            randomCluster,
+            batchSize * 2,
+            excludeIds,
+            actualUserId
+          );
+          
+          console.log(`   Found: ${randomRepos.length} random repos from ${randomCluster}`);
+          recommended = [...recommended, ...randomRepos];
+        }
+      }
+      
+      // CRITICAL: Deduplication
       const existingIds = new Set(cards.map(card => card?.id).filter(Boolean));
       const existingFullNames = new Set(cards.map(card => card?.fullName?.toLowerCase()).filter(Boolean));
       
@@ -286,91 +363,42 @@ export function DiscoveryScreen() {
         return !existingIds.has(repo.id) && !existingFullNames.has(repo.fullName?.toLowerCase());
       }).slice(0, batchSize);
       
-      console.log(`✅ Loaded batch: ${recommended.length} unique repos (after deduplication)`);
+      console.log(`✅ Final batch: ${recommended.length} unique repos`);
       
-      console.log(`✅ Loaded batch: ${recommended.length} unique repos (after triple deduplication)`);
+      // If still 0 repos after all attempts, retry or fallback
+      if (recommended.length === 0) {
+        console.warn(`⚠️ 0 repos found after all fallbacks, retry ${retryCount + 1}/${MAX_RETRIES}`);
+        setIsLoadingMore(false);
+        setIsLoadingBatch(false);
+        
+        // Retry with incremented count
+        return loadPersonalizedRepos(append, retryCount + 1);
+      }
 
-      // CRITICAL: No background processing - show batch immediately
+      // CRITICAL: Update cards
       if (append) {
-        // Append to existing cards with final deduplication check
         setCards(prev => {
-          const existingIds = new Set(prev.map(c => c.id));
-          const existingFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
-          const existingNames = new Set(prev.map(c => c.name?.toLowerCase()));
+          const prevIds = new Set(prev.map(c => c.id));
+          const prevFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
+          const prevNames = new Set(prev.map(c => c.name?.toLowerCase()));
           
           const trulyNew = recommended.filter(r => 
             r && 
             r.id && 
-            !existingIds.has(r.id) && 
-            !existingFullNames.has(r.fullName?.toLowerCase()) &&
-            !existingNames.has(r.name?.toLowerCase())
+            !prevIds.has(r.id) && 
+            !prevFullNames.has(r.fullName?.toLowerCase()) &&
+            !prevNames.has(r.name?.toLowerCase())
           );
           
           console.log(`✅ Adding ${trulyNew.length} truly unique repos to queue`);
           return [...prev, ...trulyNew];
         });
       } else {
-        // Replace cards (initial load)
         setCards(recommended);
       }
       
       setIsLoadingMore(false);
       setIsLoadingBatch(false);
-      
-      return; // Exit - batch loaded successfully
-
-      // If pool doesn't have enough, try cluster repos first (not generic trending)
-      if (recommended.length < 10) {
-        console.log('Pool has fewer than 10 repos, trying cluster repos...');
-        
-        // Try to get repos from primary cluster as fallback
-        const primaryCluster = clusterService.detectPrimaryCluster(preferences);
-        const clusterFallback = await clusterService.getBestOfCluster(
-          primaryCluster,
-          20,
-          excludeIds,
-          actualUserId
-        );
-        
-        if (clusterFallback.length > 0) {
-          // Filter out undefined repos first
-          const validRecommended = recommended.filter(r => r && r.id);
-          const validClusterFallback = clusterFallback.filter(r => r && r.id);
-          
-          // Filter out overly popular repos (>30k stars) unless user wants high popularity
-          const MAX_STARS = 30000;
-          const filteredClusterFallback = preferences.popularityWeight === 'high' 
-            ? validClusterFallback 
-            : validClusterFallback.filter(r => r.stars <= MAX_STARS);
-          
-          const existingIds = new Set([...excludeIds, ...validRecommended.map(r => r.id)]);
-          const additional = filteredClusterFallback.filter(r => !existingIds.has(r.id));
-          recommended = [...validRecommended, ...additional].slice(0, 20);
-          console.log(`Added ${additional.length} repos from ${primaryCluster} cluster (filtered ${validClusterFallback.length - filteredClusterFallback.length} overly popular)`);
-        } else {
-          // Last resort: hybrid recommendations
-          const hybrid = await enhancedRecommendationService.getHybridRecommendations(
-            actualUserId,
-            preferences,
-            sessionHistory,
-            20
-          );
-          
-          // Filter out undefined repos and exclude already seen repos
-          const validRecommended = recommended.filter(r => r && r.id);
-          const validHybrid = hybrid.filter(r => r && r.id);
-          
-          // Filter out overly popular repos (>30k stars) unless user wants high popularity
-          const MAX_STARS = 30000;
-          const filteredHybrid = preferences.popularityWeight === 'high'
-            ? validHybrid
-            : validHybrid.filter(r => r.stars <= MAX_STARS);
-          
-          const existingIds = new Set([...excludeIds, ...validRecommended.map(r => r.id)]);
-          const additional = filteredHybrid.filter(r => !existingIds.has(r.id));
-          recommended = [...validRecommended, ...additional].slice(0, 20);
-        }
-      }
 
       if (recommended.length > 0) {
         // OPTIMIZATION: Show repos immediately, track views in background (non-blocking)
