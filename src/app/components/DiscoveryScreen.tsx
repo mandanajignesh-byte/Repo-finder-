@@ -44,6 +44,12 @@ export function DiscoveryScreen() {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [loadedRepoCount, setLoadedRepoCount] = useState(0);
   const [isLoadingBatch, setIsLoadingBatch] = useState(false); // Loading next batch of repos
+  
+  // CRITICAL: Session-based tracker to prevent showing same repos in current session
+  // Auto-resets after 50 repos to prevent exhaustion
+  const [sessionSeenRepoIds, setSessionSeenRepoIds] = useState<Set<string>>(new Set());
+  const [sessionSeenFullNames, setSessionSeenFullNames] = useState<Set<string>>(new Set());
+  const [sessionRepoCount, setSessionRepoCount] = useState(0);
 
   // ── Undo (persisted via Supabase, max 10 in-session stack) ──────────────
   const [skippedRepos, setSkippedRepos] = useState<Repository[]>([]);
@@ -119,7 +125,7 @@ export function DiscoveryScreen() {
       const batchSize = append ? 10 : 8;
       const randomRepos = await clusterService.getBestOfCluster(
         randomCluster,
-        batchSize * 2, // Fetch 2x to account for deduplication
+        batchSize * 4, // Fetch 4x to account for aggressive deduplication
         allSeenRepoIds,
         actualUserId
       );
@@ -128,45 +134,82 @@ export function DiscoveryScreen() {
         // Filter out overly popular repos (>30k stars) for better variety
         const MAX_STARS = 30000;
         
-        // CRITICAL: Triple-layer deduplication
-        const existingIds = new Set(cards.map(c => c.id));
+        // CRITICAL: Smart deduplication - only use session tracker if we have enough repos
+        const existingIds = new Set(cards.map(c => c.id).filter(Boolean));
         const existingFullNames = new Set(cards.map(c => c.fullName?.toLowerCase()).filter(Boolean));
-        const existingNames = new Set(cards.map(c => c.name?.toLowerCase()).filter(Boolean));
         
-        const filteredRepos = randomRepos
+        // First pass: basic filtering
+        let filtered = randomRepos
           .filter(r => r && r.id && r.stars <= MAX_STARS)
-          .filter(r => {
-            const isDuplicateId = existingIds.has(r.id);
-            const isDuplicateFullName = existingFullNames.has(r.fullName?.toLowerCase());
-            const isDuplicateName = existingNames.has(r.name?.toLowerCase());
-            return !isDuplicateId && !isDuplicateFullName && !isDuplicateName;
-          })
-          .slice(0, batchSize);
+          .filter(r => !existingIds.has(r.id) && !existingFullNames.has(r.fullName?.toLowerCase()));
         
-        console.log(`✅ Loaded random batch: ${filteredRepos.length} unique repos (after triple deduplication)`);
-        
-        // CRITICAL: No background processing - show batch immediately
-        if (append) {
-          setCards(prev => {
-            // Final deduplication check before adding
-            const prevIds = new Set(prev.map(c => c.id));
-            const prevFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
-            const prevNames = new Set(prev.map(c => c.name?.toLowerCase()));
-            
-            const trulyNew = filteredRepos.filter(r => 
-              r && 
-              r.id && 
-              !prevIds.has(r.id) && 
-              !prevFullNames.has(r.fullName?.toLowerCase()) &&
-              !prevNames.has(r.name?.toLowerCase())
-            );
-            
-            console.log(`✅ Adding ${trulyNew.length} truly unique random repos to queue`);
-            return [...prev, ...trulyNew];
-          });
+        // If we have enough repos (20+), apply session tracker
+        if (filtered.length >= 20) {
+          filtered = filtered.filter(r => 
+            !sessionSeenRepoIds.has(r.id) && !sessionSeenFullNames.has(r.fullName?.toLowerCase())
+          );
         } else {
-          // Show first batch immediately
-          setCards(filteredRepos);
+          console.log(`⚠️ Only ${filtered.length} repos after basic filter, skipping session tracker to avoid over-filtering`);
+        }
+        
+        const filteredRepos = filtered.slice(0, batchSize);
+        
+        console.log(`✅ Loaded random batch: ${filteredRepos.length} unique repos (after smart deduplication)`);
+        
+        // CRITICAL: If we got 0 repos, clear session tracker and try different cluster
+        if (filteredRepos.length === 0) {
+          console.warn('⚠️ No unique repos found! Clearing session tracker and trying different cluster...');
+          setSessionSeenRepoIds(new Set());
+          setSessionSeenFullNames(new Set());
+          setSessionRepoCount(0);
+          
+          // Try a different random cluster
+          const differentCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
+          const freshRepos = await clusterService.getBestOfCluster(
+            differentCluster,
+            batchSize * 3, // Fetch 3x
+            allSeenRepoIds, // Only exclude database-seen repos
+            actualUserId
+          );
+          
+          // Simple filter this time
+          const simpleFreshRepos = freshRepos
+            .filter(r => r && r.id && r.stars <= MAX_STARS && !allSeenRepoIds.includes(r.id))
+            .slice(0, batchSize);
+          
+          console.log(`✅ After cluster switch: ${simpleFreshRepos.length} repos`);
+          
+          if (simpleFreshRepos.length > 0) {
+            if (append) {
+              setCards(prev => [...prev, ...simpleFreshRepos]);
+            } else {
+              setCards(simpleFreshRepos);
+            }
+          }
+        } else {
+          // CRITICAL: No background processing - show batch immediately
+          if (append) {
+            setCards(prev => {
+              // Final deduplication check before adding
+              const prevIds = new Set(prev.map(c => c.id));
+              const prevFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
+              const prevNames = new Set(prev.map(c => c.name?.toLowerCase()));
+              
+              const trulyNew = filteredRepos.filter(r => 
+                r && 
+                r.id && 
+                !prevIds.has(r.id) && 
+                !prevFullNames.has(r.fullName?.toLowerCase()) &&
+                !prevNames.has(r.name?.toLowerCase())
+              );
+              
+              console.log(`✅ Adding ${trulyNew.length} truly unique random repos to queue`);
+              return [...prev, ...trulyNew];
+            });
+          } else {
+            // Show first batch immediately
+            setCards(filteredRepos);
+          }
         }
         
         setIsLoadingMore(false);
@@ -244,29 +287,32 @@ export function DiscoveryScreen() {
       let recommended = await repoPoolService.getRecommendations(
         actualUserId, 
         preferences, 
-        batchSize * 2, // Fetch 2x to account for deduplication
+        batchSize * 4, // Fetch 4x to account for aggressive deduplication
         Array.from(shownIds), // Pass currently shown repo IDs
         allSeenRepoIds // OPTIMIZATION: Pass pre-fetched seen repo IDs to avoid duplicate call
       );
       
-      // CRITICAL: Triple-layer deduplication to prevent ANY duplicates
-      // Layer 1: Filter by repo ID
-      // Layer 2: Filter by full_name (owner/repo)
-      // Layer 3: Filter by repo name (in case full_name differs)
+      // CRITICAL: Smart deduplication - only use session tracker if we have enough repos
+      // This prevents over-filtering when pool is small
       const existingIds = new Set(cards.map(card => card?.id).filter(Boolean));
       const existingFullNames = new Set(cards.map(card => card?.fullName?.toLowerCase()).filter(Boolean));
-      const existingNames = new Set(cards.map(card => card?.name?.toLowerCase()).filter(Boolean));
       
-      recommended = recommended.filter(repo => {
+      // First pass: filter by current cards only
+      let filtered = recommended.filter(repo => {
         if (!repo || !repo.id) return false;
-        
-        // Check all three deduplication layers
-        const isDuplicateId = existingIds.has(repo.id);
-        const isDuplicateFullName = existingFullNames.has(repo.fullName?.toLowerCase());
-        const isDuplicateName = existingNames.has(repo.name?.toLowerCase());
-        
-        return !isDuplicateId && !isDuplicateFullName && !isDuplicateName;
-      }).slice(0, batchSize); // Take only the batch size we need
+        return !existingIds.has(repo.id) && !existingFullNames.has(repo.fullName?.toLowerCase());
+      });
+      
+      // If we have enough repos (20+), apply session tracker
+      if (filtered.length >= 20) {
+        filtered = filtered.filter(repo => 
+          !sessionSeenRepoIds.has(repo.id) && !sessionSeenFullNames.has(repo.fullName?.toLowerCase())
+        );
+      } else {
+        console.log(`⚠️ Only ${filtered.length} repos after basic filter, skipping session tracker to avoid over-filtering`);
+      }
+      
+      recommended = filtered.slice(0, batchSize);
       
       console.log(`✅ Loaded batch: ${recommended.length} unique repos (after triple deduplication)`);
 
@@ -833,13 +879,30 @@ export function DiscoveryScreen() {
     }
   }, [cards.length, isLoadingMore, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
 
-  // Reset trigger when card changes
+  // Reset trigger when card changes AND track as seen in session
   useEffect(() => {
     if (cards[0]) {
       setTriggerSwipe(null);
       setIsSwiping(false);
+      
+      // CRITICAL: Track this repo as seen in current session
+      if (cards[0].id) {
+        setSessionSeenRepoIds(prev => new Set(prev).add(cards[0].id));
+        setSessionRepoCount(prev => prev + 1);
+      }
+      if (cards[0].fullName) {
+        setSessionSeenFullNames(prev => new Set(prev).add(cards[0].fullName.toLowerCase()));
+      }
+      
+      // Auto-reset session tracker after 50 repos to prevent exhaustion
+      if (sessionRepoCount >= 50) {
+        console.log('🔄 Auto-resetting session tracker after 50 repos...');
+        setSessionSeenRepoIds(new Set());
+        setSessionSeenFullNames(new Set());
+        setSessionRepoCount(0);
+      }
     }
-  }, [cards[0]?.id]);
+  }, [cards[0]?.id, sessionRepoCount]);
 
   // Update URL to reflect current repo (YouTube-like behavior)
   // All in-app repo URLs use /app/r/owner/repo to stay inside the app shell
@@ -879,6 +942,15 @@ export function DiscoveryScreen() {
       // Push to undo stack (session-only, max 10)
       setSkippedRepos(prev => [repoToSkip, ...prev].slice(0, 10));
 
+      // CRITICAL: Immediately save to database to prevent seeing this repo again
+      const { supabaseService } = await import('@/services/supabase.service');
+      const userId = await supabaseService.getOrCreateUserId();
+      
+      // Save interaction to database (this marks repo as "seen")
+      await supabaseService.saveInteraction(userId, repoToSkip.id, 'skip').catch(err => {
+        console.error('Error saving skip to database:', err);
+      });
+
       // Track interaction (async, but don't wait)
       interactionService.trackInteraction(repoToSkip, 'skip', {
         position: 0,
@@ -887,6 +959,8 @@ export function DiscoveryScreen() {
       
       // Track in Google Analytics
       trackRepoInteraction('skip', repoToSkip.id, repoToSkip.fullName || repoToSkip.name);
+      
+      console.log(`✅ Skipped and saved to DB: ${repoToSkip.fullName || repoToSkip.name}`);
     }
     
     // Increment swipe count and check if onboarding should be shown
@@ -967,7 +1041,16 @@ export function DiscoveryScreen() {
   const handleLike = useCallback(async (repo?: Repository) => {
     const repoToLike = repo || cards[0];
     if (repoToLike) {
-      // Track interaction as 'like' (async, but don't wait)
+      // CRITICAL: Immediately save to database to prevent seeing this repo again
+      const { supabaseService } = await import('@/services/supabase.service');
+      const userId = await supabaseService.getOrCreateUserId();
+      
+      // Save interaction to database (this marks repo as "seen")
+      await supabaseService.saveInteraction(userId, repoToLike.id, 'like').catch(err => {
+        console.error('Error saving like to database:', err);
+      });
+      
+      // Track interaction in session
       interactionService.trackInteraction(repoToLike, 'like', {
         position: 0,
         source: 'discover',
@@ -977,6 +1060,8 @@ export function DiscoveryScreen() {
       trackRepoInteraction('like', repoToLike.id, repoToLike.fullName || repoToLike.name);
       
       setLikedRepos((liked) => [...liked, repoToLike]);
+      
+      console.log(`✅ Liked and saved to DB: ${repoToLike.fullName || repoToLike.name}`);
     }
     
     // Increment swipe count and check if onboarding should be shown
@@ -1050,11 +1135,25 @@ export function DiscoveryScreen() {
   }, [cards, isLoadingMore, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
 
   const handleSave = useCallback(async (repo?: Repository) => {
+    const repoToSave = repo || cards[0];
+    
+    // CRITICAL: Save to database first to mark as seen
+    if (repoToSave) {
+      const { supabaseService } = await import('@/services/supabase.service');
+      const userId = await supabaseService.getOrCreateUserId();
+      
+      // Save interaction to database (this marks repo as "seen")
+      await supabaseService.saveInteraction(userId, repoToSave.id, 'save').catch(err => {
+        console.error('Error saving save to database:', err);
+      });
+      
+      console.log(`✅ Saved and saved to DB: ${repoToSave.fullName || repoToSave.name}`);
+    }
+    
     // ── Paywall: saving is a Pro feature ────────────────────────────────────
-    void repo; // pro feature gate - suppress unused warning
     setPaywallType('save');
     setShowPaywall(true);
-  }, []);
+  }, [cards]);
 
   const handleRemoveSaved = useCallback(async (repoId: string) => {
     try {

@@ -149,25 +149,52 @@ class ReposMasterService {
 
       console.log(`📊 Querying clusters: ${clusterSlugs.join(', ')}`);
 
-      // Get repo IDs from clusters
-      const { data: clusterData, error: clusterError } = await supabase
+      // CRITICAL: Try repo_cluster_new first, then fall back to old repo_clusters table
+      let repoIds: number[] = [];
+      
+      // Try new table first
+      const { data: clusterDataNew, error: clusterErrorNew } = await supabase
         .from('repo_cluster_new')
         .select('repo_id')
         .in('cluster_slug', clusterSlugs)
         .order('weight', { ascending: false })
-        .limit(limit * 3); // Get more to allow for filtering
+        .limit(limit * 10); // Get 10x more for better variety
 
-      if (clusterError) {
-        console.error('Error fetching cluster data:', clusterError);
+      if (!clusterErrorNew && clusterDataNew && clusterDataNew.length > 0) {
+        repoIds = clusterDataNew.map(item => item.repo_id);
+        console.log(`✅ Found ${repoIds.length} repos in repo_cluster_new`);
+      } else {
+        // Fall back to old repo_clusters table (JSONB format)
+        console.warn('⚠️ repo_cluster_new empty, falling back to repo_clusters...');
+        
+        const { data: clusterDataOld, error: clusterErrorOld } = await supabase
+          .from('repo_clusters')
+          .select('repo_data')
+          .in('cluster_name', clusterSlugs)
+          .order('quality_score', { ascending: false })
+          .limit(limit * 10);
+
+        if (clusterErrorOld || !clusterDataOld || clusterDataOld.length === 0) {
+          console.error('❌ Both tables empty! No repos found.');
+          return [];
+        }
+
+        // Extract repo IDs from JSONB
+        repoIds = clusterDataOld
+          .map(item => {
+            const repoData = item.repo_data as any;
+            return repoData?.id ? parseInt(repoData.id, 10) : null;
+          })
+          .filter((id): id is number => id !== null && !isNaN(id));
+        
+        console.log(`✅ Found ${repoIds.length} repos in repo_clusters (fallback)`);
+      }
+
+      if (repoIds.length === 0) {
+        console.warn('No repos found after checking both tables');
         return [];
       }
 
-      if (!clusterData || clusterData.length === 0) {
-        console.warn('No repos found in clusters');
-        return [];
-      }
-
-      const repoIds = clusterData.map(item => item.repo_id);
       const excludeNumericIds = excludeIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
 
       // Fetch full repo data with health scores and activity
