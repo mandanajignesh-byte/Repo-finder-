@@ -13,16 +13,19 @@ interface OnboardingQuestionnaireProps {
   onSkip?: () => void;
 }
 
-// Primary Clusters (no icons)
+// Primary Clusters (MATCHED TO DATABASE - repo_clusters table)
+// These EXACT cluster_name values exist in your database with 1500+ repos each
 const PRIMARY_CLUSTERS = [
-  { id: 'frontend', label: 'Web Frontend', description: 'React, Vue, Angular, Next.js, and frontend frameworks' },
-  { id: 'backend', label: 'Web Backend', description: 'Express, Django, Flask, Spring, and server-side technologies' },
-  { id: 'mobile', label: 'Mobile', description: 'React Native, Flutter, Ionic, and mobile app development' },
-  { id: 'desktop', label: 'Desktop', description: 'Electron, desktop applications, and native desktop apps' },
-  { id: 'data-science', label: 'Data Science', description: 'Pandas, NumPy, data analysis, and visualization' },
-  { id: 'devops', label: 'DevOps', description: 'Docker, Kubernetes, CI/CD, and infrastructure tools' },
-  { id: 'game-dev', label: 'Game Development', description: 'Game engines, graphics, and game development tools' },
-  { id: 'ai-ml', label: 'AI/ML', description: 'TensorFlow, PyTorch, machine learning, and AI frameworks' },
+  { id: 'ai-ml', label: 'AI / Machine Learning', description: 'TensorFlow, PyTorch, ML frameworks (2115 repos)' },
+  { id: 'frontend', label: 'Web Frontend', description: 'React, Vue, Angular, Next.js (2007 repos)' },
+  { id: 'devops', label: 'DevOps', description: 'Docker, Kubernetes, CI/CD (1981 repos)' },
+  { id: 'mobile', label: 'Mobile Development', description: 'React Native, Flutter, Ionic (1950 repos)' },
+  { id: 'game-dev', label: 'Game Development', description: 'Game engines, Unity, Unreal (1934 repos)' },
+  { id: 'backend', label: 'Web Backend', description: 'Express, Django, Flask, APIs (1902 repos)' },
+  { id: 'data-science', label: 'Data Science', description: 'Pandas, NumPy, data analysis (1872 repos)' },
+  { id: 'desktop', label: 'Desktop Apps', description: 'Electron, native desktop apps (1826 repos)' },
+  { id: 'ai-automation', label: 'AI Automation', description: 'Bots, automation tools (300 repos)' },
+  { id: 'open-source-alternatives', label: 'Open Source Alternatives', description: 'Free alternatives to paid tools (300 repos)' },
 ];
 
 // Languages
