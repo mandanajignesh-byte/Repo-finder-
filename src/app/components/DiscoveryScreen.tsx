@@ -1207,29 +1207,35 @@ export function DiscoveryScreen() {
     setIsLoadingRecommendations(true);
     setLoadedRepoCount(0);
     
-    // Save name to user record if provided
-    if (newPreferences.name) {
-      try {
-        const { supabaseService } = await import('@/services/supabase.service');
-        await supabaseService.getOrCreateUserId(newPreferences.name);
-        console.log('✅ User name saved:', newPreferences.name);
-      } catch (error) {
-        console.error('Error saving user name:', error);
-      }
-    }
-    
-    // Track onboarding completion
-    trackOnboarding('completed', undefined, 7);
-    
-    // Update preferences
-    updatePreferences({
-      ...newPreferences,
-      onboardingCompleted: true,
-    });
-    
-    // Load personalized repos in background
     try {
-      // Start loading repos
+      // CRITICAL: Save to database first to ensure onboarding never shows again
+      const { supabaseService } = await import('@/services/supabase.service');
+      
+      // Save name to user record if provided
+      const userId = newPreferences.name 
+        ? await supabaseService.getOrCreateUserId(newPreferences.name)
+        : await supabaseService.getOrCreateUserId();
+      
+      console.log('✅ User ID:', userId);
+      
+      // Save complete preferences to database
+      await supabaseService.saveUserPreferences(userId, {
+        ...newPreferences,
+        onboardingCompleted: true,
+      } as any);
+      
+      console.log('✅ Onboarding completed and saved to database');
+      
+      // Track onboarding completion
+      trackOnboarding('completed', undefined, 7);
+      
+      // Update local preferences
+      updatePreferences({
+        ...newPreferences,
+        onboardingCompleted: true,
+      });
+      
+      // Load personalized repos
       const startTime = Date.now();
       await loadPersonalizedRepos();
       
@@ -1244,9 +1250,10 @@ export function DiscoveryScreen() {
       // Hide loading screen once we have repos
       setIsLoadingRecommendations(false);
     } catch (error) {
-      console.error('Error loading recommendations:', error);
-      // Still hide loading screen on error
+      console.error('Error in onboarding completion:', error);
+      // Still hide loading screen on error and try to load random repos
       setIsLoadingRecommendations(false);
+      await loadRandomRepos(false);
     }
   };
 
@@ -1305,24 +1312,51 @@ export function DiscoveryScreen() {
       <AppleOnboarding
         onComplete={handleOnboardingComplete}
         onSkip={async () => {
-          // Track onboarding skipped
-          trackOnboarding('skipped');
-          
-          // Mark onboarding as completed but don't set preferences
-          // User will continue seeing random repos
-          await updatePreferences({ onboardingCompleted: true });
-          setShowOnboarding(false);
-          
-          // CRITICAL: Always ensure repos continue loading after skipping onboarding
-          // If no cards, load fresh. If some cards, load more to keep the flow going
-          if (cards.length === 0) {
-            // No cards: load fresh batch
-            loadRandomRepos(false);
-          } else if (cards.length < 5) {
-            // Few cards: load more to keep swiping
-            loadRandomRepos(true);
+          try {
+            // Track onboarding skipped
+            trackOnboarding('skipped');
+            
+            // CRITICAL: Save onboarding completion to database so it never shows again
+            const { supabaseService } = await import('@/services/supabase.service');
+            const userId = await supabaseService.getOrCreateUserId();
+            
+            // Save to database with onboardingCompleted = true
+            await supabaseService.saveUserPreferences(userId, {
+              onboardingCompleted: true,
+              // Set minimal preferences for random repo loading
+              primaryCluster: '',
+              secondaryClusters: [],
+              techStack: [],
+              goals: [],
+              interests: [],
+              projectTypes: [],
+              experienceLevel: 'intermediate',
+              activityPreference: 'any',
+              popularityWeight: 'medium',
+              documentationImportance: 'important',
+              licensePreference: ['any'],
+              repoSize: ['any'],
+            });
+            
+            // Update local preferences
+            updatePreferences({ onboardingCompleted: true });
+            
+            console.log('✅ Onboarding skipped and saved to database');
+            
+            // Hide onboarding
+            setShowOnboarding(false);
+            
+            // Load simple random repos from table (no filters, no API calls)
+            // Clear existing cards and load fresh
+            setCards([]);
+            await loadRandomRepos(false);
+          } catch (error) {
+            console.error('Error saving onboarding skip:', error);
+            // Still hide onboarding and load repos even if save fails
+            setShowOnboarding(false);
+            setCards([]);
+            await loadRandomRepos(false);
           }
-          // If we have enough cards (5+), just continue - repos will auto-load when low
         }}
       />
     );
