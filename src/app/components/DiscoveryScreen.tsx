@@ -397,155 +397,36 @@ export function DiscoveryScreen() {
         setCards(recommended);
       }
       
+      // Track all displayed repos as "viewed" in background (non-blocking)
+      Promise.all(
+        recommended
+          .filter(repo => repo && repo.id)
+          .map((repo, index) =>
+            interactionService.trackInteraction(repo, 'view', {
+              position: cards.length + index,
+              source: 'discover',
+            }).catch(err => {
+              console.error(`Error tracking view for repo ${repo.id}:`, err);
+            })
+          )
+      ).catch(err => console.error('Error in batch view tracking:', err));
+      
+      // CRITICAL: Hide loading screens ONLY at the very end
       setIsLoadingMore(false);
       setIsLoadingBatch(false);
-
-      if (recommended.length > 0) {
-        // OPTIMIZATION: Show repos immediately, track views in background (non-blocking)
-        // Update UI first for instant feedback
-        if (append) {
-          // Deduplicate when appending
-          setCards(prev => {
-            const existingIds = new Set(prev.map(c => c.id));
-            const newRepos = recommended.filter(r => r && r.id && !existingIds.has(r.id));
-            return [...prev, ...newRepos];
-          });
-          setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
-        } else {
-          setCards(recommended);
-          setIsLoadingMore(false);
-        }
-        
-        // Track all displayed repos as "viewed" in background (non-blocking)
-        // IMPORTANT: This tracking is USER-SPECIFIC - the same repo can still
-        // be recommended to other users. Only this user won't see it again.
-        // OPTIMIZATION: Batch track all views at once instead of sequentially
-        Promise.all(
-          recommended
-            .filter(repo => repo && repo.id)
-            .map((repo, index) =>
-              interactionService.trackInteraction(repo, 'view', {
-                position: cards.length + index,
-                source: 'discover',
-              }).catch(err => {
-                console.error(`Error tracking view for repo ${repo.id}:`, err);
-              })
-            )
-        ).catch(err => console.error('Error in batch view tracking:', err));
-      } else {
-        // Last resort: try any cluster (not generic trending)
-        console.log('No recommendations found, trying any available cluster...');
-        const { data: clusters } = await supabase.from('cluster_metadata').select('cluster_name').limit(1);
-        if (clusters && clusters.length > 0) {
-          const fallbackCluster = clusters[0].cluster_name;
-          const fallbackRepos = await clusterService.getBestOfCluster(
-            fallbackCluster,
-            20,
-            excludeIds,
-            actualUserId
-          );
-          if (fallbackRepos.length > 0) {
-            // Filter out overly popular repos (>30k stars) unless user wants high popularity
-            const MAX_STARS = 30000;
-            const filteredFallbackRepos = preferences.popularityWeight === 'high'
-              ? fallbackRepos
-              : fallbackRepos.filter(r => r && r.id && r.stars <= MAX_STARS);
-            
-            // OPTIMIZATION: Show repos immediately, track in background
-            if (append) {
-              // Deduplicate when appending
-              setCards(prev => {
-                const existingIds = new Set(prev.map(c => c.id));
-                const newRepos = filteredFallbackRepos.filter(r => r && r.id && !existingIds.has(r.id));
-                return [...prev, ...newRepos];
-              });
-              setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
-            } else {
-              setCards(filteredFallbackRepos);
-              setIsLoadingMore(false);
-            }
-            
-            // Track views in background (non-blocking)
-            Promise.all(
-              filteredFallbackRepos
-                .filter(repo => repo && repo.id)
-                .map((repo, index) =>
-                  interactionService.trackInteraction(repo, 'view', {
-                    position: cards.length + index,
-                    source: 'discover',
-                  }).catch(err => console.error(`Error tracking view:`, err))
-                )
-            ).catch(err => console.error('Error in batch view tracking:', err));
-            
-            return;
-          }
-        }
-        
-        // Only use generic trending as absolute last resort
-        console.warn('Using generic trending as last resort - this should not happen!');
-        const { githubService } = await import('@/services/github.service');
-        const trending = await githubService.getTrendingRepos({
-          since: 'daily',
-          perPage: 20,
-          usePagination: false,
-        });
-        
-        // Filter out overly popular repos (>30k stars) unless user wants high popularity
-        const MAX_STARS = 30000;
-        const filteredTrending = preferences.popularityWeight === 'high'
-          ? trending
-          : trending.filter(r => r.stars <= MAX_STARS);
-        
-        const reposWithScores = filteredTrending.map(repo => ({
-          ...repo,
-          fitScore: 85,
-        }));
-        if (append) {
-          setCards(prev => [...prev, ...reposWithScores]);
-          setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
-        } else {
-          setCards(reposWithScores);
-          setIsLoadingMore(false);
-        }
-      }
     } catch (error) {
       console.error('Error loading personalized repos:', error);
-      // Final fallback
-      try {
-        const { githubService } = await import('@/services/github.service');
-        const trending = await githubService.getTrendingRepos({
-          since: 'daily',
-          perPage: 20,
-          usePagination: false,
-        });
-        
-        // Filter out overly popular repos (>30k stars) unless user wants high popularity
-        const MAX_STARS = 30000;
-        const filteredTrending = preferences.popularityWeight === 'high'
-          ? trending
-          : trending.filter(r => r.stars <= MAX_STARS);
-        
-        const reposWithScores = filteredTrending.map(repo => ({
-          ...repo,
-          fitScore: 85,
-        }));
-        if (append) {
-          setCards(prev => [...prev, ...reposWithScores]);
-          setIsLoadingMore(false); // IMPORTANT: Reset loading state when appending
-        } else {
-          setCards(reposWithScores);
-          setIsLoadingMore(false);
-        }
-      } catch (fallbackError) {
-        console.error('Failed to load repos as fallback:', fallbackError);
-        if (!append) {
-          setCards([]);
-        }
-      }
-    } finally {
       setIsLoadingMore(false);
+      setIsLoadingBatch(false);
+      
+      // On error, fallback to random repos
+      if (retryCount < MAX_RETRIES) {
+        return loadPersonalizedRepos(append, retryCount + 1);
+      } else {
+        await loadRandomRepos(append);
+      }
     }
-  }, [preferences]);
+  }, [preferences, cards.length, loadRandomRepos]);
 
   // Check if PWA is installed on mount and periodically
   // Also track PWA installs/opens
