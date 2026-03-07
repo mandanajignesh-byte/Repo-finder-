@@ -8,6 +8,7 @@ import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
 import { SignatureCard } from './SignatureCard';
 import { OnboardingQuestionnaire } from './OnboardingQuestionnaire';
+import { OnboardingPopup } from './OnboardingPopup';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { enhancedRecommendationService } from '@/services/enhanced-recommendation.service';
 import { interactionService } from '@/services/interaction.service';
@@ -38,6 +39,7 @@ export function DiscoveryScreen() {
   const [swipeCount, setSwipeCount] = useState(0); // Track swipe count for delayed onboarding
   const [showPWAInstallPrompt, setShowPWAInstallPrompt] = useState(false);
   const [isPWAInstalledState, setIsPWAInstalledState] = useState(false);
+  const [showOnboardingPopup, setShowOnboardingPopup] = useState(false);
 
   // ── Undo (persisted via Supabase, max 10 in-session stack) ──────────────
   const [skippedRepos, setSkippedRepos] = useState<Repository[]>([]);
@@ -531,6 +533,38 @@ export function DiscoveryScreen() {
     
     loadRepos();
   }, []);
+
+  // Show onboarding popup for new users (after a short delay to let them see the app first)
+  useEffect(() => {
+    const checkAndShowPopup = () => {
+      // Check localStorage for popup dismissal
+      const popupDismissed = localStorage.getItem('onboarding_popup_dismissed');
+      
+      // Check if onboarding is completed
+      const localPrefs = (() => {
+        try {
+          const stored = localStorage.getItem('github_repo_app_preferences');
+          return stored ? JSON.parse(stored) : null;
+        } catch {
+          return null;
+        }
+      })();
+      
+      const hasCompletedOnboarding = localPrefs?.onboardingCompleted || preferences.onboardingCompleted;
+      
+      // Show popup if:
+      // 1. Onboarding not completed
+      // 2. Popup hasn't been dismissed in this session
+      // 3. Not currently showing full onboarding
+      if (!hasCompletedOnboarding && !popupDismissed && !showOnboarding && loaded) {
+        setShowOnboardingPopup(true);
+      }
+    };
+
+    // Show popup after 2 seconds to let user see the app first
+    const timer = setTimeout(checkAndShowPopup, 2000);
+    return () => clearTimeout(timer);
+  }, [loaded, preferences.onboardingCompleted, showOnboarding]);
 
   // Track previous preferences to detect changes
   const prevPreferencesRef = useRef<string>('');
@@ -1463,6 +1497,21 @@ export function DiscoveryScreen() {
           </motion.button>
         </div>
       )}
+
+      {/* Onboarding Popup - Shows for new users */}
+      <OnboardingPopup
+        show={showOnboardingPopup}
+        onStartOnboarding={() => {
+          setShowOnboardingPopup(false);
+          setShowOnboarding(true);
+          // Don't set dismissed flag - we want it to reappear if they skip
+        }}
+        onDismiss={() => {
+          setShowOnboardingPopup(false);
+          // Mark as dismissed for this session only
+          localStorage.setItem('onboarding_popup_dismissed', 'true');
+        }}
+      />
 
       {/* PWA Install Prompt - Shows after 2-3 swipes if not installed */}
       <PWAInstallPrompt 
