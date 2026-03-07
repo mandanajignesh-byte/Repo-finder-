@@ -12,9 +12,7 @@ import { AppleOnboarding } from './AppleOnboarding';
 import { OnboardingPopup } from './OnboardingPopup';
 import { RepoLoadingScreen } from './RepoLoadingScreen';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { enhancedRecommendationService } from '@/services/enhanced-recommendation.service';
 import { interactionService } from '@/services/interaction.service';
-import { repoPoolService } from '@/services/repo-pool.service';
 import { clusterService } from '@/services/cluster.service';
 import { supabase } from '@/lib/supabase';
 import { trackRepoInteraction, trackOnboarding, trackNavigation } from '@/utils/analytics';
@@ -81,260 +79,111 @@ export function DiscoveryScreen() {
   // Don't show onboarding immediately - let users try the site first
   // Onboarding will be triggered after 4-5 swipes if not completed
 
-  // Load random repos from database when no preferences exist
-  // CRITICAL: Batch loading with loading screen (no background processing)
+  // SIMPLIFIED: Load random repos from any cluster
   const loadRandomRepos = useCallback(async (append = false) => {
     try {
-      // CRITICAL: Show loading screen for batch loading
-      if (!append) {
-        setIsLoadingBatch(true);
-      }
-      
+      if (!append) setIsLoadingBatch(true);
       setIsLoadingMore(true);
       
-      // OPTIMIZATION: Get user ID and cluster data in parallel for faster loading
       const { supabaseService } = await import('@/services/supabase.service');
+      const userId = await supabaseService.getOrCreateUserId();
+      const seenIds = await supabaseService.getAllSeenRepoIds(userId);
       
-      // Start all async operations in parallel
-      const [actualUserId, clustersResult] = await Promise.all([
-        supabaseService.getOrCreateUserId(),
-        supabase.from('cluster_metadata').select('cluster_name').eq('is_active', true)
-      ]);
-      
-      // Get seen repo IDs (can happen in parallel with cluster selection)
-      const allSeenRepoIdsPromise = supabaseService.getAllSeenRepoIds(actualUserId);
-      
-      const { data: clusters } = clustersResult;
+      const { data: clusters } = await supabase
+        .from('cluster_metadata')
+        .select('cluster_name')
+        .eq('is_active', true);
       
       if (!clusters || clusters.length === 0) {
-        console.error('No active clusters found');
+        console.error('No clusters found');
         setIsLoadingMore(false);
         setIsLoadingBatch(false);
         return;
       }
       
-      // Pick a random cluster
       const randomCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
-      
-      // Get seen repo IDs (now we have it)
-      const allSeenRepoIds = await allSeenRepoIdsPromise;
-      
-      // CRITICAL: Fetch exactly 8-10 repos per batch (no background processing)
       const batchSize = append ? 10 : 8;
-      const randomRepos = await clusterService.getBestOfCluster(
+      
+      console.log(`🎲 Loading random repos from: ${randomCluster}`);
+      
+      const repos = await clusterService.getBestOfCluster(
         randomCluster,
-        batchSize * 4, // Fetch 4x to account for aggressive deduplication
-        allSeenRepoIds,
-        actualUserId
+        batchSize * 3,
+        seenIds,
+        userId
       );
       
-      if (randomRepos.length > 0) {
-        // Filter out overly popular repos (>30k stars) for better variety
-        const MAX_STARS = 30000;
-        
-      // CRITICAL: Simple deduplication - only filter by current cards in queue
-      const existingIds = new Set(cards.map(c => c.id).filter(Boolean));
-      const existingFullNames = new Set(cards.map(c => c.fullName?.toLowerCase()).filter(Boolean));
-      
-      const filteredRepos = randomRepos
-        .filter(r => r && r.id && r.stars <= MAX_STARS)
-        .filter(r => !existingIds.has(r.id) && !existingFullNames.has(r.fullName?.toLowerCase()))
+      // Deduplicate
+      const existingIds = new Set(cards.map(c => c?.id).filter(Boolean));
+      const filtered = repos
+        .filter(r => r && r.id && !existingIds.has(r.id))
         .slice(0, batchSize);
       
-      console.log(`✅ Loaded random batch: ${filteredRepos.length} unique repos (after deduplication)`);
-        
-        // CRITICAL: If we got 0 repos, try different cluster
-        if (filteredRepos.length === 0) {
-          console.warn('⚠️ No unique repos found! Trying different cluster...');
-          
-          // Try a different random cluster
-          const differentCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
-          const freshRepos = await clusterService.getBestOfCluster(
-            differentCluster,
-            batchSize * 3, // Fetch 3x
-            allSeenRepoIds, // Only exclude database-seen repos
-            actualUserId
-          );
-          
-          // Simple filter this time
-          const simpleFreshRepos = freshRepos
-            .filter(r => r && r.id && r.stars <= MAX_STARS && !allSeenRepoIds.includes(r.id))
-            .slice(0, batchSize);
-          
-          console.log(`✅ After cluster switch: ${simpleFreshRepos.length} repos`);
-          
-          if (simpleFreshRepos.length > 0) {
-            if (append) {
-              setCards(prev => [...prev, ...simpleFreshRepos]);
-            } else {
-              setCards(simpleFreshRepos);
-            }
-          }
+      console.log(`✅ Loaded: ${filtered.length} random repos`);
+      
+      if (filtered.length > 0) {
+        if (append) {
+          setCards(prev => [...prev, ...filtered.filter(r => !prev.some(p => p.id === r.id))]);
         } else {
-          // CRITICAL: No background processing - show batch immediately
-          if (append) {
-            setCards(prev => {
-              // Final deduplication check before adding
-              const prevIds = new Set(prev.map(c => c.id));
-              const prevFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
-              const prevNames = new Set(prev.map(c => c.name?.toLowerCase()));
-              
-              const trulyNew = filteredRepos.filter(r => 
-                r && 
-                r.id && 
-                !prevIds.has(r.id) && 
-                !prevFullNames.has(r.fullName?.toLowerCase()) &&
-                !prevNames.has(r.name?.toLowerCase())
-              );
-              
-              console.log(`✅ Adding ${trulyNew.length} truly unique random repos to queue`);
-              return [...prev, ...trulyNew];
-            });
-          } else {
-            // Show first batch immediately
-            setCards(filteredRepos);
-          }
+          setCards(filtered);
         }
         
-        setIsLoadingMore(false);
-        setIsLoadingBatch(false);
-        
-        // Track views in background (non-blocking)
-        Promise.all(
-          filteredRepos
-            .filter(repo => repo && repo.id)
-            .map((repo, index) =>
-              interactionService.trackInteraction(repo, 'view', {
-                position: cards.length + index,
-                source: 'discover',
-              }).catch(err => console.error(`Error tracking view:`, err))
-            )
-        ).catch(err => console.error('Error in batch view tracking:', err));
-      } else {
-        setIsLoadingMore(false);
-        setIsLoadingBatch(false);
+        // Track views
+        filtered.forEach((repo, i) => {
+          interactionService.trackInteraction(repo, 'view', {
+            position: cards.length + i,
+            source: 'discover',
+          }).catch(() => {});
+        });
       }
+      
+      setIsLoadingMore(false);
+      setIsLoadingBatch(false);
     } catch (error) {
       console.error('Error loading random repos:', error);
       setIsLoadingMore(false);
       setIsLoadingBatch(false);
     }
-  }, [cards.length]);
+  }, [cards]);
 
+  // SIMPLIFIED: Load personalized repos with smart fallback
   const loadPersonalizedRepos = useCallback(async (append = false, retryCount = 0) => {
     try {
-      // CRITICAL: Prevent infinite loops - max 3 attempts
       const MAX_RETRIES = 3;
       if (retryCount >= MAX_RETRIES) {
-        console.warn(`⚠️ Max retries (${MAX_RETRIES}) reached, falling back to random repos`);
-        await loadRandomRepos(append);
-        return;
+        console.warn(`⚠️ Max retries reached, using random repos`);
+        return loadRandomRepos(append);
       }
       
-      // CRITICAL: Show loading screen for batch loading (no background processing)
-      if (!append) {
-        setIsLoadingBatch(true);
-      }
-      
+      if (!append) setIsLoadingBatch(true);
       setIsLoadingMore(true);
-      const sessionHistory = interactionService.getSessionInteractions();
 
-      // Get user ID first (needed for multiple operations)
       const { supabaseService } = await import('@/services/supabase.service');
-      const actualUserId = await supabaseService.getOrCreateUserId();
-
-      // OPTIMIZATION: Fetch seen IDs + saved/liked in parallel FIRST
-      const [allSeenRepoIds, savedAndLiked] = await Promise.all([
-        supabaseService.getAllSeenRepoIds(actualUserId),
-        Promise.all([
-          supabaseService.getSavedRepositories(actualUserId),
-          supabaseService.getLikedRepositories(actualUserId),
-        ]),
-      ]);
-
-      // Update saved/liked repos state
-      const [saved, liked] = savedAndLiked;
-      if (saved.length > 0) setSavedRepos(saved);
-      if (liked.length > 0) setLikedRepos(liked);
-      
-      // Also exclude currently shown repos in this session
-      const shownIds = new Set(cards.map(card => card?.id).filter(Boolean));
-      const excludeIds = [...new Set([...allSeenRepoIds, ...Array.from(shownIds)])];
-
-      // CRITICAL: Fetch exactly 5-10 repos per batch
+      const userId = await supabaseService.getOrCreateUserId();
+      const seenIds = await supabaseService.getAllSeenRepoIds(userId);
+      const excludeIds = [...seenIds, ...cards.map(c => c?.id).filter(Boolean)];
       const batchSize = append ? 10 : 8;
-      let recommended: Repository[] = [];
       
-      // FALLBACK HIERARCHY:
-      // 1. Try primary cluster + tech stack (most specific)
-      // 2. Try primary cluster only (less specific)
-      // 3. Try any repos from tech stack tags (broader)
-      // 4. Try random repos from any cluster (fallback)
+      console.log(`🔍 Loading personalized repos (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
       
-      console.log(`🔍 Attempt ${retryCount + 1}/${MAX_RETRIES}: Loading personalized repos...`);
+      let repos: Repository[] = [];
       
-      // STEP 1: Try primary cluster + tech stack (most specific)
-      if (preferences.primaryCluster && preferences.techStack && preferences.techStack.length > 0) {
-        console.log(`🎯 Trying: ${preferences.primaryCluster} cluster + tech stack [${preferences.techStack.join(', ')}]`);
-        
-        await repoPoolService.buildPool(preferences, allSeenRepoIds);
-        
-        if (sessionHistory.length > 0) {
-          repoPoolService.refinePoolBasedOnInteractions(
-            sessionHistory.map(i => ({ repoId: i.repoId, action: i.action }))
-          );
-        }
-        
-        recommended = await repoPoolService.getRecommendations(
-          actualUserId, 
-          preferences, 
-          batchSize * 4,
-          Array.from(shownIds),
-          allSeenRepoIds
-        );
-        
-        console.log(`   Found: ${recommended.length} repos with cluster + tech stack`);
-      }
-      
-      // STEP 2: If not enough, try primary cluster only
-      if (recommended.length < 3 && preferences.primaryCluster) {
-        console.log(`🎯 Trying: ${preferences.primaryCluster} cluster only (no tech filter)`);
-        
+      // 1. Try primary cluster
+      if (preferences.primaryCluster && repos.length < 3) {
+        console.log(`🎯 Trying: ${preferences.primaryCluster} cluster`);
         const clusterRepos = await clusterService.getBestOfCluster(
           preferences.primaryCluster,
-          batchSize * 4,
+          batchSize * 3,
           excludeIds,
-          actualUserId
+          userId
         );
-        
-        console.log(`   Found: ${clusterRepos.length} repos from cluster`);
-        recommended = [...recommended, ...clusterRepos];
+        repos = [...repos, ...clusterRepos];
+        console.log(`   Found: ${clusterRepos.length} repos`);
       }
       
-      // STEP 3: If still not enough, try tech stack tags from any cluster
-      if (recommended.length < 3 && preferences.techStack && preferences.techStack.length > 0) {
-        console.log(`🎯 Trying: Tech stack tags from any cluster [${preferences.techStack.join(', ')}]`);
-        
-        // Get repos from repos_master table filtered by tech stack tags
-        const { data: techRepos } = await supabase
-          .from('repos_master')
-          .select('*')
-          .contains('tags', preferences.techStack)
-          .not('id', 'in', `(${excludeIds.join(',')})`)
-          .limit(batchSize * 2);
-        
-        if (techRepos && techRepos.length > 0) {
-          const { reposMasterService } = await import('@/services/repos-master.service');
-          const mappedTechRepos = techRepos.map((repo: any) => reposMasterService.mapToRepository(repo));
-          console.log(`   Found: ${mappedTechRepos.length} repos from tech tags`);
-          recommended = [...recommended, ...mappedTechRepos];
-        }
-      }
-      
-      // STEP 4: Last resort - random repos from any active cluster
-      if (recommended.length < 3) {
-        console.log(`🎯 Fallback: Loading random repos from any cluster`);
-        
+      // 2. Try random cluster if not enough
+      if (repos.length < 3) {
+        console.log(`🎯 Trying: Random cluster`);
         const { data: clusters } = await supabase
           .from('cluster_metadata')
           .select('cluster_name')
@@ -346,87 +195,52 @@ export function DiscoveryScreen() {
             randomCluster,
             batchSize * 2,
             excludeIds,
-            actualUserId
+            userId
           );
-          
-          console.log(`   Found: ${randomRepos.length} random repos from ${randomCluster}`);
-          recommended = [...recommended, ...randomRepos];
+          repos = [...repos, ...randomRepos];
+          console.log(`   Found: ${randomRepos.length} repos from ${randomCluster}`);
         }
       }
       
-      // CRITICAL: Deduplication
-      const existingIds = new Set(cards.map(card => card?.id).filter(Boolean));
-      const existingFullNames = new Set(cards.map(card => card?.fullName?.toLowerCase()).filter(Boolean));
+      // Deduplicate
+      const existingIds = new Set(cards.map(c => c?.id).filter(Boolean));
+      repos = repos
+        .filter(r => r && r.id && !existingIds.has(r.id))
+        .slice(0, batchSize);
       
-      recommended = recommended.filter(repo => {
-        if (!repo || !repo.id) return false;
-        return !existingIds.has(repo.id) && !existingFullNames.has(repo.fullName?.toLowerCase());
-      }).slice(0, batchSize);
+      console.log(`✅ Final: ${repos.length} unique repos`);
       
-      console.log(`✅ Final batch: ${recommended.length} unique repos`);
-      
-      // If still 0 repos after all attempts, retry or fallback
-      if (recommended.length === 0) {
-        console.warn(`⚠️ 0 repos found after all fallbacks, retry ${retryCount + 1}/${MAX_RETRIES}`);
+      if (repos.length === 0) {
         setIsLoadingMore(false);
         setIsLoadingBatch(false);
-        
-        // Retry with incremented count
         return loadPersonalizedRepos(append, retryCount + 1);
       }
 
-      // CRITICAL: Update cards
+      // Update cards
       if (append) {
-        setCards(prev => {
-          const prevIds = new Set(prev.map(c => c.id));
-          const prevFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
-          const prevNames = new Set(prev.map(c => c.name?.toLowerCase()));
-          
-          const trulyNew = recommended.filter(r => 
-            r && 
-            r.id && 
-            !prevIds.has(r.id) && 
-            !prevFullNames.has(r.fullName?.toLowerCase()) &&
-            !prevNames.has(r.name?.toLowerCase())
-          );
-          
-          console.log(`✅ Adding ${trulyNew.length} truly unique repos to queue`);
-          return [...prev, ...trulyNew];
-        });
+        setCards(prev => [...prev, ...repos.filter(r => !prev.some(p => p.id === r.id))]);
       } else {
-        setCards(recommended);
+        setCards(repos);
       }
       
-      // Track all displayed repos as "viewed" in background (non-blocking)
-      Promise.all(
-        recommended
-          .filter(repo => repo && repo.id)
-          .map((repo, index) =>
-            interactionService.trackInteraction(repo, 'view', {
-              position: cards.length + index,
-              source: 'discover',
-            }).catch(err => {
-              console.error(`Error tracking view for repo ${repo.id}:`, err);
-            })
-          )
-      ).catch(err => console.error('Error in batch view tracking:', err));
+      // Track views in background
+      repos.forEach((repo, i) => {
+        interactionService.trackInteraction(repo, 'view', {
+          position: cards.length + i,
+          source: 'discover',
+        }).catch(() => {});
+      });
       
-      // CRITICAL: Hide loading screens ONLY at the very end
       setIsLoadingMore(false);
       setIsLoadingBatch(false);
     } catch (error) {
-      console.error('Error loading personalized repos:', error);
+      console.error('Error loading repos:', error);
       setIsLoadingMore(false);
       setIsLoadingBatch(false);
-      
-      // On error, fallback to random repos
-      if (retryCount < MAX_RETRIES) {
-        return loadPersonalizedRepos(append, retryCount + 1);
-      } else {
-        await loadRandomRepos(append);
-      }
+      if (retryCount < 3) return loadPersonalizedRepos(append, retryCount + 1);
+      return loadRandomRepos(append);
     }
-  }, [preferences, cards.length, loadRandomRepos]);
+  }, [preferences.primaryCluster, cards, loadRandomRepos]);
 
   // Check if PWA is installed on mount and periodically
   // Also track PWA installs/opens

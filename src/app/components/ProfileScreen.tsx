@@ -18,50 +18,31 @@ interface ProfileScreenProps {
   onClose: () => void;
 }
 
-const LANGUAGES = [
-  'JavaScript', 'TypeScript', 'Python', 'Java', 'Go', 'Rust', 'C++', 'C#',
-  'PHP', 'Ruby', 'Swift', 'Kotlin', 'Dart', 'R', 'Scala', 'Elixir'
+// Match new onboarding structure
+const CLUSTERS = [
+  { id: 'ai-ml', label: 'AI & Machine Learning', icon: '🤖' },
+  { id: 'frontend', label: 'Web Frontend', icon: '🎨' },
+  { id: 'devops', label: 'DevOps & Infrastructure', icon: '🔧' },
+  { id: 'mobile', label: 'Mobile Apps', icon: '📱' },
+  { id: 'game-dev', label: 'Game Development', icon: '🎮' },
+  { id: 'backend', label: 'Backend & APIs', icon: '⚙️' },
+  { id: 'data-science', label: 'Data Science', icon: '📊' },
+  { id: 'desktop', label: 'Desktop Apps', icon: '💻' },
+  { id: 'ai-automation', label: 'AI Automation', icon: '🤖' },
+  { id: 'open-source-alternatives', label: 'Open Source Tools', icon: '🔓' },
 ];
 
-const FRAMEWORKS = [
-  'React', 'Vue', 'Angular', 'Next.js', 'Nuxt', 'Svelte',
-  'Express', 'FastAPI', 'Django', 'Flask', 'Spring', 'Laravel',
-  'Flutter', 'React Native', 'Ionic', 'Electron',
-  'TensorFlow', 'PyTorch', 'Pandas', 'NumPy'
+const TECH_STACK = [
+  'typescript', 'javascript', 'python', 'go', 'rust', 'java', 'php', 'swift', 'dart',
+  'react', 'vue', 'angular', 'svelte', 'nextjs',
+  'nodejs', 'django', 'flask', 'flutter', 'docker', 'kubernetes', 'databases', 'ai'
 ];
 
-const USE_CASES = [
-  { id: 'learning-new-tech',  label: 'Learning New Technology',     icon: '📚' },
-  { id: 'building-project',   label: 'Building a Project',          icon: '🛠️' },
-  { id: 'contributing',       label: 'Contributing to Open Source', icon: '🤝' },
-  { id: 'finding-solutions',  label: 'Finding Solutions',           icon: '💡' },
-  { id: 'exploring',          label: 'Exploring & Research',        icon: '🔍' },
-];
-
-const EXPERIENCE_LEVELS = [
-  { id: 'beginner',     label: 'Beginner',     icon: '🌱' },
-  { id: 'intermediate', label: 'Intermediate', icon: '🚀' },
-  { id: 'advanced',     label: 'Advanced',     icon: '⭐' },
-];
-
-const DOMAINS = [
-  { id: 'web-frontend', label: 'Web Frontend',     icon: '🌐' },
-  { id: 'web-backend',  label: 'Web Backend',      icon: '⚙️' },
-  { id: 'mobile',       label: 'Mobile',           icon: '📱' },
-  { id: 'desktop',      label: 'Desktop',          icon: '💻' },
-  { id: 'data-science', label: 'Data Science',     icon: '📊' },
-  { id: 'devops',       label: 'DevOps',           icon: '🔧' },
-  { id: 'game-dev',     label: 'Game Development', icon: '🎮' },
-  { id: 'ai-ml',        label: 'AI / ML',          icon: '🤖' },
-];
-
-const PROJECT_TYPES = [
-  { id: 'tutorial',    label: 'Tutorials & Courses',    icon: '📖' },
-  { id: 'boilerplate', label: 'Starter Templates',      icon: '⚡' },
-  { id: 'library',     label: 'Libraries & Packages',   icon: '📦' },
-  { id: 'framework',   label: 'Frameworks',             icon: '🏗️' },
-  { id: 'full-app',    label: 'Complete Applications',  icon: '💻' },
-  { id: 'tool',        label: 'Tools & Utilities',      icon: '🔧' },
+const GOALS = [
+  { id: 'learning', label: 'Learning & Exploring', icon: '📚' },
+  { id: 'building', label: 'Building Projects', icon: '🛠️' },
+  { id: 'contributing', label: 'Contributing to Open Source', icon: '🤝' },
+  { id: 'research', label: 'Research & Discovery', icon: '🔍' },
 ];
 
 // ─── Color palettes ──────────────────────────────────────────────────────────
@@ -834,18 +815,18 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
           )}
         </SignatureCard>
 
-        {/* ── Your Goals ────────────────────────────────────────── */}
+        {/* ── Primary Interest ────────────────────────────────────────── */}
         <SignatureCard className="p-6 mb-4" showLayers={false}>
-          <h2 className="text-xl text-white mb-4" style={{ fontWeight: 700 }}>Your Goals</h2>
+          <h2 className="text-xl text-white mb-4" style={{ fontWeight: 700 }}>Primary Interest</h2>
           {isEditing ? (
             <div className="flex flex-wrap gap-2">
-              {USE_CASES.map(uc => (
+              {CLUSTERS.map(cluster => (
                 <SelectChip
-                  key={uc.id}
-                  label={uc.label}
-                  selected={(editedPrefs.goals || []).includes(uc.id)}
-                  color={chipColor(GOAL_COLORS, uc.id)}
-                  onClick={() => setEditedPrefs({ ...editedPrefs, goals: toggleSelection(editedPrefs.goals || [], uc.id) })}
+                  key={cluster.id}
+                  label={cluster.label}
+                  selected={editedPrefs.primaryCluster === cluster.id}
+                  color={chipColor(GOAL_COLORS, cluster.id)}
+                  onClick={() => setEditedPrefs({ ...editedPrefs, primaryCluster: cluster.id })}
                 />
               ))}
             </div>
@@ -862,18 +843,18 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
           )}
         </SignatureCard>
 
-        {/* ── Domains / Platforms ───────────────────────────────── */}
+        {/* ── Tech Stack ───────────────────────────────── */}
         <SignatureCard className="p-6 mb-4" showLayers={false}>
-          <h2 className="text-xl text-white mb-4" style={{ fontWeight: 700 }}>Domains / Platforms</h2>
+          <h2 className="text-xl text-white mb-4" style={{ fontWeight: 700 }}>Tech Stack</h2>
           {isEditing ? (
             <div className="flex flex-wrap gap-2">
-              {DOMAINS.map(d => (
+              {TECH_STACK.map(tech => (
                 <SelectChip
-                  key={d.id}
-                  label={d.label}
-                  selected={(editedPrefs.interests || []).includes(d.id)}
-                  color={chipColor(DOMAIN_COLORS, d.id)}
-                  onClick={() => setEditedPrefs({ ...editedPrefs, interests: toggleSelection(editedPrefs.interests || [], d.id) })}
+                  key={tech}
+                  label={tech}
+                  selected={(editedPrefs.techStack || []).includes(tech)}
+                  color={chipColor(LANG_COLORS, tech)}
+                  onClick={() => setEditedPrefs({ ...editedPrefs, techStack: toggleSelection(editedPrefs.techStack || [], tech) })}
                 />
               ))}
             </div>
@@ -890,18 +871,18 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
           )}
         </SignatureCard>
 
-        {/* ── Project Types ─────────────────────────────────────── */}
+        {/* ── Your Goals ─────────────────────────────────────── */}
         <SignatureCard className="p-6 mb-4" showLayers={false}>
-          <h2 className="text-xl text-white mb-4" style={{ fontWeight: 700 }}>Project Types</h2>
+          <h2 className="text-xl text-white mb-4" style={{ fontWeight: 700 }}>Your Goals</h2>
           {isEditing ? (
             <div className="flex flex-wrap gap-2">
-              {PROJECT_TYPES.map(pt => (
+              {GOALS.map(goal => (
                 <SelectChip
-                  key={pt.id}
-                  label={pt.label}
-                  selected={(editedPrefs.projectTypes || []).includes(pt.id)}
-                  color={chipColor(PROJ_COLORS, pt.id)}
-                  onClick={() => setEditedPrefs({ ...editedPrefs, projectTypes: toggleSelection(editedPrefs.projectTypes || [], pt.id) })}
+                  key={goal.id}
+                  label={goal.label}
+                  selected={(editedPrefs.goals || []).includes(goal.id)}
+                  color={chipColor(GOAL_COLORS, goal.id)}
+                  onClick={() => setEditedPrefs({ ...editedPrefs, goals: toggleSelection(editedPrefs.goals || [], goal.id) })}
                 />
               ))}
             </div>
