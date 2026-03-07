@@ -45,11 +45,8 @@ export function DiscoveryScreen() {
   const [loadedRepoCount, setLoadedRepoCount] = useState(0);
   const [isLoadingBatch, setIsLoadingBatch] = useState(false); // Loading next batch of repos
   
-  // CRITICAL: Session-based tracker to prevent showing same repos in current session
-  // Auto-resets after 50 repos to prevent exhaustion
-  const [sessionSeenRepoIds, setSessionSeenRepoIds] = useState<Set<string>>(new Set());
-  const [sessionSeenFullNames, setSessionSeenFullNames] = useState<Set<string>>(new Set());
-  const [sessionRepoCount, setSessionRepoCount] = useState(0);
+  // Session tracker removed - database handles "seen" tracking via user_interactions table
+  // This prevents pool exhaustion and allows users to see repos again after some time
 
   // ── Undo (persisted via Supabase, max 10 in-session stack) ──────────────
   const [skippedRepos, setSkippedRepos] = useState<Repository[]>([]);
@@ -134,34 +131,20 @@ export function DiscoveryScreen() {
         // Filter out overly popular repos (>30k stars) for better variety
         const MAX_STARS = 30000;
         
-        // CRITICAL: Smart deduplication - only use session tracker if we have enough repos
-        const existingIds = new Set(cards.map(c => c.id).filter(Boolean));
-        const existingFullNames = new Set(cards.map(c => c.fullName?.toLowerCase()).filter(Boolean));
+      // CRITICAL: Simple deduplication - only filter by current cards in queue
+      const existingIds = new Set(cards.map(c => c.id).filter(Boolean));
+      const existingFullNames = new Set(cards.map(c => c.fullName?.toLowerCase()).filter(Boolean));
+      
+      const filteredRepos = randomRepos
+        .filter(r => r && r.id && r.stars <= MAX_STARS)
+        .filter(r => !existingIds.has(r.id) && !existingFullNames.has(r.fullName?.toLowerCase()))
+        .slice(0, batchSize);
+      
+      console.log(`✅ Loaded random batch: ${filteredRepos.length} unique repos (after deduplication)`);
         
-        // First pass: basic filtering
-        let filtered = randomRepos
-          .filter(r => r && r.id && r.stars <= MAX_STARS)
-          .filter(r => !existingIds.has(r.id) && !existingFullNames.has(r.fullName?.toLowerCase()));
-        
-        // If we have enough repos (20+), apply session tracker
-        if (filtered.length >= 20) {
-          filtered = filtered.filter(r => 
-            !sessionSeenRepoIds.has(r.id) && !sessionSeenFullNames.has(r.fullName?.toLowerCase())
-          );
-        } else {
-          console.log(`⚠️ Only ${filtered.length} repos after basic filter, skipping session tracker to avoid over-filtering`);
-        }
-        
-        const filteredRepos = filtered.slice(0, batchSize);
-        
-        console.log(`✅ Loaded random batch: ${filteredRepos.length} unique repos (after smart deduplication)`);
-        
-        // CRITICAL: If we got 0 repos, clear session tracker and try different cluster
+        // CRITICAL: If we got 0 repos, try different cluster
         if (filteredRepos.length === 0) {
-          console.warn('⚠️ No unique repos found! Clearing session tracker and trying different cluster...');
-          setSessionSeenRepoIds(new Set());
-          setSessionSeenFullNames(new Set());
-          setSessionRepoCount(0);
+          console.warn('⚠️ No unique repos found! Trying different cluster...');
           
           // Try a different random cluster
           const differentCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
@@ -292,27 +275,17 @@ export function DiscoveryScreen() {
         allSeenRepoIds // OPTIMIZATION: Pass pre-fetched seen repo IDs to avoid duplicate call
       );
       
-      // CRITICAL: Smart deduplication - only use session tracker if we have enough repos
-      // This prevents over-filtering when pool is small
+      // CRITICAL: Simple deduplication - only filter by current cards in queue
+      // Don't use session tracker - let database handle "seen" tracking
       const existingIds = new Set(cards.map(card => card?.id).filter(Boolean));
       const existingFullNames = new Set(cards.map(card => card?.fullName?.toLowerCase()).filter(Boolean));
       
-      // First pass: filter by current cards only
-      let filtered = recommended.filter(repo => {
+      recommended = recommended.filter(repo => {
         if (!repo || !repo.id) return false;
         return !existingIds.has(repo.id) && !existingFullNames.has(repo.fullName?.toLowerCase());
-      });
+      }).slice(0, batchSize);
       
-      // If we have enough repos (20+), apply session tracker
-      if (filtered.length >= 20) {
-        filtered = filtered.filter(repo => 
-          !sessionSeenRepoIds.has(repo.id) && !sessionSeenFullNames.has(repo.fullName?.toLowerCase())
-        );
-      } else {
-        console.log(`⚠️ Only ${filtered.length} repos after basic filter, skipping session tracker to avoid over-filtering`);
-      }
-      
-      recommended = filtered.slice(0, batchSize);
+      console.log(`✅ Loaded batch: ${recommended.length} unique repos (after deduplication)`);
       
       console.log(`✅ Loaded batch: ${recommended.length} unique repos (after triple deduplication)`);
 
@@ -879,30 +852,13 @@ export function DiscoveryScreen() {
     }
   }, [cards.length, isLoadingMore, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
 
-  // Reset trigger when card changes AND track as seen in session
+  // Reset trigger when card changes
   useEffect(() => {
     if (cards[0]) {
       setTriggerSwipe(null);
       setIsSwiping(false);
-      
-      // CRITICAL: Track this repo as seen in current session
-      if (cards[0].id) {
-        setSessionSeenRepoIds(prev => new Set(prev).add(cards[0].id));
-        setSessionRepoCount(prev => prev + 1);
-      }
-      if (cards[0].fullName) {
-        setSessionSeenFullNames(prev => new Set(prev).add(cards[0].fullName.toLowerCase()));
-      }
-      
-      // Auto-reset session tracker after 50 repos to prevent exhaustion
-      if (sessionRepoCount >= 50) {
-        console.log('🔄 Auto-resetting session tracker after 50 repos...');
-        setSessionSeenRepoIds(new Set());
-        setSessionSeenFullNames(new Set());
-        setSessionRepoCount(0);
-      }
     }
-  }, [cards[0]?.id, sessionRepoCount]);
+  }, [cards[0]?.id]);
 
   // Update URL to reflect current repo (YouTube-like behavior)
   // All in-app repo URLs use /app/r/owner/repo to stay inside the app shell
