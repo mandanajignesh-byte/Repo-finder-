@@ -274,7 +274,7 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
   };
 
   return (
-    <div className="h-screen bg-[#0B0B0F] flex items-center justify-center p-4 overflow-hidden">
+    <div className="h-screen bg-[#0B0B0F] flex items-center justify-center p-4 pb-24 md:pb-4 overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
@@ -282,10 +282,10 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="max-w-5xl w-full h-full flex flex-col py-6"
+          className="max-w-5xl w-full h-full flex flex-col py-4 md:py-6"
         >
           {/* Progress indicator */}
-          <div className="flex gap-2 mb-6 justify-center flex-shrink-0">
+          <div className="flex gap-2 mb-3 md:mb-6 justify-center flex-shrink-0">
             {[1, 2, 3].map((s) => (
               <motion.div
                 key={s}
@@ -310,12 +310,12 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center space-y-1 mb-4 flex-shrink-0"
+                className="text-center space-y-1 mb-3 md:mb-4 flex-shrink-0"
               >
-                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight">
                   What interests you?
                 </h1>
-                <p className="text-sm text-white/60">
+                <p className="text-xs sm:text-sm text-white/60">
                   Choose your primary area to get started
                 </p>
               </motion.div>
@@ -330,7 +330,7 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedInterest(interest.id)}
-                    className={`group relative p-3 rounded-xl transition-all duration-500 backdrop-blur-xl ${
+                    className={`group relative p-2 sm:p-3 rounded-lg sm:rounded-xl transition-all duration-500 backdrop-blur-xl ${
                       selectedInterest === interest.id
                         ? `bg-gradient-to-br ${interest.gradient} bg-opacity-20 border-2 border-white/30 shadow-xl shadow-purple-500/30`
                         : 'bg-white/5 border-2 border-white/10 hover:border-white/20 hover:bg-white/10'
@@ -340,16 +340,18 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                     {selectedInterest === interest.id && (
                       <motion.div
                         layoutId="selected-interest"
-                        className={`absolute inset-0 bg-gradient-to-br ${interest.gradient} opacity-10 rounded-xl`}
+                        className={`absolute inset-0 bg-gradient-to-br ${interest.gradient} opacity-10 rounded-lg sm:rounded-xl`}
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
                     
-                    <div className="relative flex flex-col items-center gap-2 text-center">
-                      <div className={`p-2 rounded-lg bg-gradient-to-br ${interest.gradient} text-white shadow-lg`}>
-                        {interest.icon}
+                    <div className="relative flex flex-col items-center gap-1.5 sm:gap-2 text-center">
+                      <div className={`p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gradient-to-br ${interest.gradient} text-white shadow-lg`}>
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+                          {interest.icon}
+                        </div>
                       </div>
-                      <div className="text-xs font-semibold text-white leading-tight">
+                      <div className="text-[10px] sm:text-xs font-semibold text-white leading-tight">
                         {interest.label}
                       </div>
                       {selectedInterest === interest.id && (
@@ -377,12 +379,12 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center space-y-1 mb-4 flex-shrink-0"
+                className="text-center space-y-1 mb-3 md:mb-4 flex-shrink-0"
               >
-                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight">
                   What do you use?
                 </h1>
-                <p className="text-sm text-white/60">
+                <p className="text-xs sm:text-sm text-white/60">
                   Select the technologies you work with
                 </p>
               </motion.div>
@@ -403,7 +405,7 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                         setSelectedTech([...selectedTech, tech.id]);
                       }
                     }}
-                    className={`relative px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-500 backdrop-blur-xl ${
+                    className={`relative px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-500 backdrop-blur-xl ${
                       selectedTech.includes(tech.id)
                         ? 'bg-gradient-to-br from-purple-500/30 to-pink-500/30 border-2 border-purple-500/60 text-white shadow-lg shadow-purple-500/30'
                         : 'bg-white/5 border-2 border-white/10 text-white/70 hover:border-white/20 hover:bg-white/10 hover:text-white'
@@ -440,12 +442,12 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-center space-y-1 mb-4 flex-shrink-0"
+                className="text-center space-y-1 mb-3 md:mb-4 flex-shrink-0"
               >
-                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight">
                   What's your goal?
                 </h1>
-                <p className="text-sm text-white/60">
+                <p className="text-xs sm:text-sm text-white/60">
                   How can we help you today?
                 </p>
               </motion.div>
@@ -460,7 +462,7 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedGoal(goal.id)}
-                    className={`group relative p-4 rounded-xl transition-all duration-500 backdrop-blur-xl ${
+                    className={`group relative p-3 sm:p-4 rounded-lg sm:rounded-xl transition-all duration-500 backdrop-blur-xl ${
                       selectedGoal === goal.id
                         ? `bg-gradient-to-br ${goal.gradient} bg-opacity-20 border-2 border-white/30 shadow-xl shadow-purple-500/30`
                         : 'bg-white/5 border-2 border-white/10 hover:border-white/20 hover:bg-white/10'
@@ -469,25 +471,27 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
                     {selectedGoal === goal.id && (
                       <motion.div
                         layoutId="selected-goal"
-                        className={`absolute inset-0 bg-gradient-to-br ${goal.gradient} opacity-10 rounded-xl`}
+                        className={`absolute inset-0 bg-gradient-to-br ${goal.gradient} opacity-10 rounded-lg sm:rounded-xl`}
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
                     
-                    <div className="relative flex items-center gap-3">
-                      <div className={`p-2 rounded-lg bg-gradient-to-br ${goal.gradient} text-white shadow-lg`}>
-                        {goal.icon}
+                    <div className="relative flex items-center gap-2 sm:gap-3">
+                      <div className={`p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gradient-to-br ${goal.gradient} text-white shadow-lg`}>
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+                          {goal.icon}
+                        </div>
                       </div>
-                      <div className="flex-1 text-left text-sm font-semibold text-white">
+                      <div className="flex-1 text-left text-xs sm:text-sm font-semibold text-white">
                         {goal.label}
                       </div>
                       {selectedGoal === goal.id && (
                         <motion.div
                           initial={{ scale: 0, rotate: -180 }}
                           animate={{ scale: 1, rotate: 0 }}
-                          className={`w-5 h-5 rounded-full bg-gradient-to-br ${goal.gradient} flex items-center justify-center shadow-lg`}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-br ${goal.gradient} flex items-center justify-center shadow-lg`}
                         >
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         </motion.div>
@@ -504,7 +508,7 @@ export function AppleOnboarding({ onComplete, onSkip }: AppleOnboardingProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="flex items-center justify-between mt-4 pt-4 border-t border-white/10 flex-shrink-0"
+            className="flex items-center justify-between mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/10 flex-shrink-0"
           >
             {step > 1 ? (
               <motion.button
