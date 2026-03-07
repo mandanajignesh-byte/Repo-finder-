@@ -73,6 +73,10 @@ class GitHubAuthService {
    *  4. Hard timeout after 15 s.
    */
   async handleCallback(userId: string): Promise<{ profile: GitHubProfile; token: string } | null> {
+    console.log('🔵 handleCallback called for userId:', userId);
+    console.log('🔵 Current URL:', window.location.href);
+    console.log('🔵 Hash:', window.location.hash);
+
     // ── Strategy 1: parse URL hash directly ────────────────────────────────
     // Supabase puts provider_token in the fragment after OAuth redirect.
     // This works even when the auth-state-change event fires before our
@@ -82,11 +86,19 @@ class GitHubAuthService {
       const params = new URLSearchParams(hash.replace(/^#/, ''));
       const providerToken = params.get('provider_token');
 
+      console.log('🔵 Parsed provider_token from hash:', providerToken ? `${providerToken.substring(0, 20)}...` : 'null');
+
       if (providerToken) {
         try {
+          console.log('🔵 Fetching GitHub profile...');
           const profile = await this.fetchGitHubProfile(providerToken);
+          console.log('🔵 GitHub profile fetched:', profile);
+
           if (profile) {
+            console.log('🔵 Calling saveConnection...');
             await this.saveConnection(userId, profile, providerToken);
+            console.log('✅ saveConnection completed successfully');
+
             // Clear the hash from the URL so back-navigation doesn't re-trigger
             window.history.replaceState(null, '', window.location.pathname);
             // Sign out of the temporary Supabase OAuth session
@@ -94,7 +106,7 @@ class GitHubAuthService {
             return { profile, token: providerToken };
           }
         } catch (err) {
-          console.error('handleCallback (hash path) error:', err);
+          console.error('❌ handleCallback (hash path) error:', err);
           throw err; // let the caller surface it
         }
       }
@@ -169,22 +181,38 @@ class GitHubAuthService {
    * Throws on failure so the callback page can surface the error.
    */
   async saveConnection(userId: string, profile: GitHubProfile, token: string): Promise<void> {
-    const { error } = await supabase.from('github_connections').upsert(
-      {
-        user_id: userId,
-        github_id: profile.id,
-        github_login: profile.login,
-        github_name: profile.name,
-        github_avatar_url: profile.avatar_url,
-        github_access_token: token,
-        updated_at: new Date().toISOString(),
-      },
+    console.log('🔵 saveConnection called:', {
+      userId,
+      githubId: profile.id,
+      githubLogin: profile.login,
+      tokenLength: token?.length,
+    });
+
+    const payload = {
+      user_id: userId,
+      github_id: profile.id,
+      github_login: profile.login,
+      github_name: profile.name,
+      github_avatar_url: profile.avatar_url,
+      github_access_token: token,
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log('🔵 Upserting to github_connections:', payload);
+
+    const { data, error } = await supabase.from('github_connections').upsert(
+      payload,
       { onConflict: 'user_id' }
-    );
+    ).select();
+
+    console.log('🔵 Upsert result:', { data, error });
+
     if (error) {
-      console.error('saveConnection error:', error);
+      console.error('❌ saveConnection error:', error);
       throw new Error(`Failed to save GitHub connection: ${error.message} (code: ${error.code})`);
     }
+
+    console.log('✅ GitHub connection saved successfully');
   }
 
   /**
