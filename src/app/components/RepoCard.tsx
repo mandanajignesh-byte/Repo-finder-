@@ -236,30 +236,64 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
           </p>
         </div>
 
-        {/* ── PREVIEW README BUTTON ──────────────────────────────── */}
+        {/* ── BADGES (Like Mobile App) ────────────────────────────────────────── */}
+        {repo.badgeDetails && repo.badgeDetails.length > 0 && (
+          <div className="flex-shrink-0 px-5 pb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {repo.badgeDetails.map((badge, index) => (
+                <div
+                  key={index}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: `linear-gradient(135deg, ${badge.color}20 0%, ${badge.color}10 100%)`,
+                    color: badge.color,
+                    border: `1px solid ${badge.color}40`,
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    boxShadow: `0 2px 8px ${badge.color}15`,
+                  }}
+                  title={badge.name}
+                >
+                  {/* Icon placeholder - you can add actual icons here */}
+                  <div 
+                    className="w-2 h-2 rounded-full" 
+                    style={{ 
+                      background: badge.color,
+                      boxShadow: `0 0 6px ${badge.color}`
+                    }} 
+                  />
+                  <span>{badge.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── PREVIEW README BUTTON (More Visible) ──────────────────────────────── */}
         <div className="flex-shrink-0 px-5 pb-3">
           <button
             type="button"
             onClick={openReadme}
             onPointerDown={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-2 text-xs font-medium rounded-lg px-3 py-1.5 transition-all"
+            className="inline-flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all duration-200 hover:scale-105"
             style={{
-              background: 'rgba(139,148,158,0.08)',
-              border: '1px solid #30363d',
-              color: '#8b949e',
+              background: 'linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(37,99,235,0.08) 100%)',
+              border: '1px solid rgba(37,99,235,0.3)',
+              color: '#60a5fa',
+              boxShadow: '0 2px 8px rgba(37,99,235,0.1)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(139,148,158,0.15)';
-              e.currentTarget.style.color = '#e6edf3';
-              e.currentTarget.style.borderColor = '#484f58';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(37,99,235,0.15) 100%)';
+              e.currentTarget.style.borderColor = 'rgba(37,99,235,0.5)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.2)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(139,148,158,0.08)';
-              e.currentTarget.style.color = '#8b949e';
-              e.currentTarget.style.borderColor = '#30363d';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(37,99,235,0.08) 100%)';
+              e.currentTarget.style.borderColor = 'rgba(37,99,235,0.3)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(37,99,235,0.1)';
             }}
           >
-            <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+            <BookOpen className="w-4 h-4 flex-shrink-0" />
             Preview README
           </button>
         </div>
@@ -334,6 +368,63 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
               <span className="text-sm">{formatTimeAgo(repo.lastUpdated)}</span>
             </div>
           </div>
+
+          {/* Health scores row (if available from repos_master) - Modern glassmorphism design */}
+          {(repo.healthScore || repo.activityScore || repo.freshnessScore) && (
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {repo.healthScore && (
+                <div 
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 hover:scale-105"
+                  style={{ 
+                    background: 'linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(34,197,94,0.05) 100%)',
+                    color: '#22c55e',
+                    border: '1px solid rgba(34,197,94,0.25)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    boxShadow: '0 2px 8px rgba(34,197,94,0.1)'
+                  }}
+                  title="Overall repository health score"
+                >
+                  <Activity className="w-3 h-3" strokeWidth={2.5} />
+                  <span className="font-semibold">{repo.healthScore}%</span>
+                </div>
+              )}
+              {repo.activityScore && (
+                <div 
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 hover:scale-105"
+                  style={{ 
+                    background: 'linear-gradient(135deg, rgba(96,165,250,0.15) 0%, rgba(96,165,250,0.05) 100%)',
+                    color: '#60a5fa',
+                    border: '1px solid rgba(96,165,250,0.25)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    boxShadow: '0 2px 8px rgba(96,165,250,0.1)'
+                  }}
+                  title="Repository activity score"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                  <span className="font-semibold">{repo.activityScore}%</span>
+                </div>
+              )}
+              {repo.freshnessScore && (
+                <div 
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 hover:scale-105"
+                  style={{ 
+                    background: 'linear-gradient(135deg, rgba(234,179,8,0.15) 0%, rgba(234,179,8,0.05) 100%)',
+                    color: '#eab308',
+                    border: '1px solid rgba(234,179,8,0.25)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    boxShadow: '0 2px 8px rgba(234,179,8,0.1)'
+                  }}
+                  title="Repository freshness score"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-current" style={{ boxShadow: '0 0 6px currentColor' }} />
+                  <span className="font-semibold">{repo.freshnessScore}%</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Meta: license + language */}
           <div className="flex items-center gap-4 flex-wrap text-xs" style={{ color: '#6b7280' }}>

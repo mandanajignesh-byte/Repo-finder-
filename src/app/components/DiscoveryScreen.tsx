@@ -9,6 +9,7 @@ import { Repository } from '@/lib/types';
 import { SignatureCard } from './SignatureCard';
 import { OnboardingQuestionnaire } from './OnboardingQuestionnaire';
 import { OnboardingPopup } from './OnboardingPopup';
+import { RepoLoadingScreen } from './RepoLoadingScreen';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { enhancedRecommendationService } from '@/services/enhanced-recommendation.service';
 import { interactionService } from '@/services/interaction.service';
@@ -40,6 +41,9 @@ export function DiscoveryScreen() {
   const [showPWAInstallPrompt, setShowPWAInstallPrompt] = useState(false);
   const [isPWAInstalledState, setIsPWAInstalledState] = useState(false);
   const [showOnboardingPopup, setShowOnboardingPopup] = useState(false);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [loadedRepoCount, setLoadedRepoCount] = useState(0);
+  const [isLoadingBatch, setIsLoadingBatch] = useState(false); // Loading next batch of repos
 
   // ── Undo (persisted via Supabase, max 10 in-session stack) ──────────────
   const [skippedRepos, setSkippedRepos] = useState<Repository[]>([]);
@@ -74,9 +78,14 @@ export function DiscoveryScreen() {
   // Onboarding will be triggered after 4-5 swipes if not completed
 
   // Load random repos from database when no preferences exist
-  // OPTIMIZATION: Start loading immediately, show first batch fast
+  // CRITICAL: Batch loading with loading screen (no background processing)
   const loadRandomRepos = useCallback(async (append = false) => {
     try {
+      // CRITICAL: Show loading screen for batch loading
+      if (!append) {
+        setIsLoadingBatch(true);
+      }
+      
       setIsLoadingMore(true);
       
       // OPTIMIZATION: Get user ID and cluster data in parallel for faster loading
@@ -96,6 +105,7 @@ export function DiscoveryScreen() {
       if (!clusters || clusters.length === 0) {
         console.error('No active clusters found');
         setIsLoadingMore(false);
+        setIsLoadingBatch(false);
         return;
       }
       
@@ -105,11 +115,11 @@ export function DiscoveryScreen() {
       // Get seen repo IDs (now we have it)
       const allSeenRepoIds = await allSeenRepoIdsPromise;
       
-      // OPTIMIZATION: Get smaller initial batch for faster display
-      const initialBatchSize = append ? 20 : 10;
+      // CRITICAL: Fetch exactly 8-10 repos per batch (no background processing)
+      const batchSize = append ? 10 : 8;
       const randomRepos = await clusterService.getBestOfCluster(
         randomCluster,
-        initialBatchSize,
+        batchSize * 2, // Fetch 2x to account for deduplication
         allSeenRepoIds,
         actualUserId
       );
@@ -117,39 +127,50 @@ export function DiscoveryScreen() {
       if (randomRepos.length > 0) {
         // Filter out overly popular repos (>30k stars) for better variety
         const MAX_STARS = 30000;
-        const filteredRepos = randomRepos.filter(r => r && r.id && r.stars <= MAX_STARS);
         
-        // OPTIMIZATION: Show first batch immediately, load more in background if needed
+        // CRITICAL: Triple-layer deduplication
+        const existingIds = new Set(cards.map(c => c.id));
+        const existingFullNames = new Set(cards.map(c => c.fullName?.toLowerCase()).filter(Boolean));
+        const existingNames = new Set(cards.map(c => c.name?.toLowerCase()).filter(Boolean));
+        
+        const filteredRepos = randomRepos
+          .filter(r => r && r.id && r.stars <= MAX_STARS)
+          .filter(r => {
+            const isDuplicateId = existingIds.has(r.id);
+            const isDuplicateFullName = existingFullNames.has(r.fullName?.toLowerCase());
+            const isDuplicateName = existingNames.has(r.name?.toLowerCase());
+            return !isDuplicateId && !isDuplicateFullName && !isDuplicateName;
+          })
+          .slice(0, batchSize);
+        
+        console.log(`✅ Loaded random batch: ${filteredRepos.length} unique repos (after triple deduplication)`);
+        
+        // CRITICAL: No background processing - show batch immediately
         if (append) {
           setCards(prev => {
-            const existingIds = new Set(prev.map(c => c.id));
-            const newRepos = filteredRepos.filter(r => r && r.id && !existingIds.has(r.id));
-            return [...prev, ...newRepos];
+            // Final deduplication check before adding
+            const prevIds = new Set(prev.map(c => c.id));
+            const prevFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
+            const prevNames = new Set(prev.map(c => c.name?.toLowerCase()));
+            
+            const trulyNew = filteredRepos.filter(r => 
+              r && 
+              r.id && 
+              !prevIds.has(r.id) && 
+              !prevFullNames.has(r.fullName?.toLowerCase()) &&
+              !prevNames.has(r.name?.toLowerCase())
+            );
+            
+            console.log(`✅ Adding ${trulyNew.length} truly unique random repos to queue`);
+            return [...prev, ...trulyNew];
           });
-          setIsLoadingMore(false); // CRITICAL: Reset loading state when appending
-      } else {
+        } else {
           // Show first batch immediately
           setCards(filteredRepos);
-          setIsLoadingMore(false); // Allow user to start interacting immediately
-          
-          // Load more repos in background if we got fewer than 10
-          if (filteredRepos.length < 10) {
-            clusterService.getBestOfCluster(
-              randomCluster,
-              20,
-              [...allSeenRepoIds, ...filteredRepos.map(r => r.id)],
-              actualUserId
-            ).then(additionalRepos => {
-              const validAdditional = additionalRepos
-                .filter(r => r && r.id && r.stars <= MAX_STARS)
-                .filter(r => !filteredRepos.some(existing => existing.id === r.id));
-              
-              if (validAdditional.length > 0) {
-                setCards(prev => [...prev, ...validAdditional]);
-      }
-            }).catch(err => console.error('Error loading additional repos:', err));
-          }
         }
+        
+        setIsLoadingMore(false);
+        setIsLoadingBatch(false);
         
         // Track views in background (non-blocking)
         Promise.all(
@@ -164,15 +185,22 @@ export function DiscoveryScreen() {
         ).catch(err => console.error('Error in batch view tracking:', err));
       } else {
         setIsLoadingMore(false);
+        setIsLoadingBatch(false);
       }
     } catch (error) {
       console.error('Error loading random repos:', error);
       setIsLoadingMore(false);
+      setIsLoadingBatch(false);
     }
   }, [cards.length]);
 
   const loadPersonalizedRepos = useCallback(async (append = false) => {
     try {
+      // CRITICAL: Show loading screen for batch loading (no background processing)
+      if (!append) {
+        setIsLoadingBatch(true);
+      }
+      
       setIsLoadingMore(true);
       const sessionHistory = interactionService.getSessionInteractions();
 
@@ -210,45 +238,66 @@ export function DiscoveryScreen() {
       const shownIds = new Set(cards.map(card => card?.id).filter(Boolean));
       const excludeIds = [...new Set([...allSeenRepoIds, ...Array.from(shownIds)])];
 
-      // OPTIMIZATION: Pass pre-fetched seenRepoIds to avoid duplicate getAllSeenRepoIds call
-      // Get repos from pool (already excludes seen repos and applies user-specific shuffling)
-      // OPTIMIZATION: Get first batch immediately for fast initial display
+      // CRITICAL: Fetch exactly 5-10 repos per batch (no background processing)
+      const batchSize = append ? 10 : 8; // 8 for initial, 10 for subsequent batches
+      
       let recommended = await repoPoolService.getRecommendations(
         actualUserId, 
         preferences, 
-        append ? 20 : 10, // Get 10 for initial load (faster), 20 for append
+        batchSize * 2, // Fetch 2x to account for deduplication
         Array.from(shownIds), // Pass currently shown repo IDs
         allSeenRepoIds // OPTIMIZATION: Pass pre-fetched seen repo IDs to avoid duplicate call
       );
       
-      // Final filter to ensure no duplicates (defensive check)
-      recommended = recommended.filter(repo => repo && repo.id && !shownIds.has(repo.id));
+      // CRITICAL: Triple-layer deduplication to prevent ANY duplicates
+      // Layer 1: Filter by repo ID
+      // Layer 2: Filter by full_name (owner/repo)
+      // Layer 3: Filter by repo name (in case full_name differs)
+      const existingIds = new Set(cards.map(card => card?.id).filter(Boolean));
+      const existingFullNames = new Set(cards.map(card => card?.fullName?.toLowerCase()).filter(Boolean));
+      const existingNames = new Set(cards.map(card => card?.name?.toLowerCase()).filter(Boolean));
+      
+      recommended = recommended.filter(repo => {
+        if (!repo || !repo.id) return false;
+        
+        // Check all three deduplication layers
+        const isDuplicateId = existingIds.has(repo.id);
+        const isDuplicateFullName = existingFullNames.has(repo.fullName?.toLowerCase());
+        const isDuplicateName = existingNames.has(repo.name?.toLowerCase());
+        
+        return !isDuplicateId && !isDuplicateFullName && !isDuplicateName;
+      }).slice(0, batchSize); // Take only the batch size we need
+      
+      console.log(`✅ Loaded batch: ${recommended.length} unique repos (after triple deduplication)`);
 
-      // OPTIMIZATION: Show first batch immediately for initial load, then load more in background
-      if (recommended.length >= 10 && !append) {
-        // Initial load with enough repos: show immediately, load more in background
-        setCards(recommended);
-        setIsLoadingMore(false); // Allow user to start interacting immediately
-        
-        // Load additional repos in background (non-blocking)
-        repoPoolService.getRecommendations(
-          actualUserId,
-          preferences,
-          20, // Get 20 more repos
-          [...Array.from(shownIds), ...recommended.map(r => r.id)], // Exclude already shown
-          allSeenRepoIds
-        ).then(additionalRepos => {
-          const validAdditional = additionalRepos
-            .filter(repo => repo && repo.id && !shownIds.has(repo.id))
-            .filter(repo => !recommended.some(r => r.id === repo.id)); // No duplicates
+      // CRITICAL: No background processing - show batch immediately
+      if (append) {
+        // Append to existing cards with final deduplication check
+        setCards(prev => {
+          const existingIds = new Set(prev.map(c => c.id));
+          const existingFullNames = new Set(prev.map(c => c.fullName?.toLowerCase()));
+          const existingNames = new Set(prev.map(c => c.name?.toLowerCase()));
           
-          if (validAdditional.length > 0) {
-            setCards(prev => [...prev, ...validAdditional]);
-          }
-        }).catch(err => console.error('Error loading additional repos:', err));
-        
-        return; // Exit early - we've shown the first batch and loading more in background
+          const trulyNew = recommended.filter(r => 
+            r && 
+            r.id && 
+            !existingIds.has(r.id) && 
+            !existingFullNames.has(r.fullName?.toLowerCase()) &&
+            !existingNames.has(r.name?.toLowerCase())
+          );
+          
+          console.log(`✅ Adding ${trulyNew.length} truly unique repos to queue`);
+          return [...prev, ...trulyNew];
+        });
+      } else {
+        // Replace cards (initial load)
+        setCards(recommended);
       }
+      
+      setIsLoadingMore(false);
+      setIsLoadingBatch(false);
+      
+      return; // Exit - batch loaded successfully
 
       // If pool doesn't have enough, try cluster repos first (not generic trending)
       if (recommended.length < 10) {
@@ -897,18 +946,23 @@ export function DiscoveryScreen() {
     // Remove the card
     setCards((prev) => {
       const newCards = prev.slice(1);
-      // If we're running low on cards, trigger loading more
-      if (newCards.length < 3 && !isLoadingMore) {
+      
+      // CRITICAL: When user finishes batch (2 cards left), show loading screen and fetch next batch
+      if (newCards.length === 2 && !isLoadingMore && !isLoadingBatch) {
+        console.log('🔄 User finishing batch, loading next batch with loading screen...');
+        setIsLoadingBatch(true);
+        
         // Use personalized repos if onboarding completed, otherwise random
         if (preferences.onboardingCompleted) {
-          setTimeout(() => loadPersonalizedRepos(true), 100);
+          setTimeout(() => loadPersonalizedRepos(true), 500); // Small delay for smooth UX
         } else {
-          setTimeout(() => loadRandomRepos(true), 100);
+          setTimeout(() => loadRandomRepos(true), 500);
         }
       }
+      
       return newCards;
     });
-  }, [cards, isLoadingMore, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
+  }, [cards, isLoadingMore, isLoadingBatch, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
 
   const handleLike = useCallback(async (repo?: Repository) => {
     const repoToLike = repo || cards[0];
@@ -1074,6 +1128,11 @@ export function DiscoveryScreen() {
   }, [handleSkip, handleLike]);
 
   const handleOnboardingComplete = async (newPreferences: Partial<typeof preferences>) => {
+    // Show loading screen immediately
+    setShowOnboarding(false);
+    setIsLoadingRecommendations(true);
+    setLoadedRepoCount(0);
+    
     // Save name to user record if provided
     if (newPreferences.name) {
       try {
@@ -1088,15 +1147,33 @@ export function DiscoveryScreen() {
     // Track onboarding completion
     trackOnboarding('completed', undefined, 7);
     
+    // Update preferences
     updatePreferences({
       ...newPreferences,
       onboardingCompleted: true,
     });
-    setShowOnboarding(false);
-    // Load repos after onboarding
-    setTimeout(() => {
-      loadPersonalizedRepos();
-    }, 100);
+    
+    // Load personalized repos in background
+    try {
+      // Start loading repos
+      const startTime = Date.now();
+      await loadPersonalizedRepos();
+      
+      // Ensure minimum display time of 2 seconds for smooth UX
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 2000 - elapsedTime);
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+      
+      // Hide loading screen once we have repos
+      setIsLoadingRecommendations(false);
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+      // Still hide loading screen on error
+      setIsLoadingRecommendations(false);
+    }
   };
 
   // Keyboard navigation support
@@ -1142,6 +1219,11 @@ export function DiscoveryScreen() {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [cards.length, showSaved, showLiked, handleSwipe, handleSave, handleUndo]);
+
+  // Show loading screen while fetching recommendations after onboarding OR loading next batch
+  if (isLoadingRecommendations || isLoadingBatch) {
+    return <RepoLoadingScreen />;
+  }
 
   // Show onboarding if needed
   if (showOnboarding) {

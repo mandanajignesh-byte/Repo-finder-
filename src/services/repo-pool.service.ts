@@ -11,6 +11,7 @@ import { interactionService } from './interaction.service';
 import { supabaseService } from './supabase.service';
 import { clusterService } from './cluster.service';
 import { repoQualityService } from './repo-quality.service';
+import { reposMasterService } from './repos-master.service';
 import { supabase } from '@/lib/supabase';
 
 const POOL_SIZE = 120; // Increased to 120 repos to handle users who have seen many repos (30+). After filtering seen repos, we'll still have 80-90 repos available.
@@ -72,20 +73,35 @@ class RepoPoolService {
         ) : Promise.resolve([]),
       ]);
       
-      // PRIORITY 1: Use PRIMARY CLUSTER if set (from new onboarding)
+      // PRIORITY 1: Use repos_master with health scores (like mobile app)
       let clusterRepos: Repository[] = [];
       
-      if (primaryCluster && primaryRepos.length > 0) {
-        console.log(`🎯 Using PRIMARY CLUSTER: ${primaryCluster}`);
-        // Now filter out seen repos
-        clusterRepos = primaryRepos
-          .filter(r => r && r.id && !allSeenRepoIds.includes(r.id));
-        console.log(`📊 Found ${clusterRepos.length} repos from primary cluster (after filtering seen repos)`);
+      console.log('🎯 Fetching repos from repos_master with health scores...');
+      const masterRepos = await reposMasterService.getPersonalizedRepos(
+        preferences,
+        allSeenRepoIds,
+        POOL_SIZE
+      );
+      
+      if (masterRepos.length > 0) {
+        console.log(`✅ Found ${masterRepos.length} repos from repos_master with health scores`);
+        clusterRepos = masterRepos;
+      } else {
+        // Fallback to old cluster-based approach if repos_master fails
+        console.log('⚠️ repos_master query failed, falling back to cluster approach');
         
-        // Filter by tech stack, goals, and project types if specified
-        if ((preferences.techStack?.length ?? 0) > 0 || (preferences.goals?.length ?? 0) > 0 || (preferences.projectTypes?.length ?? 0) > 0) {
-          clusterRepos = this.filterReposByPreferences(clusterRepos, preferences);
-          console.log(`📊 After filtering by preferences: ${clusterRepos.length} repos`);
+        if (primaryCluster && primaryRepos.length > 0) {
+          console.log(`🎯 Using PRIMARY CLUSTER: ${primaryCluster}`);
+          // Now filter out seen repos
+          clusterRepos = primaryRepos
+            .filter(r => r && r.id && !allSeenRepoIds.includes(r.id));
+          console.log(`📊 Found ${clusterRepos.length} repos from primary cluster (after filtering seen repos)`);
+          
+          // Filter by tech stack, goals, and project types if specified
+          if ((preferences.techStack?.length ?? 0) > 0 || (preferences.goals?.length ?? 0) > 0 || (preferences.projectTypes?.length ?? 0) > 0) {
+            clusterRepos = this.filterReposByPreferences(clusterRepos, preferences);
+            console.log(`📊 After filtering by preferences: ${clusterRepos.length} repos`);
+          }
         }
       }
       

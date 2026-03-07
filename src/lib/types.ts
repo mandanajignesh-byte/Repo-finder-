@@ -22,6 +22,22 @@ export interface Repository {
   topics?: string[];
   healthGrade?: string;    // e.g. "A+", "B", "F" — from trending_repos_v2
   healthStatus?: string;   // e.g. "Very Active", "Stable", "Dormant"
+  // New fields from repos_master
+  healthScore?: number;    // 0-100 overall health score
+  activityScore?: number;  // 0-100 activity score
+  freshnessScore?: number; // 0-100 freshness score
+  badges?: string[];       // Array of badge labels
+  badgeDetails?: Array<{   // Full badge metadata
+    name: string;
+    color: string;
+    icon: string;
+  }>;
+  watchers?: number;
+  openIssues?: number;
+  homepage?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  pushedAt?: string;
 }
 
 export interface TrendingRepo extends Repository {
