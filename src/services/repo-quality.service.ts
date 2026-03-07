@@ -277,6 +277,8 @@ class RepoQualityService {
    * Parse "time ago" string to hours
    */
   private parseTimeAgo(timeAgo: string): number {
+    if (!timeAgo || typeof timeAgo !== 'string') return 999999;
+    
     const match = timeAgo.match(/(\d+)([smhdmo])/);
     if (!match) return 999999;
 
