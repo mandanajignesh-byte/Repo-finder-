@@ -23,6 +23,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   List<Repository> _repos = [];
   int _currentIndex = 0;
   bool _isLoading = true;
+  bool _loadingMore = false;
   String? _error;
   String? _primaryCluster;
 
@@ -307,7 +308,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       } catch (e) {
         debugPrint('Error tracking skip: $e');
       }
-      
+
+      if (!mounted) return;
       setState(() {
         _currentIndex++;
       });
@@ -315,8 +317,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      
-      // Load more if near end
+
+      // Load more if near end (guard is inside _loadMoreRepos)
       if (_currentIndex >= _repos.length - 5) {
         _loadMoreRepos();
       }
@@ -324,17 +326,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   Future<void> _loadMoreRepos() async {
-    if (_primaryCluster == null) return;
-    
+    if (_primaryCluster == null || _loadingMore) return;
+
+    _loadingMore = true;
     try {
       final supabaseService = Provider.of<AppSupabaseService>(context, listen: false);
       final repoService = Provider.of<RepoService>(context, listen: false);
-      
+
       final userId = await supabaseService.getOrCreateUserId();
       final preferences = await supabaseService.getUserPreferences(userId);
       final lastRepo = _repos.isNotEmpty ? _repos.last : null;
       final cursor = lastRepo?.githubId;
-      
+
       final newRepos = await repoService.getPersonalizedRepos(
         primaryCluster: _primaryCluster!,
         preferredLanguages: preferences?.techStack ?? [],
@@ -350,6 +353,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       }
     } catch (e) {
       debugPrint('Error loading more repos: $e');
+    } finally {
+      _loadingMore = false;
     }
   }
 

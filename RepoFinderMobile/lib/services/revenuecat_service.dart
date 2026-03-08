@@ -7,21 +7,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// RevenueCat configuration constants
 class RevenueCatConfig {
-  // Your RevenueCat API key
+  // ⚠️  IMPORTANT: Replace the key below with your PRODUCTION key from the
+  // RevenueCat dashboard (App Settings → API Keys → Public app key).
+  // The current key starting with "test_" is a sandbox key and will NOT
+  // process real payments in production builds.
   static const String apiKey = 'test_AicJXufprKBUEFVnpevpTRDgDfq';
-  
+
   // Entitlement identifier (configured in RevenueCat dashboard)
   static const String entitlementId = 'Repoverse Pro';
-  
+
   // Product identifiers (configured in App Store Connect / Google Play Console)
   static const String monthlyProductId = 'monthly';
   static const String yearlyProductId = 'yearly';
-  
+
   // Offering identifier (default offering)
   static const String defaultOfferingId = 'default';
 
-  /// VIP emails that always get Pro access (for testing + Apple review)
-  /// These users bypass the paywall completely — no purchase needed.
+  /// VIP emails that bypass the paywall in DEBUG builds only.
+  /// These are never active in release/production builds.
   static const List<String> vipEmails = [
     'mandanajignesh@gmail.com',
     // Add more test emails here if needed
@@ -62,8 +65,10 @@ class RevenueCatService extends ChangeNotifier {
     return _isVipUser;
   }
 
-  /// Check if current Supabase user's email is in the VIP list
+  /// Check if current Supabase user's email is in the VIP list.
+  /// Only active in debug builds — never bypasses paywall in production.
   bool get _isVipUser {
+    if (!kDebugMode) return false;
     try {
       final email = Supabase.instance.client.auth.currentUser?.email;
       if (email == null) return false;
@@ -399,7 +404,7 @@ class RevenueCatService extends ChangeNotifier {
   DateTime? get expirationDate {
     final entitlement = _customerInfo?.entitlements.all[RevenueCatConfig.entitlementId];
     if (entitlement?.expirationDate != null) {
-      return DateTime.parse(entitlement!.expirationDate!);
+      return DateTime.tryParse(entitlement!.expirationDate!);
     }
     return null;
   }

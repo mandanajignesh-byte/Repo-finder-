@@ -73,14 +73,14 @@ class Repository {
       license: json['license'],
       repoUrl: json['repo_url'] ?? '',
       homepageUrl: json['homepage_url'],
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])
           : null,
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at']) 
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'])
           : null,
-      pushedAt: json['pushed_at'] != null 
-          ? DateTime.parse(json['pushed_at']) 
+      pushedAt: json['pushed_at'] != null
+          ? DateTime.tryParse(json['pushed_at'])
           : null,
       cluster: json['cluster'] ?? 'general',
       recommendationScore: (json['recommendation_score'] ?? 0).toDouble(),

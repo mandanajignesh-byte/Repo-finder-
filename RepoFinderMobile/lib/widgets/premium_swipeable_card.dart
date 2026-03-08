@@ -116,7 +116,7 @@ class _PremiumSwipeableCardState extends State<PremiumSwipeableCard>
 
   void _animateOut() {
     _controller.forward().then((_) {
-      widget.onSwipeComplete?.call();
+      if (mounted) widget.onSwipeComplete?.call();
     });
   }
 
@@ -133,8 +133,7 @@ class _PremiumSwipeableCardState extends State<PremiumSwipeableCard>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    
+
     // Calculate rotation and opacity based on drag
     final rotation = (_dragOffsetX / screenWidth) * 0.1;
     final opacity = 1.0 - (_dragOffsetX.abs() / screenWidth * 0.3).clamp(0.0, 0.3);

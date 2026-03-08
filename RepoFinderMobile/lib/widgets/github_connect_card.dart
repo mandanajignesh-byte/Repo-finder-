@@ -33,22 +33,26 @@ class _GitHubConnectCardState extends State<GitHubConnectCard> {
   }
 
   Future<void> _init() async {
+    if (!mounted) return;
     final github = Provider.of<GitHubService>(context, listen: false);
     final supabaseService =
         Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
+    if (!mounted) return;
     await github.loadConnection(userId);
+    if (!mounted) return;
     if (github.isConnected) {
       await _loadStarred();
     }
   }
 
   Future<void> _loadStarred() async {
+    if (!mounted) return;
     final github = Provider.of<GitHubService>(context, listen: false);
     final supabaseService =
         Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
-
+    if (!mounted) return;
     setState(() => _reposLoading = true);
     final repos = await github.getStarredRepos(
       userId,
@@ -72,15 +76,18 @@ class _GitHubConnectCardState extends State<GitHubConnectCard> {
         Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
     await github.disconnect(userId);
-    setState(() { _starredRepos = []; _showDisconnectConfirm = false; });
+    if (mounted) setState(() { _starredRepos = []; _showDisconnectConfirm = false; });
   }
 
   Future<void> _resync() async {
+    if (!mounted) return;
     final github = Provider.of<GitHubService>(context, listen: false);
     final supabaseService =
         Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
+    if (!mounted) return;
     await github.syncStarredRepos(userId);
+    if (!mounted) return;
     await _loadStarred();
   }
 

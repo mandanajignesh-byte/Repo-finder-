@@ -311,8 +311,11 @@ class GitHubService extends ChangeNotifier {
           .from('github_connections')
           .select('github_access_token')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
 
+      if (connData == null) {
+        throw Exception('No GitHub connection found — please reconnect');
+      }
       final token = connData['github_access_token'] as String?;
       if (token == null || token.isEmpty) {
         throw Exception('No GitHub token — please reconnect');
