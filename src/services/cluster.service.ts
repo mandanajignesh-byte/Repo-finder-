@@ -12,20 +12,31 @@ class ClusterService {
    */
   async getActiveClusters(): Promise<string[]> {
     try {
+      // Get distinct cluster names from repo_clusters table (where actual repos are)
       const { data, error } = await supabase
-        .from('cluster_metadata')
+        .from('repo_clusters')
         .select('cluster_name')
-        .eq('is_active', true);
+        .limit(1000);
 
       if (error) {
         console.error('Error getting active clusters:', error);
-        return [];
+        // Fallback to known clusters
+        return ['ai-ml', 'frontend', 'backend', 'mobile', 'devops', 'data-science', 'game-dev', 'desktop'];
       }
 
-      return (data || []).map((row: any) => row.cluster_name);
+      // Get unique cluster names
+      const uniqueClusters = [...new Set((data || []).map((row: any) => row.cluster_name))];
+      
+      if (uniqueClusters.length === 0) {
+        // Fallback if no data
+        return ['ai-ml', 'frontend', 'backend', 'mobile', 'devops', 'data-science', 'game-dev', 'desktop'];
+      }
+
+      return uniqueClusters;
     } catch (error) {
       console.error('Error in getActiveClusters:', error);
-      return [];
+      // Fallback to known clusters
+      return ['ai-ml', 'frontend', 'backend', 'mobile', 'devops', 'data-science', 'game-dev', 'desktop'];
     }
   }
 
