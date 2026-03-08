@@ -6,6 +6,45 @@
 -- ════════════════════════════════════════════════════════════════════════════
 
 -- ────────────────────────────────────────────────────────────────────────────
+-- SQL 0 — Create/Fix user_preferences table
+-- ────────────────────────────────────────────────────────────────────────────
+
+-- Drop foreign key constraint if it exists (causing the error)
+DO $$ 
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'user_preferences_user_id_fkey'
+  ) THEN
+    ALTER TABLE user_preferences DROP CONSTRAINT user_preferences_user_id_fkey;
+  END IF;
+END $$;
+
+-- Create or alter user_preferences table
+CREATE TABLE IF NOT EXISTS user_preferences (
+  user_id              TEXT PRIMARY KEY,
+  primary_cluster      TEXT,
+  tech_stack           TEXT[] DEFAULT ARRAY[]::TEXT[],
+  goals                TEXT[] DEFAULT ARRAY[]::TEXT[],
+  onboarding_completed BOOLEAN DEFAULT FALSE,
+  created_at           TIMESTAMPTZ DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS policies for user_preferences
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own preferences" ON user_preferences;
+CREATE POLICY "Users can view their own preferences"
+  ON user_preferences FOR SELECT
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+DROP POLICY IF EXISTS "Users can update their own preferences" ON user_preferences;
+CREATE POLICY "Users can update their own preferences"
+  ON user_preferences FOR ALL
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+-- ────────────────────────────────────────────────────────────────────────────
 -- SQL 1 — Create user_tag_affinity table
 -- ────────────────────────────────────────────────────────────────────────────
 
@@ -207,6 +246,110 @@ BEGIN
     updated_at  = NOW();
 END;
 $$ LANGUAGE plpgsql;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- SQL 6 — Create user_interactions table (for tracking all user actions)
+-- ────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS user_interactions (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  repo_id    BIGINT NOT NULL,
+  action     TEXT NOT NULL CHECK (action IN ('view', 'like', 'skip', 'save', 'share')),
+  timestamp  TIMESTAMPTZ DEFAULT NOW(),
+  metadata   JSONB DEFAULT '{}'::JSONB
+);
+
+-- Indexes for fast queries
+CREATE INDEX IF NOT EXISTS idx_user_interactions_user ON user_interactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_interactions_repo ON user_interactions(repo_id);
+CREATE INDEX IF NOT EXISTS idx_user_interactions_action ON user_interactions(action);
+CREATE INDEX IF NOT EXISTS idx_user_interactions_timestamp ON user_interactions(timestamp DESC);
+
+-- RLS policies
+ALTER TABLE user_interactions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own interactions" ON user_interactions;
+CREATE POLICY "Users can view their own interactions"
+  ON user_interactions FOR SELECT
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+DROP POLICY IF EXISTS "Users can insert their own interactions" ON user_interactions;
+CREATE POLICY "Users can insert their own interactions"
+  ON user_interactions FOR INSERT
+  WITH CHECK (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- SQL 7 — Create liked_repos table
+-- ────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS liked_repos (
+  user_id          TEXT NOT NULL,
+  repo_id          BIGINT NOT NULL,
+  repo_name        TEXT,
+  repo_full_name   TEXT,
+  repo_description TEXT,
+  repo_stars       INTEGER,
+  repo_language    TEXT,
+  repo_url         TEXT,
+  repo_tags        TEXT[],
+  repo_topics      TEXT[],
+  liked_at         TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, repo_id)
+);
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_liked_repos_user ON liked_repos(user_id);
+CREATE INDEX IF NOT EXISTS idx_liked_repos_timestamp ON liked_repos(liked_at DESC);
+
+-- RLS policies
+ALTER TABLE liked_repos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own liked repos" ON liked_repos;
+CREATE POLICY "Users can view their own liked repos"
+  ON liked_repos FOR SELECT
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+DROP POLICY IF EXISTS "Users can manage their own liked repos" ON liked_repos;
+CREATE POLICY "Users can manage their own liked repos"
+  ON liked_repos FOR ALL
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- SQL 8 — Create saved_repos table
+-- ────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS saved_repos (
+  user_id          TEXT NOT NULL,
+  repo_id          BIGINT NOT NULL,
+  repo_name        TEXT,
+  repo_full_name   TEXT,
+  repo_description TEXT,
+  repo_stars       INTEGER,
+  repo_language    TEXT,
+  repo_url         TEXT,
+  repo_tags        TEXT[],
+  repo_topics      TEXT[],
+  saved_at         TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, repo_id)
+);
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_saved_repos_user ON saved_repos(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_repos_timestamp ON saved_repos(saved_at DESC);
+
+-- RLS policies
+ALTER TABLE saved_repos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own saved repos" ON saved_repos;
+CREATE POLICY "Users can view their own saved repos"
+  ON saved_repos FOR SELECT
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+DROP POLICY IF EXISTS "Users can manage their own saved repos" ON saved_repos;
+CREATE POLICY "Users can manage their own saved repos"
+  ON saved_repos FOR ALL
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- ✅ SETUP COMPLETE!
