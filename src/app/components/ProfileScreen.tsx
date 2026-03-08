@@ -53,6 +53,30 @@ const USE_CASES = [
   { id: 'exploring', label: 'Exploring & Research', description: 'I\'m exploring what\'s out there' },
 ];
 
+// Domains (for interests/specializations)
+const DOMAINS = [
+  { id: 'web-frontend', label: 'Web Frontend' },
+  { id: 'web-backend', label: 'Web Backend' },
+  { id: 'mobile', label: 'Mobile Development' },
+  { id: 'desktop', label: 'Desktop Apps' },
+  { id: 'data-science', label: 'Data Science' },
+  { id: 'devops', label: 'DevOps' },
+  { id: 'game-dev', label: 'Game Development' },
+  { id: 'ai-ml', label: 'AI & Machine Learning' },
+];
+
+// Project Types
+const PROJECT_TYPES = [
+  { id: 'web-app', label: 'Web Application' },
+  { id: 'mobile-app', label: 'Mobile App' },
+  { id: 'cli-tool', label: 'CLI Tool' },
+  { id: 'library', label: 'Library/Framework' },
+  { id: 'desktop-app', label: 'Desktop Application' },
+  { id: 'data-analysis', label: 'Data Analysis' },
+  { id: 'game', label: 'Game' },
+  { id: 'ml-model', label: 'ML Model' },
+];
+
 // ─── Color palettes ──────────────────────────────────────────────────────────
 
 type ChipColor = { bg: string; text: string; border: string };
@@ -778,8 +802,8 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
           ) : (
             <div className="flex flex-wrap gap-2">
               {preferences.interests?.map(interest => {
-                const d = DOMAINS.find(x => x.id === interest);
-                return d ? <ColorChip key={interest} label={d.label} color={chipColor(DOMAIN_COLORS, interest)} /> : null;
+                const cluster = CLUSTERS.find(x => x.id === interest);
+                return cluster ? <ColorChip key={interest} label={cluster.label} color={chipColor(DOMAIN_COLORS, interest)} /> : null;
               })}
               {(!preferences.interests || preferences.interests.length === 0) && (
                 <span className="text-sm" style={{ color: '#8b949e' }}>No domains selected</span>
