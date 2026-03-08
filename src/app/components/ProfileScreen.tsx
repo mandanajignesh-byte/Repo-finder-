@@ -696,6 +696,7 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
   const initials = (preferences.name || 'U').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
+    <>
     <div className="h-full p-4 md:p-6 overflow-y-auto pb-24 md:pb-0" style={{ background: '#0d1117' }}>
       <div className="max-w-4xl mx-auto">
 
@@ -990,5 +991,6 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
     {showPaywall && (
       <PaywallModal type="profile" onClose={() => setShowPaywall(false)} />
     )}
+    </>
   );
 }
