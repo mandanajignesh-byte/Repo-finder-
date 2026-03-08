@@ -82,6 +82,59 @@ class ClusterService {
     }
     return clusters[Math.floor(Math.random() * clusters.length)];
   }
+
+  /**
+   * Legacy method for backward compatibility
+   * Calls getScoredRepos with default parameters
+   */
+  async getBestOfCluster(
+    clusterName: string,
+    limit: number = 20,
+    excludeIds: string[] = [],
+    userId?: string
+  ): Promise<any[]> {
+    try {
+      // Convert string IDs to numbers for the RPC call
+      const numericIds = excludeIds
+        .map(id => typeof id === 'string' ? parseInt(id, 10) : id)
+        .filter(id => !isNaN(id));
+
+      // If userId not provided, use anonymous
+      const user = userId || 'anonymous';
+
+      const repos = await this.getScoredRepos({
+        userId: user,
+        cluster: clusterName,
+        excludeIds: numericIds,
+        limit,
+        minStars: 50,
+        maxStars: 100000,
+      });
+
+      // Convert back to old Repository format for compatibility
+      return repos.map((repo: Repo) => ({
+        id: repo.id.toString(),
+        name: repo.name,
+        fullName: repo.full_name,
+        description: repo.description || '',
+        stars: repo.stars,
+        forks: repo.forks,
+        language: repo.language,
+        tags: repo.tags || [],
+        topics: repo.topics || [],
+        url: repo.url,
+        owner: {
+          login: repo.full_name?.split('/')[0] || '',
+          avatarUrl: repo.owner_avatar || '',
+        },
+        lastUpdated: '',
+        fitScore: repo.final_score,
+      }));
+    } catch (error) {
+      console.error('Error in getBestOfCluster (legacy):', error);
+      return [];
+    }
+  }
 }
 
 export const clusterService = new ClusterService();
