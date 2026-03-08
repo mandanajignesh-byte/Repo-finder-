@@ -51,6 +51,7 @@ class ClusterService {
     } = opts;
 
     try {
+      // Try the RPC function first
       const { data, error } = await supabase.rpc('get_scored_repos', {
         p_user_id: userId,
         p_cluster: cluster,
@@ -61,13 +62,84 @@ class ClusterService {
       });
 
       if (error) {
-        console.error('Error calling get_scored_repos:', error);
-        return [];
+        console.error('Error calling get_scored_repos RPC, falling back to direct query:', error);
+        // Fallback to direct query
+        return this.getScoredReposFallback(opts);
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('get_scored_repos returned 0 results, trying fallback');
+        return this.getScoredReposFallback(opts);
       }
 
       return (data || []) as Repo[];
     } catch (error) {
-      console.error('Error in getScoredRepos:', error);
+      console.error('Error in getScoredRepos, using fallback:', error);
+      return this.getScoredReposFallback(opts);
+    }
+  }
+
+  /**
+   * Fallback method when RPC fails - directly query repo_clusters
+   */
+  private async getScoredReposFallback(opts: {
+    userId: string;
+    cluster: string;
+    excludeIds: number[];
+    limit?: number;
+    minStars?: number;
+    maxStars?: number;
+  }): Promise<Repo[]> {
+    const { cluster, excludeIds, limit = 30, minStars = 50, maxStars = 100000 } = opts;
+
+    try {
+      const { data, error } = await supabase
+        .from('repo_clusters')
+        .select('repo_data, tags, quality_score')
+        .eq('cluster_name', cluster)
+        .order('quality_score', { ascending: false })
+        .limit(limit * 2);
+
+      if (error) {
+        console.error('Error in fallback query:', error);
+        return [];
+      }
+
+      // Filter and map
+      const excludeSet = new Set(excludeIds.map(id => id.toString()));
+      const repos = (data || [])
+        .filter((row: any) => {
+          const repoData = row.repo_data;
+          if (!repoData || !repoData.id) return false;
+          if (excludeSet.has(repoData.id.toString())) return false;
+          const stars = repoData.stars || 0;
+          return stars >= minStars && stars <= maxStars;
+        })
+        .map((row: any) => {
+          const repo = row.repo_data;
+          return {
+            id: parseInt(repo.id) || 0,
+            name: repo.name || '',
+            full_name: repo.full_name || repo.fullName || '',
+            description: repo.description || '',
+            stars: repo.stars || 0,
+            forks: repo.forks || 0,
+            language: repo.language || null,
+            tags: row.tags || [],
+            topics: repo.topics || [],
+            url: repo.url || '',
+            owner_avatar: repo.owner_avatar || repo.owner?.avatarUrl || '',
+            health_score: row.quality_score || 50,
+            like_rate: 0.5,
+            final_score: row.quality_score || 50,
+          } as Repo;
+        })
+        .slice(0, limit);
+
+      console.log(`✅ Fallback returned ${repos.length} repos`);
+      return repos;
+    } catch (error) {
+      console.error('Error in getScoredReposFallback:', error);
       return [];
     }
   }

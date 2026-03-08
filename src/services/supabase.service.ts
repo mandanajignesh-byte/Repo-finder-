@@ -175,6 +175,153 @@ class SupabaseService {
       console.error('Error in saveRepository:', error);
     }
   }
+
+  /**
+   * Get saved repositories (backward compatibility)
+   */
+  async getSavedRepositories(userId: string): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('saved_repos')
+        .select('*')
+        .eq('user_id', userId)
+        .order('saved_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getting saved repos:', error);
+        return [];
+      }
+
+      return (data || []).map((row: any) => ({
+        id: row.repo_id,
+        name: row.repo_name,
+        fullName: row.repo_full_name,
+        description: row.repo_description || '',
+        stars: row.repo_stars || 0,
+        forks: 0,
+        language: row.repo_language,
+        url: row.repo_url,
+        tags: row.repo_tags || [],
+        topics: row.repo_topics || [],
+        lastUpdated: '',
+        owner: {
+          login: row.repo_full_name?.split('/')[0] || '',
+          avatarUrl: '',
+        },
+      }));
+    } catch (error) {
+      console.error('Error in getSavedRepositories:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get liked repositories (backward compatibility)
+   */
+  async getLikedRepositories(userId: string): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('liked_repos')
+        .select('*')
+        .eq('user_id', userId)
+        .order('liked_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getting liked repos:', error);
+        return [];
+      }
+
+      return (data || []).map((row: any) => ({
+        id: row.repo_id,
+        name: row.repo_name,
+        fullName: row.repo_full_name,
+        description: row.repo_description || '',
+        stars: row.repo_stars || 0,
+        forks: 0,
+        language: row.repo_language,
+        url: row.repo_url,
+        tags: row.repo_tags || [],
+        topics: row.repo_topics || [],
+        lastUpdated: '',
+        owner: {
+          login: row.repo_full_name?.split('/')[0] || '',
+          avatarUrl: '',
+        },
+      }));
+    } catch (error) {
+      console.error('Error in getLikedRepositories:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Save user preferences (backward compatibility)
+   */
+  async saveUserPreferences(userId: string, preferences: any): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: userId,
+          primary_cluster: preferences.primaryCluster || null,
+          tech_stack: preferences.techStack || [],
+          goals: preferences.goals || [],
+          onboarding_completed: preferences.onboardingCompleted || false,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id',
+        });
+
+      if (error) {
+        console.error('Error saving preferences:', error);
+      }
+    } catch (error) {
+      console.error('Error in saveUserPreferences:', error);
+    }
+  }
+
+  /**
+   * Track interaction (backward compatibility)
+   */
+  async trackInteraction(userId: string, interaction: any): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('user_interactions')
+        .insert({
+          user_id: userId,
+          repo_id: interaction.repoId,
+          action: interaction.action,
+          timestamp: interaction.timestamp?.toISOString() || new Date().toISOString(),
+          metadata: interaction.metadata || {},
+        });
+
+      if (error) {
+        console.error('Error tracking interaction:', error);
+      }
+    } catch (error) {
+      console.error('Error in trackInteraction:', error);
+    }
+  }
+
+  /**
+   * Remove skip interaction (for undo)
+   */
+  async removeSkipInteraction(userId: string, repoId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('user_interactions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('repo_id', repoId)
+        .eq('action', 'skip');
+
+      if (error) {
+        console.error('Error removing skip interaction:', error);
+      }
+    } catch (error) {
+      console.error('Error in removeSkipInteraction:', error);
+    }
+  }
 }
 
 export const supabaseService = new SupabaseService();
