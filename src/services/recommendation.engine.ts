@@ -5,8 +5,8 @@
  */
 
 import { supabaseService } from './supabase.service';
-import { clusterService } from './new-cluster.service';
-import { interactionService } from './new-interaction.service';
+import { clusterService } from './cluster.service';
+import { interactionService } from './interaction.service';
 import type { Repo, BatchOptions, RetryConfig } from '@/types/recommendation';
 
 // ─── RETRY CONFIGS (progressively widen star range) ─────────────────
