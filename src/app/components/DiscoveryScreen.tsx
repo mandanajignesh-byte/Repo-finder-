@@ -12,7 +12,6 @@ import { AppleOnboarding } from './AppleOnboarding';
 import { OnboardingPopup } from './OnboardingPopup';
 import { RepoLoadingScreen } from './RepoLoadingScreen';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { interactionService } from '@/services/interaction.service';
 import { clusterService } from '@/services/cluster.service';
 import { supabase } from '@/lib/supabase';
 import { trackRepoInteraction, trackOnboarding, trackNavigation } from '@/utils/analytics';
@@ -160,9 +159,7 @@ export function DiscoveryScreen() {
             }
           } catch (error) {
             console.error('Error loading repos from Supabase:', error);
-            // Fallback to localStorage
-            interactionService.getSavedRepos();
-            interactionService.getLikedRepos();
+            // Continue without saved/liked repos
           }
         }, { timeout: 3000 });
       } else {
@@ -185,9 +182,7 @@ export function DiscoveryScreen() {
         }
       } catch (error) {
         console.error('Error loading repos from Supabase:', error);
-        // Fallback to localStorage
-        interactionService.getSavedRepos();
-        interactionService.getLikedRepos();
+        // Continue without saved/liked repos
           }
         }, 500);
       }
@@ -389,23 +384,19 @@ export function DiscoveryScreen() {
     if (prefHash !== prevPreferencesRef.current) {
       prevPreferencesRef.current = prefHash;
       
-      // Clear the repo pool to force rebuild with new preferences
+      // Reload repos with new preferences using recommendation engine
       const clearAndReload = async () => {
         try {
-          await repoPoolService.clearPool();
           // Clear current cards to show loading state
           setCards([]);
-          // Reload repos with new preferences using recommendation engine
           setIsLoadingBatch(true);
+          
+          // Reload repos with new preferences via recommendation engine
           const batch = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
           setCards(batch as any);
           setIsLoadingBatch(false);
         } catch (error) {
           console.error('Error reloading repos after preference change:', error);
-          // Fallback: just reload
-          setIsLoadingBatch(true);
-          const batch = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
-          setCards(batch as any);
           setIsLoadingBatch(false);
         }
       };
@@ -702,8 +693,7 @@ export function DiscoveryScreen() {
     setCards(prev => [toRestore, ...prev]);
     // Reset undoEntry flag after the entry animation finishes
     setTimeout(() => setUndoEntry(false), 450);
-    // Remove skip interaction from localStorage + Supabase so it stays undone next session
-    interactionService.undoSkip(toRestore.id);
+    // Note: Undo only works in current session (repo is already marked as seen in DB)
   }, [skippedRepos]);
 
   const handleSwipe = useCallback((direction: 'left' | 'right') => {
