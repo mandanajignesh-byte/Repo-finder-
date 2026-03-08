@@ -477,36 +477,16 @@ export function DiscoveryScreen() {
     const repoToSkip = repo || cards[0];
     if (repoToSkip) {
       // NEW: Tell recommendation engine about the skip
+      // Handle swipe via recommendation engine (handles all tracking automatically)
       await recommendationEngine.handleSwipe(repoToSkip as any, 'left');
       
       // Push to undo stack (session-only, max 10)
       setSkippedRepos(prev => [repoToSkip, ...prev].slice(0, 10));
-
-      // CRITICAL: Immediately save to database to prevent seeing this repo again
-      const { supabaseService } = await import('@/services/supabase.service');
-      const userId = await supabaseService.getOrCreateUserId();
-      
-      // Save interaction to database (this marks repo as "seen")
-      await supabaseService.trackInteraction(userId, {
-        repoId: repoToSkip.id,
-        repoName: repoToSkip.name,
-        repoFullName: repoToSkip.fullName,
-        action: 'skip',
-        timestamp: new Date()
-      }).catch(err => {
-        console.error('Error saving skip to database:', err);
-      });
-
-      // Track interaction (async, but don't wait)
-      interactionService.trackInteraction(repoToSkip, 'skip', {
-        position: 0,
-        source: 'discover',
-      }).catch(err => console.error('Error tracking skip:', err));
       
       // Track in Google Analytics
       trackRepoInteraction('skip', repoToSkip.id, repoToSkip.fullName || repoToSkip.name);
       
-      console.log(`✅ Skipped and saved to DB: ${repoToSkip.fullName || repoToSkip.name}`);
+      console.log(`✅ Skipped: ${repoToSkip.fullName || repoToSkip.name}`);
     }
     
     // Increment swipe count and check if onboarding should be shown
@@ -593,36 +573,15 @@ export function DiscoveryScreen() {
   const handleLike = useCallback(async (repo?: Repository) => {
     const repoToLike = repo || cards[0];
     if (repoToLike) {
-      // NEW: Tell recommendation engine about the like
+      // Handle like via recommendation engine (handles all tracking automatically)
       await recommendationEngine.handleSwipe(repoToLike as any, 'right');
-      
-      // CRITICAL: Immediately save to database to prevent seeing this repo again
-      const { supabaseService } = await import('@/services/supabase.service');
-      const userId = await supabaseService.getOrCreateUserId();
-      
-      // Save interaction to database (this marks repo as "seen")
-      await supabaseService.trackInteraction(userId, {
-        repoId: repoToLike.id,
-        repoName: repoToLike.name,
-        repoFullName: repoToLike.fullName,
-        action: 'like',
-        timestamp: new Date()
-      }).catch(err => {
-        console.error('Error saving like to database:', err);
-      });
-      
-      // Track interaction in session
-      interactionService.trackInteraction(repoToLike, 'like', {
-        position: 0,
-        source: 'discover',
-      }).catch(err => console.error('Error tracking like:', err));
       
       // Track in Google Analytics
       trackRepoInteraction('like', repoToLike.id, repoToLike.fullName || repoToLike.name);
       
       setLikedRepos((liked) => [...liked, repoToLike]);
       
-      console.log(`✅ Liked and saved to DB: ${repoToLike.fullName || repoToLike.name}`);
+      console.log(`✅ Liked: ${repoToLike.fullName || repoToLike.name}`);
     }
     
     // Increment swipe count and check if onboarding should be shown
@@ -705,28 +664,10 @@ export function DiscoveryScreen() {
   const handleSave = useCallback(async (repo?: Repository) => {
     const repoToSave = repo || cards[0];
     
-    // NEW: Tell recommendation engine about the save
+    // Handle save via recommendation engine (handles all tracking automatically)
     if (repoToSave) {
       await recommendationEngine.handleSave(repoToSave as any);
-    }
-    
-    // CRITICAL: Save to database first to mark as seen
-    if (repoToSave) {
-      const { supabaseService } = await import('@/services/supabase.service');
-      const userId = await supabaseService.getOrCreateUserId();
-      
-      // Save interaction to database (this marks repo as "seen")
-      await supabaseService.trackInteraction(userId, {
-        repoId: repoToSave.id,
-        repoName: repoToSave.name,
-        repoFullName: repoToSave.fullName,
-        action: 'save',
-        timestamp: new Date()
-      }).catch(err => {
-        console.error('Error saving save to database:', err);
-      });
-      
-      console.log(`✅ Saved and saved to DB: ${repoToSave.fullName || repoToSave.name}`);
+      console.log(`✅ Saved: ${repoToSave.fullName || repoToSave.name}`);
     }
     
     // ── Paywall: saving is a Pro feature ────────────────────────────────────
