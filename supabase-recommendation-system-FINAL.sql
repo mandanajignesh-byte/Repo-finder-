@@ -1,61 +1,79 @@
--- ============================================================================
--- RepoVerse Recommendation System - SQL Setup (FIXED VERSION)
--- Run each section separately in Supabase SQL Editor
--- ============================================================================
+-- ════════════════════════════════════════════════════════════════════════════
+-- RepoVerse Recommendation System — Complete Database Setup
+-- UPDATED: Fixed type casting for BIGINT id fields
+-- ════════════════════════════════════════════════════════════════════════════
+-- Run this entire script in Supabase SQL Editor
+-- ════════════════════════════════════════════════════════════════════════════
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- SQL 1 — Create user_tag_affinity table
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS user_tag_affinity (
-  user_id      TEXT        NOT NULL,
-  tag          TEXT        NOT NULL,
-  affinity     DECIMAL     NOT NULL DEFAULT 0,
-  like_count   INTEGER     NOT NULL DEFAULT 0,
-  skip_count   INTEGER     NOT NULL DEFAULT 0,
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  user_id     TEXT NOT NULL,
+  tag         TEXT NOT NULL,
+  affinity    DECIMAL DEFAULT 0.0,
+  like_count  INTEGER DEFAULT 0,
+  skip_count  INTEGER DEFAULT 0,
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (user_id, tag)
 );
 
-CREATE INDEX IF NOT EXISTS idx_uta_user
-  ON user_tag_affinity(user_id);
+-- Index for fast lookups
+CREATE INDEX IF NOT EXISTS idx_user_tag_affinity_user ON user_tag_affinity(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tag_affinity_tag ON user_tag_affinity(tag);
 
-CREATE INDEX IF NOT EXISTS idx_uta_score
-  ON user_tag_affinity(user_id, affinity DESC);
+-- RLS policies
+ALTER TABLE user_tag_affinity ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own tag affinity" ON user_tag_affinity;
+CREATE POLICY "Users can view their own tag affinity"
+  ON user_tag_affinity FOR SELECT
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
+
+DROP POLICY IF EXISTS "Users can update their own tag affinity" ON user_tag_affinity;
+CREATE POLICY "Users can update their own tag affinity"
+  ON user_tag_affinity FOR ALL
+  USING (auth.uid()::TEXT = user_id OR user_id LIKE 'anon_%');
 
 -- ────────────────────────────────────────────────────────────────────────────
--- SQL 2 — Create repo_scores table (NO foreign key constraint)
+-- SQL 2 — Create repo_scores table
 -- ────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS repo_scores (
-  repo_id         TEXT        PRIMARY KEY,  -- Changed to TEXT to match repos
-  total_likes     INTEGER     NOT NULL DEFAULT 0,
-  total_skips     INTEGER     NOT NULL DEFAULT 0,
-  total_views     INTEGER     NOT NULL DEFAULT 0,
-  like_rate       DECIMAL     NOT NULL DEFAULT 0.5,
-  weighted_score  DECIMAL     NOT NULL DEFAULT 50,
-  last_updated    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  repo_id       TEXT PRIMARY KEY,  -- Changed to TEXT to match repo_clusters
+  total_likes   INTEGER DEFAULT 0,
+  total_skips   INTEGER DEFAULT 0,
+  like_rate     DECIMAL DEFAULT 0.5,
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_repo_scores_repo_id ON repo_scores(repo_id);
+-- Index for fast lookups
+CREATE INDEX IF NOT EXISTS idx_repo_scores_rate ON repo_scores(like_rate DESC);
 
--- Don't seed initially - let it populate as users interact
--- This avoids foreign key issues
+-- RLS policies
+ALTER TABLE repo_scores ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read repo scores" ON repo_scores;
+CREATE POLICY "Anyone can read repo scores"
+  ON repo_scores FOR SELECT
+  USING (TRUE);
 
 -- ────────────────────────────────────────────────────────────────────────────
--- SQL 3 — Create get_scored_repos() function (SIMPLIFIED)
+-- SQL 3 — Create get_scored_repos() function
 -- ────────────────────────────────────────────────────────────────────────────
+
+DROP FUNCTION IF EXISTS get_scored_repos;
 
 CREATE OR REPLACE FUNCTION get_scored_repos(
   p_user_id     TEXT,
   p_cluster     TEXT,
   p_exclude_ids BIGINT[],
-  p_limit       INT     DEFAULT 30,
-  p_min_stars   INT     DEFAULT 50,
-  p_max_stars   INT     DEFAULT 100000
+  p_limit       INTEGER DEFAULT 30,
+  p_min_stars   INTEGER DEFAULT 50,
+  p_max_stars   INTEGER DEFAULT 100000
 )
-RETURNS TABLE (
+RETURNS TABLE(
   id            BIGINT,
   name          TEXT,
   full_name     TEXT,
@@ -147,49 +165,63 @@ BEGIN
     ON CONFLICT (user_id, tag) DO UPDATE SET
       affinity   = GREATEST(-5, LEAST(20,
                      user_tag_affinity.affinity + delta)),
-      like_count = user_tag_affinity.like_count
-                   + CASE WHEN p_action = 'like' THEN 1 ELSE 0 END,
-      skip_count = user_tag_affinity.skip_count
-                   + CASE WHEN p_action = 'skip' THEN 1 ELSE 0 END,
+      like_count = user_tag_affinity.like_count +
+                     CASE WHEN p_action = 'like' THEN 1 ELSE 0 END,
+      skip_count = user_tag_affinity.skip_count +
+                     CASE WHEN p_action = 'skip' THEN 1 ELSE 0 END,
       updated_at = NOW();
   END LOOP;
 END;
 $$ LANGUAGE plpgsql;
 
 -- ────────────────────────────────────────────────────────────────────────────
--- SQL 5 — Row Level Security
+-- SQL 5 — Create update_repo_score() function (helper)
 -- ────────────────────────────────────────────────────────────────────────────
 
-ALTER TABLE user_tag_affinity ENABLE ROW LEVEL SECURITY;
-ALTER TABLE repo_scores       ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION update_repo_score(
+  p_repo_id TEXT,
+  p_action  TEXT    -- "like" | "skip"
+)
+RETURNS VOID AS $$
+BEGIN
+  INSERT INTO repo_scores
+    (repo_id, total_likes, total_skips, like_rate, updated_at)
+  VALUES (
+    p_repo_id,
+    CASE WHEN p_action = 'like' THEN 1 ELSE 0 END,
+    CASE WHEN p_action = 'skip' THEN 1 ELSE 0 END,
+    CASE WHEN p_action = 'like' THEN 1.0 ELSE 0.0 END,
+    NOW()
+  )
+  ON CONFLICT (repo_id) DO UPDATE SET
+    total_likes = repo_scores.total_likes +
+                    CASE WHEN p_action = 'like' THEN 1 ELSE 0 END,
+    total_skips = repo_scores.total_skips +
+                    CASE WHEN p_action = 'skip' THEN 1 ELSE 0 END,
+    like_rate   = CASE
+                    WHEN (repo_scores.total_likes + repo_scores.total_skips + 1) > 0
+                    THEN (repo_scores.total_likes + CASE WHEN p_action = 'like' THEN 1 ELSE 0 END)::DECIMAL
+                         / (repo_scores.total_likes + repo_scores.total_skips + 1)
+                    ELSE 0.5
+                  END,
+    updated_at  = NOW();
+END;
+$$ LANGUAGE plpgsql;
 
--- Users can only read/write their own affinity rows
-DROP POLICY IF EXISTS own_affinity ON user_tag_affinity;
-CREATE POLICY own_affinity ON user_tag_affinity
-  FOR ALL
-  USING (true);  -- Allow all operations for simplicity
-
--- repo_scores is globally readable, writable by service role only
-DROP POLICY IF EXISTS public_read_scores ON repo_scores;
-CREATE POLICY public_read_scores ON repo_scores
-  FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS service_write_scores ON repo_scores;
-CREATE POLICY service_write_scores ON repo_scores
-  FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS service_update_scores ON repo_scores;
-CREATE POLICY service_update_scores ON repo_scores
-  FOR UPDATE USING (true);
-
--- ────────────────────────────────────────────────────────────────────────────
--- VERIFICATION QUERIES
--- ────────────────────────────────────────────────────────────────────────────
-
--- Run these to verify setup:
--- SELECT * FROM user_tag_affinity LIMIT 5;
--- SELECT * FROM repo_scores LIMIT 5;
--- SELECT * FROM pg_proc WHERE proname IN ('get_scored_repos', 'update_tag_affinity');
-
--- Test the function (replace 'frontend' with an actual cluster name from your DB):
--- SELECT * FROM get_scored_repos('test_user', 'frontend', ARRAY[]::BIGINT[], 10, 50, 100000);
+-- ════════════════════════════════════════════════════════════════════════════
+-- ✅ SETUP COMPLETE!
+-- ════════════════════════════════════════════════════════════════════════════
+-- 
+-- Test with this query:
+--
+-- SELECT * FROM get_scored_repos(
+--   'test_user',
+--   'trending-daily-desktop',
+--   ARRAY[]::BIGINT[],
+--   5,
+--   50,
+--   100000
+-- );
+--
+-- Expected: Should return 5 repositories with scores
+-- ════════════════════════════════════════════════════════════════════════════
