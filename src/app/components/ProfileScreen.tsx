@@ -12,6 +12,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useGitHubAuth } from '@/hooks/useGitHubAuth';
 import { StarredRepo } from '@/services/github-auth.service';
 import { formatTimeAgo } from '@/utils/date.utils';
+import { PaywallModal } from './PaywallModal';
 
 interface ProfileScreenProps {
   onClose: () => void;
@@ -648,6 +649,7 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
   const [editedPrefs, setEditedPrefs] = useState<Partial<UserPreferences>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     if (loaded && preferences) {
@@ -970,6 +972,7 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
                 ))}
               </div>
               <button
+                onClick={() => setShowPaywall(true)}
                 className="px-6 py-2.5 rounded-full text-sm font-semibold transition-all"
                 style={{ background: '#2563eb', color: '#fff' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1d4ed8'; }}
@@ -983,5 +986,9 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
 
       </div>
     </div>
+
+    {showPaywall && (
+      <PaywallModal type="profile" onClose={() => setShowPaywall(false)} />
+    )}
   );
 }

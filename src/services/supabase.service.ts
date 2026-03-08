@@ -102,12 +102,13 @@ class SupabaseService {
       if (!data) return null;
 
       return {
-        user_id: data.user_id,
-        primary_cluster: data.primary_cluster,
-        tech_stack: data.tech_stack || [],
+        primaryCluster: data.primary_cluster,
+        techStack: data.tech_stack || [],
         goals: data.goals || [],
-        onboarding_completed: data.onboarding_completed || false,
-      };
+        interests: data.interests || [],
+        experienceLevel: data.experience_level || 'intermediate',
+        onboardingCompleted: data.onboarding_completed || false,
+      } as any;
     } catch (error) {
       console.error('Error in getUserPreferences:', error);
       return null;
