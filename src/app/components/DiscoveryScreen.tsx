@@ -109,171 +109,8 @@ export function DiscoveryScreen() {
     })();
   }, [loaded, cards.length]);
 
-  // OLD LOADING FUNCTIONS - Kept for fallback/compatibility
-  // ═══════════════════════════════════════════════════════════════
-
-  // SIMPLIFIED: Load random repos from any cluster
-  const loadRandomRepos = useCallback(async (append = false) => {
-    try {
-      if (!append) setIsLoadingBatch(true);
-      setIsLoadingMore(true);
-      
-      const { supabaseService } = await import('@/services/supabase.service');
-      const userId = await supabaseService.getOrCreateUserId();
-      const seenIds = await supabaseService.getAllSeenRepoIds(userId);
-      
-      const { data: clusters } = await supabase
-        .from('cluster_metadata')
-        .select('cluster_name')
-        .eq('is_active', true);
-      
-      if (!clusters || clusters.length === 0) {
-        console.error('No clusters found');
-        setIsLoadingMore(false);
-        setIsLoadingBatch(false);
-        return;
-      }
-      
-      const randomCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
-      const batchSize = append ? 10 : 8;
-      
-      console.log(`🎲 Loading random repos from: ${randomCluster}`);
-      
-      const repos = await clusterService.getBestOfCluster(
-        randomCluster,
-        batchSize * 3,
-        seenIds,
-        userId
-      );
-      
-      // Deduplicate
-      const existingIds = new Set(cards.map(c => c?.id).filter(Boolean));
-      const filtered = repos
-        .filter(r => r && r.id && !existingIds.has(r.id))
-        .slice(0, batchSize);
-      
-      console.log(`✅ Loaded: ${filtered.length} random repos`);
-      
-      if (filtered.length > 0) {
-        if (append) {
-          setCards(prev => [...prev, ...filtered.filter(r => !prev.some(p => p.id === r.id))]);
-        } else {
-          setCards(filtered);
-        }
-        
-        // Track views
-        filtered.forEach((repo, i) => {
-          interactionService.trackInteraction(repo, 'view', {
-            position: cards.length + i,
-            source: 'discover',
-          }).catch(() => {});
-        });
-      }
-      
-      setIsLoadingMore(false);
-      setIsLoadingBatch(false);
-    } catch (error) {
-      console.error('Error loading random repos:', error);
-      setIsLoadingMore(false);
-      setIsLoadingBatch(false);
-    }
-  }, [cards]);
-
-  // SIMPLIFIED: Load personalized repos with smart fallback
-  const loadPersonalizedRepos = useCallback(async (append = false, retryCount = 0) => {
-    try {
-      const MAX_RETRIES = 3;
-      if (retryCount >= MAX_RETRIES) {
-        console.warn(`⚠️ Max retries reached, using random repos`);
-        return loadRandomRepos(append);
-      }
-      
-      if (!append) setIsLoadingBatch(true);
-      setIsLoadingMore(true);
-
-      const { supabaseService } = await import('@/services/supabase.service');
-      const userId = await supabaseService.getOrCreateUserId();
-      const seenIds = await supabaseService.getAllSeenRepoIds(userId);
-      const excludeIds = [...seenIds, ...cards.map(c => c?.id).filter(Boolean)];
-      const batchSize = append ? 10 : 8;
-      
-      console.log(`🔍 Loading personalized repos (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
-      
-      let repos: Repository[] = [];
-      
-      // 1. Try primary cluster
-      if (preferences.primaryCluster && repos.length < 3) {
-        console.log(`🎯 Trying: ${preferences.primaryCluster} cluster`);
-        const clusterRepos = await clusterService.getBestOfCluster(
-          preferences.primaryCluster,
-          batchSize * 3,
-          excludeIds,
-          userId
-        );
-        repos = [...repos, ...clusterRepos];
-        console.log(`   Found: ${clusterRepos.length} repos`);
-      }
-      
-      // 2. Try random cluster if not enough
-      if (repos.length < 3) {
-        console.log(`🎯 Trying: Random cluster`);
-        const { data: clusters } = await supabase
-          .from('cluster_metadata')
-          .select('cluster_name')
-          .eq('is_active', true);
-        
-        if (clusters && clusters.length > 0) {
-          const randomCluster = clusters[Math.floor(Math.random() * clusters.length)].cluster_name;
-          const randomRepos = await clusterService.getBestOfCluster(
-            randomCluster,
-            batchSize * 2,
-            excludeIds,
-            userId
-          );
-          repos = [...repos, ...randomRepos];
-          console.log(`   Found: ${randomRepos.length} repos from ${randomCluster}`);
-        }
-      }
-      
-      // Deduplicate
-      const existingIds = new Set(cards.map(c => c?.id).filter(Boolean));
-      repos = repos
-        .filter(r => r && r.id && !existingIds.has(r.id))
-        .slice(0, batchSize);
-      
-      console.log(`✅ Final: ${repos.length} unique repos`);
-      
-      if (repos.length === 0) {
-        setIsLoadingMore(false);
-        setIsLoadingBatch(false);
-        return loadPersonalizedRepos(append, retryCount + 1);
-      }
-
-      // Update cards
-      if (append) {
-        setCards(prev => [...prev, ...repos.filter(r => !prev.some(p => p.id === r.id))]);
-      } else {
-        setCards(repos);
-      }
-      
-      // Track views in background
-      repos.forEach((repo, i) => {
-        interactionService.trackInteraction(repo, 'view', {
-          position: cards.length + i,
-          source: 'discover',
-        }).catch(() => {});
-      });
-      
-      setIsLoadingMore(false);
-      setIsLoadingBatch(false);
-    } catch (error) {
-      console.error('Error loading repos:', error);
-      setIsLoadingMore(false);
-      setIsLoadingBatch(false);
-      if (retryCount < 3) return loadPersonalizedRepos(append, retryCount + 1);
-      return loadRandomRepos(append);
-    }
-  }, [preferences.primaryCluster, cards, loadRandomRepos]);
+  // OLD LOADING FUNCTIONS - REMOVED - Now using recommendationEngine only
+  // All loading logic is handled by the recommendation engine
 
   // Check if PWA is installed on mount and periodically
   // Also track PWA installs/opens
@@ -481,10 +318,17 @@ export function DiscoveryScreen() {
             
             // Small delay to ensure cards state is updated before loading more
             setTimeout(() => {
-              if (hasCompletedOnboarding) {
-                loadPersonalizedRepos(true); // Append more repos
-              } else {
-                loadRandomRepos(true); // Append more repos
+              // Load more repos using recommendation engine
+              if (!isFetching.current) {
+                isFetching.current = true;
+                recommendationEngine
+                  .loadBatch({ append: true, attempt: 0 })
+                  .then((batch) => {
+                    if (batch.length > 0) {
+                      setCards(c => [...c, ...batch as any]);
+                    }
+                  })
+                  .finally(() => { isFetching.current = false; });
               }
             }, 300);
           } else {
@@ -504,29 +348,12 @@ export function DiscoveryScreen() {
     
     // Normal flow: Start loading immediately if we don't have cards yet
     // BUT: Don't load if we're currently loading a shared repo
+    // NOW USING RECOMMENDATION ENGINE - no need for separate logic
     if (cards.length === 0 && !isLoadingMore && !isLoadingSharedRepo && loaded && !owner && !repo) {
-      // Check localStorage for onboarding status immediately (don't wait for Supabase sync)
-      const localPrefs = (() => {
-        try {
-          const stored = localStorage.getItem('github_repo_app_preferences');
-          return stored ? JSON.parse(stored) : null;
-        } catch {
-          return null;
-        }
-      })();
-      
-      const hasCompletedOnboarding = localPrefs?.onboardingCompleted || preferences.onboardingCompleted;
-      
-      if (hasCompletedOnboarding) {
-        // Load personalized repos if onboarding completed
-      loadPersonalizedRepos();
-      } else {
-        // ALWAYS load random repos immediately for first-time visitors
-        // This ensures repos show BEFORE onboarding appears (onboarding shows after 4-5 swipes)
-        loadRandomRepos();
+      // Recommendation engine handles both personalized and random loading
+      // No need to check onboarding status - engine is smart enough
     }
-    }
-  }, [cards.length, isLoadingMore, isLoadingSharedRepo, preferences.onboardingCompleted, loaded, owner, repo, navigate, loadPersonalizedRepos, loadRandomRepos]);
+  }, [cards.length, isLoadingMore, isLoadingSharedRepo, loaded, owner, repo, navigate]);
 
   // Reload repos when preferences change significantly (e.g., from profile screen)
   // IMPORTANT: Only reload if onboarding is completed AND user has cards (not during initial load)
@@ -568,12 +395,18 @@ export function DiscoveryScreen() {
           await repoPoolService.clearPool();
           // Clear current cards to show loading state
           setCards([]);
-          // Reload repos with new preferences
-          await loadPersonalizedRepos(false);
+          // Reload repos with new preferences using recommendation engine
+          setIsLoadingBatch(true);
+          const batch = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
+          setCards(batch as any);
+          setIsLoadingBatch(false);
         } catch (error) {
           console.error('Error reloading repos after preference change:', error);
-          // Fallback: just reload without clearing pool
-          loadPersonalizedRepos(false);
+          // Fallback: just reload
+          setIsLoadingBatch(true);
+          const batch = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
+          setCards(batch as any);
+          setIsLoadingBatch(false);
         }
       };
       
@@ -595,19 +428,10 @@ export function DiscoveryScreen() {
     preferences.documentationImportance,
     preferences.licensePreference?.join(','),
     preferences.repoSize?.join(','),
-    loadPersonalizedRepos,
   ]);
 
-  // Load more cards when running low
-  useEffect(() => {
-    if (cards.length < 5 && !isLoadingMore && loaded) {
-      if (preferences.onboardingCompleted) {
-      loadPersonalizedRepos(true);
-      } else {
-        loadRandomRepos(true);
-      }
-    }
-  }, [cards.length, isLoadingMore, preferences.onboardingCompleted, loaded, loadPersonalizedRepos, loadRandomRepos]);
+  // Load more cards when running low - REMOVED (engine handles this automatically)
+  // The recommendation engine automatically preloads when < 5 cards remaining
 
   // Reset trigger when card changes
   useEffect(() => {
@@ -764,28 +588,6 @@ export function DiscoveryScreen() {
       
       return newCards;
     });
-    
-    /* OLD LOADING LOGIC - Replaced by engine above
-    // Remove the card
-    setCards((prev) => {
-      const newCards = prev.slice(1);
-      
-      // CRITICAL: When user finishes batch (2 cards left), show loading screen and fetch next batch
-      if (newCards.length === 2 && !isLoadingMore && !isLoadingBatch) {
-        console.log('🔄 User finishing batch, loading next batch with loading screen...');
-        setIsLoadingBatch(true);
-        
-        // Use personalized repos if onboarding completed, otherwise random
-        if (preferences.onboardingCompleted) {
-          setTimeout(() => loadPersonalizedRepos(true), 500); // Small delay for smooth UX
-        } else {
-          setTimeout(() => loadRandomRepos(true), 500);
-        }
-      }
-      
-      return newCards;
-    });
-    */ // END OLD LOADING LOGIC
   }, [cards, loaded, preferences.onboardingCompleted]);
 
   const handleLike = useCallback(async (repo?: Repository) => {
@@ -883,15 +685,22 @@ export function DiscoveryScreen() {
       // If we're running low on cards, trigger loading more
       if (newCards.length < 3 && !isLoadingMore) {
         // Use personalized repos if onboarding completed, otherwise random
-        if (preferences.onboardingCompleted) {
-          setTimeout(() => loadPersonalizedRepos(true), 100);
-        } else {
-          setTimeout(() => loadRandomRepos(true), 100);
+        // Load more repos using recommendation engine
+        if (!isFetching.current) {
+          isFetching.current = true;
+          recommendationEngine
+            .loadBatch({ append: true, attempt: 0 })
+            .then((batch) => {
+              if (batch.length > 0) {
+                setCards(c => [...c, ...batch as any]);
+              }
+            })
+            .finally(() => { isFetching.current = false; });
         }
       }
       return newCards;
     });
-  }, [cards, isLoadingMore, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
+  }, [cards, loaded, preferences.onboardingCompleted]);
 
   const handleSave = useCallback(async (repo?: Repository) => {
     const repoToSave = repo || cards[0];
@@ -1030,9 +839,10 @@ export function DiscoveryScreen() {
         onboardingCompleted: true,
       });
       
-      // Load personalized repos
+      // Load personalized repos using recommendation engine
       const startTime = Date.now();
-      await loadPersonalizedRepos();
+      const batch = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
+      setCards(batch as any);
       
       // Ensure minimum display time of 2 seconds for smooth UX
       const elapsedTime = Date.now() - startTime;
@@ -1046,9 +856,10 @@ export function DiscoveryScreen() {
       setIsLoadingRecommendations(false);
     } catch (error) {
       console.error('Error in onboarding completion:', error);
-      // Still hide loading screen on error and try to load random repos
+      // Still hide loading screen on error and try to load repos
       setIsLoadingRecommendations(false);
-      await loadRandomRepos(false);
+      const batch = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
+      setCards(batch as any);
     }
   };
 
@@ -1142,15 +953,17 @@ export function DiscoveryScreen() {
             setShowOnboarding(false);
             
             // Load simple random repos from table (no filters, no API calls)
-            // Clear existing cards and load fresh
+            // Clear existing cards and load fresh using recommendation engine
             setCards([]);
-            await loadRandomRepos(false);
+            const batch = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
+            setCards(batch as any);
           } catch (error) {
             console.error('Error saving onboarding skip:', error);
             // Still hide onboarding and load repos even if save fails
             setShowOnboarding(false);
             setCards([]);
-            await loadRandomRepos(false);
+            const batch2 = await recommendationEngine.loadBatch({ append: false, attempt: 0 });
+            setCards(batch2 as any);
           }
         }}
       />
