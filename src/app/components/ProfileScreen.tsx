@@ -45,6 +45,15 @@ const GOALS = [
   { id: 'research', label: 'Research & Discovery', icon: '🔍' },
 ];
 
+// Use Cases (matching onboarding)
+const USE_CASES = [
+  { id: 'learning-new-tech', label: 'Learning New Technology', description: 'I want to learn a new language or framework' },
+  { id: 'building-project', label: 'Building a Project', description: 'I need code to build something' },
+  { id: 'contributing', label: 'Contributing to Open Source', description: 'I want to contribute to projects' },
+  { id: 'finding-solutions', label: 'Finding Solutions', description: 'I need libraries/tools for specific missions' },
+  { id: 'exploring', label: 'Exploring & Research', description: 'I\'m exploring what\'s out there' },
+];
+
 // ─── Color palettes ──────────────────────────────────────────────────────────
 
 type ChipColor = { bg: string; text: string; border: string };
