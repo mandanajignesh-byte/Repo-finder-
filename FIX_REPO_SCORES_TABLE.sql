@@ -1,58 +1,62 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- FIX: repo_scores table - ensure it exists with correct schema and RLS
+-- FIX: repo_scores RLS policies
+-- ════════════════════════════════════════════════════════════════════════════
+-- Error: GET repo_scores returns 406 (Not Acceptable)
+-- This happens because RLS is blocking SELECT queries
+-- Solution: Allow public read access, restrict writes
 -- ════════════════════════════════════════════════════════════════════════════
 
--- Create or update repo_scores table
-CREATE TABLE IF NOT EXISTS repo_scores (
-  repo_id         TEXT PRIMARY KEY,
-  total_likes     INTEGER DEFAULT 0,
-  total_skips     INTEGER DEFAULT 0,
-  like_rate       DECIMAL DEFAULT 0.5,
-  weighted_score  DECIMAL DEFAULT 50,
-  last_updated    TIMESTAMPTZ DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_repo_scores_rate ON repo_scores(like_rate DESC);
-CREATE INDEX IF NOT EXISTS idx_repo_scores_weighted ON repo_scores(weighted_score DESC);
+-- Drop existing policies
+DROP POLICY IF EXISTS "Allow public read for repo_scores" ON repo_scores;
+DROP POLICY IF EXISTS "Allow service role write for repo_scores" ON repo_scores;
+DROP POLICY IF EXISTS "Allow insert for authenticated users" ON repo_scores;
+DROP POLICY IF EXISTS "Allow update for authenticated users" ON repo_scores;
 
 -- Enable RLS
 ALTER TABLE repo_scores ENABLE ROW LEVEL SECURITY;
 
--- Drop old policies
-DROP POLICY IF EXISTS "Anyone can read repo scores" ON repo_scores;
-DROP POLICY IF EXISTS "Allow all for repo scores" ON repo_scores;
-
--- Create new permissive policy (everyone can read, system can write)
-CREATE POLICY "Allow read for everyone"
+-- Allow everyone to read repo scores (needed for frontend)
+CREATE POLICY "Allow public read for repo_scores"
   ON repo_scores
   FOR SELECT
-  USING (TRUE);
+  USING (true);
 
-CREATE POLICY "Allow insert/update for authenticated and anon users"
+-- Allow anyone to insert/update repo scores (needed for interaction tracking)
+CREATE POLICY "Allow public insert for repo_scores"
   ON repo_scores
-  FOR ALL
-  USING (TRUE)
-  WITH CHECK (TRUE);
+  FOR INSERT
+  WITH CHECK (true);
 
--- Verify structure
+CREATE POLICY "Allow public update for repo_scores"
+  ON repo_scores
+  FOR UPDATE
+  USING (true)
+  WITH CHECK (true);
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Verify the policies
+-- ════════════════════════════════════════════════════════════════════════════
+
 SELECT 
-  column_name, 
-  data_type,
-  column_default
-FROM information_schema.columns 
-WHERE table_name = 'repo_scores'
-ORDER BY ordinal_position;
+  schemaname,
+  tablename,
+  policyname,
+  cmd,
+  qual,
+  with_check
+FROM pg_policies
+WHERE tablename = 'repo_scores';
+
+-- Expected: Should see 3 policies (SELECT, INSERT, UPDATE) with permissive access
 
 -- ════════════════════════════════════════════════════════════════════════════
--- Expected output:
+-- WHY THIS FIX IS NEEDED
 -- ════════════════════════════════════════════════════════════════════════════
--- repo_id        | text    | null
--- total_likes    | integer | 0
--- total_skips    | integer | 0
--- like_rate      | numeric | 0.5
--- weighted_score | numeric | 50
--- last_updated   | timestamp | NOW()
--- updated_at     | timestamp | NOW()
+-- repo_scores is a public statistics table that needs to be:
+-- 1. Readable by everyone (to calculate recommendations)
+-- 2. Writable by everyone (to track likes/skips)
+-- 3. Not sensitive (just aggregate stats, no personal data)
+--
+-- The 406 error means RLS was blocking SELECT queries.
+-- This fix allows public read/write for this specific table.
 -- ════════════════════════════════════════════════════════════════════════════
