@@ -126,25 +126,55 @@ export function PayPalSubscription({
   if (error) {
     return (
       <div
-        className="p-4 rounded-lg border text-center"
+        className="p-6 rounded-xl border text-center"
         style={{
           background: 'rgba(239,68,68,0.1)',
           borderColor: 'rgba(239,68,68,0.3)',
         }}
       >
-        <p className="text-sm" style={{ color: '#f87171' }}>
+        <div className="text-4xl mb-3">⚠️</div>
+        <p className="text-sm font-semibold mb-2 text-white">
+          Payment System Error
+        </p>
+        <p className="text-xs mb-4" style={{ color: '#fca5a5' }}>
           {error}
         </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+          style={{
+            background: 'rgba(239,68,68,0.2)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            color: '#fca5a5',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(239,68,68,0.2)';
+          }}
+        >
+          Refresh Page
+        </button>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#60a5fa' }} />
-        <span className="ml-2 text-sm" style={{ color: '#8b949e' }}>
-          Loading payment options...
+      <div className="flex flex-col items-center justify-center p-10">
+        <div 
+          className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin mb-4"
+          style={{ 
+            borderColor: '#60a5fa',
+            borderTopColor: 'transparent',
+          }}
+        />
+        <span className="text-sm font-medium text-white mb-1">
+          Loading payment options
+        </span>
+        <span className="text-xs" style={{ color: '#64748b' }}>
+          This may take a few seconds...
         </span>
       </div>
     );
@@ -214,104 +244,274 @@ export function PayPalSubscriptionModal({
   if (subscribed) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+        className="fixed inset-0 z-[300] flex items-center justify-center p-4"
         style={{
-          background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
+          background: 'rgba(0,0,0,0.92)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}
       >
         <div
-          className="max-w-sm w-full rounded-[24px] p-8 text-center"
+          className="max-w-md w-full rounded-[32px] p-10 text-center relative overflow-hidden"
           style={{
-            background: 'rgba(28,28,30,0.97)',
-            border: '1px solid rgba(34,197,94,0.3)',
+            background: 'linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.98) 100%)',
+            border: '2px solid rgba(34,197,94,0.3)',
+            boxShadow: '0 25px 70px rgba(0,0,0,0.6), 0 0 120px rgba(34,197,94,0.2)',
           }}
         >
-          <div
-            className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
-            style={{ background: 'rgba(34,197,94,0.15)' }}
-          >
-            <Check className="w-8 h-8" style={{ color: '#22c55e' }} />
+          {/* Success glow */}
+          <div 
+            className="absolute inset-0 opacity-20"
+            style={{
+              background: 'radial-gradient(circle at 50% 50%, rgba(34,197,94,0.4) 0%, transparent 70%)',
+            }}
+          />
+
+          {/* Success icon with animation */}
+          <div className="relative inline-block mb-6">
+            <div
+              className="w-24 h-24 mx-auto rounded-full flex items-center justify-center relative"
+              style={{
+                background: 'linear-gradient(135deg, rgba(34,197,94,0.2) 0%, rgba(16,185,129,0.2) 100%)',
+                border: '3px solid rgba(34,197,94,0.4)',
+                boxShadow: '0 0 60px rgba(34,197,94,0.4), inset 0 0 30px rgba(34,197,94,0.1)',
+                animation: 'successPulse 2s ease-in-out infinite',
+              }}
+            >
+              <Check className="w-12 h-12" style={{ color: '#22c55e' }} />
+            </div>
+            <div className="absolute -top-4 -right-4 text-5xl" style={{ animation: 'celebrationFloat 2s ease-in-out infinite' }}>
+              🎉
+            </div>
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Welcome to Pro! 🎉</h2>
-          <p className="text-sm" style={{ color: '#8b949e' }}>
-            Your subscription is now active. Enjoy unlimited access!
+
+          <h2 
+            className="text-3xl font-bold mb-3"
+            style={{
+              background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            Welcome to Pro!
+          </h2>
+          
+          <p className="text-base mb-6" style={{ color: '#94a3b8' }}>
+            Your subscription is now active. Enjoy unlimited access to all premium features!
+          </p>
+
+          {/* Pro badges */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div 
+              className="px-4 py-2 rounded-full text-xs font-semibold"
+              style={{
+                background: 'rgba(34,197,94,0.1)',
+                border: '1px solid rgba(34,197,94,0.3)',
+                color: '#22c55e',
+              }}
+            >
+              ♾️ Unlimited Swipes
+            </div>
+            <div 
+              className="px-4 py-2 rounded-full text-xs font-semibold"
+              style={{
+                background: 'rgba(59,130,246,0.1)',
+                border: '1px solid rgba(59,130,246,0.3)',
+                color: '#60a5fa',
+              }}
+            >
+              🤖 AI Powered
+            </div>
+          </div>
+
+          <p className="text-sm" style={{ color: '#64748b' }}>
+            Redirecting you back...
           </p>
         </div>
+
+        {/* Add celebration animation styles */}
+        <style>{`
+          @keyframes successPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+          }
+          @keyframes celebrationFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(10deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[300] flex items-center justify-center p-4"
       style={{
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        background: 'rgba(0,0,0,0.92)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="max-w-md w-full rounded-[24px] p-6 relative"
+        className="max-w-lg w-full rounded-[32px] p-8 relative overflow-hidden"
         style={{
-          background: 'rgba(28,28,30,0.97)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.98) 100%)',
+          border: '1px solid rgba(148,163,184,0.15)',
           maxHeight: '90vh',
           overflowY: 'auto',
+          boxShadow: '0 25px 70px rgba(0,0,0,0.6), 0 0 120px rgba(59,130,246,0.15)',
         }}
       >
+        {/* Animated gradient background */}
+        <div 
+          className="absolute inset-0 opacity-20"
+          style={{
+            background: 'radial-gradient(circle at 50% 0%, rgba(59,130,246,0.4) 0%, transparent 60%)',
+          }}
+        />
+
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-full transition-colors"
-          style={{ color: '#4b5563' }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#9ca3af')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#4b5563')}
+          className="absolute top-5 right-5 p-2 rounded-full transition-all z-10"
+          style={{ 
+            background: 'rgba(255,255,255,0.05)',
+            color: '#94a3b8',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+            e.currentTarget.style.color = '#cbd5e1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+            e.currentTarget.style.color = '#94a3b8';
+          }}
           aria-label="Close"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
 
         {/* Header */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">Upgrade to Pro</h2>
-          <div className="text-3xl font-bold text-white mb-1">{price}</div>
-          <p className="text-sm" style={{ color: '#8b949e' }}>
-            per month • Cancel anytime
+        <div className="text-center mb-8 relative z-10">
+          <div className="inline-block mb-4">
+            <div
+              className="text-5xl font-extrabold mb-2"
+              style={{
+                background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              {price}
+            </div>
+            <div className="text-sm" style={{ color: '#94a3b8' }}>
+              per month
+            </div>
+          </div>
+          
+          <h2 
+            className="text-3xl font-bold mb-2"
+            style={{
+              background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            Upgrade to Pro
+          </h2>
+          
+          <p className="text-base" style={{ color: '#94a3b8' }}>
+            Cancel anytime • No commitment
           </p>
         </div>
 
-        {/* Features */}
-        <div className="mb-6 space-y-3">
-          {features.map((feature, index) => (
-            <div key={index} className="flex items-start gap-3">
-              <div
-                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{ background: 'rgba(34,197,94,0.15)' }}
-              >
-                <Check className="w-3 h-3" style={{ color: '#22c55e' }} />
+        {/* Features Grid */}
+        <div 
+          className="mb-8 p-6 rounded-2xl relative z-10"
+          style={{
+            background: 'rgba(15,23,42,0.5)',
+            border: '1px solid rgba(148,163,184,0.1)',
+          }}
+        >
+          <div className="space-y-4">
+            {features.map((feature, index) => (
+              <div key={index} className="flex items-center gap-4 group">
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
+                  style={{ 
+                    background: 'linear-gradient(135deg, rgba(59,130,246,0.2) 0%, rgba(147,51,234,0.2) 100%)',
+                    border: '1px solid rgba(59,130,246,0.3)',
+                  }}
+                >
+                  <Check className="w-4 h-4" style={{ color: '#60a5fa' }} />
+                </div>
+                <span 
+                  className="text-base font-medium transition-colors"
+                  style={{ color: '#e2e8f0' }}
+                >
+                  {feature}
+                </span>
               </div>
-              <span className="text-sm text-white">{feature}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        {/* PayPal Button */}
-        <PayPalSubscription
-          planId={planId}
-          onSuccess={handleSuccess}
-          onError={handleError}
-          onCancel={handleCancel}
-        />
+        {/* Payment Section */}
+        <div className="relative z-10 mb-6">
+          <div 
+            className="p-6 rounded-2xl"
+            style={{
+              background: 'rgba(15,23,42,0.5)',
+              border: '1px solid rgba(148,163,184,0.1)',
+            }}
+          >
+            <div className="mb-4 text-center">
+              <p className="text-sm font-semibold text-white mb-2">
+                Choose your payment method
+              </p>
+              <p className="text-xs" style={{ color: '#64748b' }}>
+                💳 Credit/Debit Card • 💰 PayPal • 📅 Pay Later
+              </p>
+            </div>
+            
+            <PayPalSubscription
+              planId={planId}
+              onSuccess={handleSuccess}
+              onError={handleError}
+              onCancel={handleCancel}
+            />
+          </div>
+        </div>
+
+        {/* Trust Badges */}
+        <div className="flex items-center justify-center gap-4 mb-4 relative z-10">
+          <div className="flex items-center gap-2">
+            <div 
+              className="w-2 h-2 rounded-full"
+              style={{ background: '#22c55e' }}
+            />
+            <span className="text-xs" style={{ color: '#64748b' }}>Secure Payment</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div 
+              className="w-2 h-2 rounded-full"
+              style={{ background: '#22c55e' }}
+            />
+            <span className="text-xs" style={{ color: '#64748b' }}>No Hidden Fees</span>
+          </div>
+        </div>
 
         {/* Footer */}
-        <div className="mt-4 text-center">
-          <p className="text-[10px]" style={{ color: '#4b5563' }}>
-            Secure payment powered by PayPal
+        <div className="text-center relative z-10 pt-4 border-t" style={{ borderColor: 'rgba(148,163,184,0.1)' }}>
+          <p className="text-xs leading-relaxed" style={{ color: '#475569' }}>
+            Powered by PayPal • SSL Encrypted • PCI Compliant
           </p>
         </div>
       </div>
