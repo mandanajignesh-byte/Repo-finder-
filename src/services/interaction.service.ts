@@ -5,7 +5,7 @@
 
 import { supabase } from '@/lib/supabase';
 import type { Repo, RepoAction } from '@/types/recommendation';
-import { supabaseService } from './new-supabase.service';
+import { supabaseService } from './supabase.service';
 
 class InteractionService {
   /**

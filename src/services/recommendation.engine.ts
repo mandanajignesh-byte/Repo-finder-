@@ -4,7 +4,7 @@
  * Handles batch loading, retry logic, preloading, and swipe handling
  */
 
-import { supabaseService } from './new-supabase.service';
+import { supabaseService } from './supabase.service';
 import { clusterService } from './new-cluster.service';
 import { interactionService } from './new-interaction.service';
 import type { Repo, BatchOptions, RetryConfig } from '@/types/recommendation';
