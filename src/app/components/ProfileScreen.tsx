@@ -9,7 +9,6 @@ import { Edit2, Save, ArrowLeft, RefreshCw, Star, ExternalLink, Search } from 'l
 import { SignatureCard } from './SignatureCard';
 import { UserPreferences } from '@/lib/types';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { repoPoolService } from '@/services/repo-pool.service';
 import { useGitHubAuth } from '@/hooks/useGitHubAuth';
 import { StarredRepo } from '@/services/github-auth.service';
 import { formatTimeAgo } from '@/utils/date.utils';
@@ -638,12 +637,15 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Save preferences - the recommendation engine will automatically use them
       await updatePreferences(editedPrefs);
-      await repoPoolService.clearPool();
-      await repoPoolService.buildPool(editedPrefs as UserPreferences);
+      
       setIsEditing(false);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
+      
+      // Optionally reload the page to refresh recommendations with new preferences
+      console.log('✅ Preferences saved! Refresh the Discovery page to see new recommendations.');
     } catch (error) {
       console.error('Error saving preferences:', error);
       alert('Failed to save preferences. Please try again.');
