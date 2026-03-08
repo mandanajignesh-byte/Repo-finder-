@@ -136,14 +136,39 @@ class RecommendationEngine {
           .catch(() => {});
       });
 
-      // ═══ H. Return fresh repos ═══
-      return fresh;
+      // ═══ H. Return fresh repos (convert to Repository format for compatibility) ═══
+      return fresh.map(r => this.convertToRepositoryFormat(r));
     } catch (error) {
       console.error('Error loading batch:', error);
       return [];
     } finally {
       this.loading = false;
     }
+  }
+
+  /**
+   * Convert new Repo type to old Repository format for backward compatibility
+   */
+  private convertToRepositoryFormat(repo: Repo): any {
+    return {
+      id: repo.id.toString(),
+      name: repo.name,
+      fullName: repo.full_name,
+      description: repo.description || '',
+      stars: repo.stars,
+      forks: repo.forks,
+      language: repo.language || undefined,
+      tags: repo.tags || [],
+      topics: repo.topics || [],
+      url: repo.url,
+      owner: {
+        login: repo.full_name?.split('/')[0] || '',
+        avatarUrl: repo.owner_avatar || '',
+      },
+      lastUpdated: '',
+      healthScore: repo.health_score,
+      fitScore: Math.round(repo.final_score),
+    };
   }
 
   /**
