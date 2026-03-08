@@ -1,214 +1,114 @@
 /**
- * Interaction Tracking Service
- * Tracks user interactions (save/skip/view) for recommendation system
- * Syncs with Supabase for persistent storage and better recommendations
+ * Interaction Service - RepoVerse Recommendation System
+ * Tracks user interactions and updates tag affinity + repo scores
  */
 
-import { UserInteraction, Repository } from '@/lib/types';
-import { supabaseService } from './supabase.service';
-
-const STORAGE_KEY = 'github_repo_app_interactions';
-const SESSION_KEY = 'github_repo_app_session_id';
+import { supabase } from '@/lib/supabase';
+import type { Repo, RepoAction } from '@/types/recommendation';
+import { supabaseService } from './new-supabase.service';
 
 class InteractionService {
-  private sessionId: string;
-
-  constructor() {
-    // Get or create session ID
-    let sessionId = sessionStorage.getItem(SESSION_KEY);
-    if (!sessionId) {
-      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      sessionStorage.setItem(SESSION_KEY, sessionId);
-    }
-    this.sessionId = sessionId;
-  }
-
   /**
-   * Get current session ID
+   * Track a user interaction with a repo
+   * This is the core method that:
+   * 1. Marks repo as seen (instant, prevents duplicates)
+   * 2. Writes interaction to DB (fire-and-forget)
+   * 3. Updates tag affinity for like/skip (fire-and-forget)
+   * 4. Updates global repo score for like/skip (fire-and-forget)
    */
-  getSessionId(): string {
-    return this.sessionId;
-  }
-
-  /**
-   * Track a user interaction
-   */
-  async trackInteraction(
-    repo: Repository,
-    action: UserInteraction['action'],
-    context?: UserInteraction['context'],
-    timeSpent?: number
+  async track(
+    repo: Repo,
+    action: RepoAction,
+    userId: string,
+    meta?: Record<string, unknown>
   ): Promise<void> {
-    const interaction: UserInteraction = {
-      repoId: repo.id,
-      action,
-      timestamp: new Date(),
-      sessionId: this.sessionId,
-      timeSpent,
-      context: context || {
-        position: 0,
-        source: 'discover',
-      },
-    };
+    // ═══ STEP A: Mark seen IMMEDIATELY (synchronous) ═══
+    supabaseService.markSeen(repo.id);
 
-    // Save to localStorage immediately (for offline support)
-    const existing = this.getInteractions();
-    existing.push(interaction);
-    const recent = existing.slice(-1000);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(recent));
+    // ═══ STEP B: Write interaction row (fire-and-forget) ═══
+    supabase
+      .from('user_interactions')
+      .insert({
+        user_id: userId,
+        repo_id: repo.id,
+        action,
+        timestamp: new Date().toISOString(),
+        metadata: meta ?? {},
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error tracking interaction:', error);
+        }
+      });
 
-    // Sync to Supabase in background (non-blocking)
-    // IMPORTANT: This tracks the interaction for THIS USER ONLY
-    // Other users can still see this repo - deduplication is user-specific
+    // ═══ STEP C: Update tag affinity for like/skip ═══
+    if ((action === 'like' || action === 'skip') && repo.tags.length > 0) {
+      supabase
+        .rpc('update_tag_affinity', {
+          p_user_id: userId,
+          p_tags: repo.tags,
+          p_action: action,
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error updating tag affinity:', error);
+          }
+        });
+    }
+
+    // ═══ STEP D: Update global repo score ═══
+    if (action === 'like' || action === 'skip') {
+      this.updateRepoScore(repo.id, action).catch(() => {});
+    }
+  }
+
+  /**
+   * Update global repo score (like rate and weighted score)
+   * Called after every like or skip
+   */
+  private async updateRepoScore(
+    repoId: number,
+    action: 'like' | 'skip'
+  ): Promise<void> {
     try {
-      const userId = await supabaseService.getOrCreateUserId();
-      await supabaseService.trackInteraction(userId, interaction);
-      console.log(`✅ Tracked ${action} for repo ${repo.id} for user ${userId} (user-specific)`);
-      
-      // Also save/like repo if action is save/like
-      if (action === 'save') {
-        await supabaseService.saveRepository(userId, repo);
-      } else if (action === 'like') {
-        await supabaseService.likeRepository(userId, repo);
+      // Fetch current score
+      const { data: existing, error: fetchError } = await supabase
+        .from('repo_scores')
+        .select('total_likes, total_skips')
+        .eq('repo_id', repoId)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching repo score:', fetchError);
+        return;
+      }
+
+      // Compute new totals
+      const likes = (existing?.total_likes ?? 0) + (action === 'like' ? 1 : 0);
+      const skips = (existing?.total_skips ?? 0) + (action === 'skip' ? 1 : 0);
+      const total = likes + skips;
+      const likeRate = total > 0 ? likes / total : 0.5;
+
+      // Upsert new score
+      const { error: upsertError } = await supabase
+        .from('repo_scores')
+        .upsert({
+          repo_id: repoId,
+          total_likes: likes,
+          total_skips: skips,
+          like_rate: likeRate,
+          weighted_score: likeRate * 100,
+          last_updated: new Date().toISOString(),
+        }, {
+          onConflict: 'repo_id',
+        });
+
+      if (upsertError) {
+        console.error('Error upserting repo score:', upsertError);
       }
     } catch (error) {
-      console.error('Error syncing interaction to Supabase:', error);
-      // Continue without Supabase - localStorage is the fallback
+      console.error('Error in updateRepoScore:', error);
     }
-  }
-
-  /**
-   * Get all interactions
-   */
-  getInteractions(): UserInteraction[] {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return [];
-      const parsed = JSON.parse(stored);
-      // Convert timestamp strings back to Date objects
-      return parsed.map((i: any) => ({
-        ...i,
-        timestamp: new Date(i.timestamp),
-      }));
-    } catch (error) {
-      console.error('Error loading interactions:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get interactions for current session
-   */
-  getSessionInteractions(): UserInteraction[] {
-    return this.getInteractions().filter(i => i.sessionId === this.sessionId);
-  }
-
-  /**
-   * Get saved repos
-   */
-  getSavedRepos(): string[] {
-    return this.getInteractions()
-      .filter(i => i.action === 'save')
-      .map(i => i.repoId);
-  }
-
-  /**
-   * Get liked repos
-   */
-  getLikedRepos(): string[] {
-    return this.getInteractions()
-      .filter(i => i.action === 'like')
-      .map(i => i.repoId);
-  }
-
-  /**
-   * Get skipped repos
-   */
-  getSkippedRepos(): string[] {
-    return this.getInteractions()
-      .filter(i => i.action === 'skip')
-      .map(i => i.repoId);
-  }
-
-  /**
-   * Remove a skip interaction from localStorage and Supabase (called on undo).
-   * This makes undo persistent across sessions.
-   */
-  undoSkip(repoId: string): void {
-    // Remove from localStorage
-    const updated = this.getInteractions().filter(
-      i => !(i.repoId === repoId && i.action === 'skip')
-    );
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    // Remove from Supabase in background
-    supabaseService.getOrCreateUserId().then(userId =>
-      supabaseService.removeSkipInteraction(userId, repoId)
-    ).catch(err => console.error('undoSkip Supabase cleanup failed:', err));
-  }
-
-  /**
-   * Check if repo was saved
-   */
-  isSaved(repoId: string): boolean {
-    return this.getSavedRepos().includes(repoId);
-  }
-
-  /**
-   * Check if repo was liked
-   */
-  isLiked(repoId: string): boolean {
-    return this.getLikedRepos().includes(repoId);
-  }
-
-  /**
-   * Check if repo was skipped
-   */
-  isSkipped(repoId: string): boolean {
-    return this.getSkippedRepos().includes(repoId);
-  }
-
-  /**
-   * Get interaction statistics
-   */
-  getStats() {
-    const interactions = this.getInteractions();
-    const sessionInteractions = this.getSessionInteractions();
-    
-    return {
-      total: interactions.length,
-      saved: interactions.filter(i => i.action === 'save').length,
-      liked: interactions.filter(i => i.action === 'like').length,
-      skipped: interactions.filter(i => i.action === 'skip').length,
-      sessionTotal: sessionInteractions.length,
-      sessionSaved: sessionInteractions.filter(i => i.action === 'save').length,
-      sessionLiked: sessionInteractions.filter(i => i.action === 'like').length,
-      sessionSkipped: sessionInteractions.filter(i => i.action === 'skip').length,
-    };
-  }
-
-  /**
-   * Extract topics from saved repos
-   */
-  getPreferredTopics(): string[] {
-    // This would need repo data - for now return empty
-    // Will be enhanced when we have access to repo data
-    return [];
-  }
-
-  /**
-   * Extract languages from saved repos
-   */
-  getPreferredLanguages(): string[] {
-    // This would need repo data - for now return empty
-    return [];
-  }
-
-  /**
-   * Clear all interactions (for testing/debugging)
-   */
-  clearInteractions(): void {
-    localStorage.removeItem(STORAGE_KEY);
   }
 }
 

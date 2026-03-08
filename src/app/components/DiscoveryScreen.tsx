@@ -20,6 +20,8 @@ import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { isPWAInstalled } from '@/utils/pwa';
 import { githubService } from '@/services/github.service';
 import { trackPWAOpenOnce } from '@/utils/pwa-analytics';
+import { recommendationEngine } from '@/services/recommendation.engine';
+import type { Repo } from '@/types/recommendation';
 
 export function DiscoveryScreen() {
   const { owner, repo } = useParams<{ owner?: string; repo?: string }>();
@@ -43,6 +45,7 @@ export function DiscoveryScreen() {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [loadedRepoCount, setLoadedRepoCount] = useState(0);
   const [isLoadingBatch, setIsLoadingBatch] = useState(false); // Loading next batch of repos
+  const isFetching = useRef(false); // Prevents duplicate fetches (ref = no re-render)
   
   // Session tracker removed - database handles "seen" tracking via user_interactions table
   // This prevents pool exhaustion and allows users to see repos again after some time
@@ -78,6 +81,36 @@ export function DiscoveryScreen() {
 
   // Don't show onboarding immediately - let users try the site first
   // Onboarding will be triggered after 4-5 swipes if not completed
+
+  // ═══════════════════════════════════════════════════════════════
+  // NEW RECOMMENDATION ENGINE - Replaces old loading logic
+  // ═══════════════════════════════════════════════════════════════
+  
+  // Initialize recommendation engine and load first batch
+  useEffect(() => {
+    if (!loaded || cards.length > 0) return;
+    
+    (async () => {
+      console.log('🚀 Initializing recommendation engine...');
+      setIsLoadingBatch(true);
+      
+      await recommendationEngine.init();
+      const batch = await recommendationEngine.loadBatch({
+        append: false,
+        attempt: 0
+      });
+      
+      if (batch.length > 0) {
+        setCards(batch as any); // Cast to Repository[] for compatibility
+        console.log(`✅ Loaded ${batch.length} repos via engine`);
+      }
+      
+      setIsLoadingBatch(false);
+    })();
+  }, [loaded, cards.length]);
+
+  // OLD LOADING FUNCTIONS - Kept for fallback/compatibility
+  // ═══════════════════════════════════════════════════════════════
 
   // SIMPLIFIED: Load random repos from any cluster
   const loadRandomRepos = useCallback(async (append = false) => {
@@ -619,6 +652,9 @@ export function DiscoveryScreen() {
   const handleSkip = useCallback(async (repo?: Repository) => {
     const repoToSkip = repo || cards[0];
     if (repoToSkip) {
+      // NEW: Tell recommendation engine about the skip
+      await recommendationEngine.handleSwipe(repoToSkip as any, 'left');
+      
       // Push to undo stack (session-only, max 10)
       setSkippedRepos(prev => [repoToSkip, ...prev].slice(0, 10));
 
@@ -707,6 +743,33 @@ export function DiscoveryScreen() {
     setCards((prev) => {
       const newCards = prev.slice(1);
       
+      // NEW RECOMMENDATION ENGINE PRELOADING
+      // Automatically preload when running low (<5 cards remaining)
+      if (recommendationEngine.needsPreload(newCards.length) && !isFetching.current) {
+        console.log(`🔄 Preloading more repos (${newCards.length} cards remaining)...`);
+        isFetching.current = true;
+        
+        recommendationEngine
+          .loadBatch({ append: true, attempt: 0 })
+          .then((batch) => {
+            if (batch.length > 0) {
+              setCards(c => [...c, ...batch as any]); // Append new repos
+              console.log(`✅ Preloaded ${batch.length} more repos`);
+            }
+          })
+          .finally(() => {
+            isFetching.current = false;
+          });
+      }
+      
+      return newCards;
+    });
+    
+    /* OLD LOADING LOGIC - Replaced by engine above
+    // Remove the card
+    setCards((prev) => {
+      const newCards = prev.slice(1);
+      
       // CRITICAL: When user finishes batch (2 cards left), show loading screen and fetch next batch
       if (newCards.length === 2 && !isLoadingMore && !isLoadingBatch) {
         console.log('🔄 User finishing batch, loading next batch with loading screen...');
@@ -722,11 +785,15 @@ export function DiscoveryScreen() {
       
       return newCards;
     });
-  }, [cards, isLoadingMore, isLoadingBatch, loadPersonalizedRepos, loadRandomRepos, preferences.onboardingCompleted, loaded]);
+    */ // END OLD LOADING LOGIC
+  }, [cards, loaded, preferences.onboardingCompleted]);
 
   const handleLike = useCallback(async (repo?: Repository) => {
     const repoToLike = repo || cards[0];
     if (repoToLike) {
+      // NEW: Tell recommendation engine about the like
+      await recommendationEngine.handleSwipe(repoToLike as any, 'right');
+      
       // CRITICAL: Immediately save to database to prevent seeing this repo again
       const { supabaseService } = await import('@/services/supabase.service');
       const userId = await supabaseService.getOrCreateUserId();
@@ -828,6 +895,11 @@ export function DiscoveryScreen() {
 
   const handleSave = useCallback(async (repo?: Repository) => {
     const repoToSave = repo || cards[0];
+    
+    // NEW: Tell recommendation engine about the save
+    if (repoToSave) {
+      await recommendationEngine.handleSave(repoToSave as any);
+    }
     
     // CRITICAL: Save to database first to mark as seen
     if (repoToSave) {
