@@ -443,7 +443,8 @@ class RepoService extends ChangeNotifier {
   /// visible on the web app too.
   Future<void> saveRepo(String userId, Repository repo) async {
     try {
-      await _supabase.from('saved_repos').insert({
+      // upsert so swiping the same repo twice doesn't crash on unique constraint
+      await _supabase.from('saved_repos').upsert({
         'user_id': userId,
         'repo_id': repo.githubId.toString(), // text, matches web
         'repo_name': repo.name,
@@ -455,7 +456,7 @@ class RepoService extends ChangeNotifier {
         'repo_tags': <String>[],
         'repo_topics': repo.topics,
         'saved_at': DateTime.now().toIso8601String(),
-      });
+      }, onConflict: 'user_id,repo_id');
 
       // Track in unified user_interactions
       try {
@@ -476,7 +477,8 @@ class RepoService extends ChangeNotifier {
   /// Like a repository.  Writes to the unified `liked_repos` table.
   Future<void> likeRepo(String userId, Repository repo) async {
     try {
-      await _supabase.from('liked_repos').insert({
+      // upsert so liking the same repo twice doesn't crash on unique constraint
+      await _supabase.from('liked_repos').upsert({
         'user_id': userId,
         'repo_id': repo.githubId.toString(),
         'repo_name': repo.name,
@@ -488,7 +490,7 @@ class RepoService extends ChangeNotifier {
         'repo_tags': <String>[],
         'repo_topics': repo.topics,
         'liked_at': DateTime.now().toIso8601String(),
-      });
+      }, onConflict: 'user_id,repo_id');
 
       // Track in unified user_interactions
       try {

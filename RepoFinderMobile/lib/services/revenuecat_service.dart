@@ -7,11 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// RevenueCat configuration constants
 class RevenueCatConfig {
-  // ⚠️  IMPORTANT: Replace the key below with your PRODUCTION key from the
-  // RevenueCat dashboard (App Settings → API Keys → Public app key).
-  // The current key starting with "test_" is a sandbox key and will NOT
-  // process real payments in production builds.
-  static const String apiKey = 'test_AicJXufprKBUEFVnpevpTRDgDfq';
+  // ✅ Production App Store key (Repoverse → App Store in RevenueCat dashboard)
+  static const String apiKey = 'appl_EDQaneCCRZbLCQxHuYqGRLeCCvi';
 
   // Entitlement identifier (configured in RevenueCat dashboard)
   static const String entitlementId = 'Repoverse Pro';

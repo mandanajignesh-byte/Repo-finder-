@@ -20,10 +20,12 @@ class _SavedScreenState extends State<SavedScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSavedRepos();
+    // Defer until after first frame so Provider.of and setState are safe
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSavedRepos());
   }
 
   Future<void> _loadSavedRepos() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });

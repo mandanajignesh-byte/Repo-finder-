@@ -28,8 +28,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadPreferences() async {
+    if (!mounted) return;
     final supabaseService = Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
+    if (!mounted) return;
     final prefs = await supabaseService.getUserPreferences(userId);
 
     if (mounted) {
@@ -64,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
+      if (!mounted) return;
       // Sign out from Supabase
       final authService = Provider.of<AuthService>(context, listen: false);
       await authService.signOut();
@@ -98,6 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       final authService = Provider.of<AuthService>(context, listen: false);
       await authService.signOut();
 
