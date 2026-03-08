@@ -35,32 +35,6 @@ export function PayPalSubscription({
     // Prevent double rendering in React StrictMode
     if (isRendered.current) return;
 
-    const loadPayPalScript = () => {
-      // Check if script already exists
-      if (window.paypal) {
-        renderPayPalButton();
-        return;
-      }
-
-      // Create script element
-      const script = document.createElement('script');
-      
-      // ✅ FIX: Add enable-funding to allow debit/credit cards
-      script.src = `https://www.paypal.com/sdk/js?client-id=AYwkXJG9M9cemxGfH7Cd96oYoqXQAnVzwSEg80-Vo1ti_2OLXc_9TWGyOC_eFBRqIfmgxRipMmyfjxKT&vault=true&intent=subscription&enable-funding=card,paylater&disable-funding=credit&currency=USD`;
-      script.async = true;
-      script.onload = () => {
-        setIsLoading(false);
-        renderPayPalButton();
-      };
-      script.onerror = () => {
-        setIsLoading(false);
-        setError('Failed to load PayPal. Please refresh the page.');
-        onError?.(new Error('PayPal SDK failed to load'));
-      };
-
-      document.body.appendChild(script);
-    };
-
     const renderPayPalButton = () => {
       if (!window.paypal || !paypalRef.current) {
         setError('PayPal SDK not available');
@@ -116,11 +90,36 @@ export function PayPalSubscription({
       }
     };
 
-    loadPayPalScript();
+    // Check if PayPal SDK is already loaded
+    if (window.paypal) {
+      setIsLoading(false);
+      renderPayPalButton();
+      return;
+    }
+
+    // Wait for SDK to load (it's in index.html)
+    const checkPayPal = setInterval(() => {
+      if (window.paypal) {
+        clearInterval(checkPayPal);
+        setIsLoading(false);
+        renderPayPalButton();
+      }
+    }, 100);
+
+    // Timeout after 10 seconds
+    const timeout = setTimeout(() => {
+      clearInterval(checkPayPal);
+      if (!window.paypal) {
+        setIsLoading(false);
+        setError('Failed to load PayPal. Please refresh the page.');
+        onError?.(new Error('PayPal SDK timeout'));
+      }
+    }, 10000);
 
     // Cleanup
     return () => {
-      // PayPal buttons auto-cleanup when parent element is removed
+      clearInterval(checkPayPal);
+      clearTimeout(timeout);
     };
   }, [planId, onSuccess, onError, onCancel]);
 
