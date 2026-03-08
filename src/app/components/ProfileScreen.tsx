@@ -773,12 +773,12 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {preferences.goals?.map(goal => {
-                const uc = USE_CASES.find(u => u.id === goal);
-                return uc ? <ColorChip key={goal} label={uc.label} color={chipColor(GOAL_COLORS, goal)} /> : null;
-              })}
-              {(!preferences.goals || preferences.goals.length === 0) && (
-                <span className="text-sm" style={{ color: '#8b949e' }}>No goals selected</span>
+              {preferences.primaryCluster && (() => {
+                const cluster = CLUSTERS.find(c => c.id === preferences.primaryCluster);
+                return cluster ? <ColorChip key={cluster.id} label={cluster.label} color={chipColor(DOMAIN_COLORS, cluster.id)} /> : null;
+              })()}
+              {!preferences.primaryCluster && (
+                <span className="text-sm" style={{ color: '#8b949e' }}>No primary interest selected</span>
               )}
             </div>
           )}
@@ -801,12 +801,11 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {preferences.interests?.map(interest => {
-                const cluster = CLUSTERS.find(x => x.id === interest);
-                return cluster ? <ColorChip key={interest} label={cluster.label} color={chipColor(DOMAIN_COLORS, interest)} /> : null;
-              })}
-              {(!preferences.interests || preferences.interests.length === 0) && (
-                <span className="text-sm" style={{ color: '#8b949e' }}>No domains selected</span>
+              {preferences.techStack?.map(tech => (
+                <ColorChip key={tech} label={tech} color={chipColor(LANG_COLORS, tech)} />
+              ))}
+              {(!preferences.techStack || preferences.techStack.length === 0) && (
+                <span className="text-sm" style={{ color: '#8b949e' }}>No tech stack selected</span>
               )}
             </div>
           )}
@@ -829,12 +828,12 @@ export function ProfileScreen({ onClose }: ProfileScreenProps) {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {preferences.projectTypes?.map(type => {
-                const pt = PROJECT_TYPES.find(p => p.id === type);
-                return pt ? <ColorChip key={type} label={pt.label} color={chipColor(PROJ_COLORS, type)} /> : null;
+              {preferences.goals?.map(goal => {
+                const g = GOALS.find(x => x.id === goal);
+                return g ? <ColorChip key={goal} label={g.label} color={chipColor(GOAL_COLORS, goal)} /> : null;
               })}
-              {(!preferences.projectTypes || preferences.projectTypes.length === 0) && (
-                <span className="text-sm" style={{ color: '#8b949e' }}>No project types selected</span>
+              {(!preferences.goals || preferences.goals.length === 0) && (
+                <span className="text-sm" style={{ color: '#8b949e' }}>No goals selected</span>
               )}
             </div>
           )}
