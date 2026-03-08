@@ -103,14 +103,14 @@ BEGIN
     COALESCE(ARRAY(SELECT jsonb_array_elements_text(rc.repo_data->'topics')), ARRAY[]::TEXT[]) AS topics,
     rc.repo_data->>'url' AS url,
     rc.repo_data->>'owner_avatar' AS owner_avatar,
-    COALESCE(rc.quality_score, 50) AS health_score,
-    COALESCE(rs.like_rate, 0.5) AS like_rate,
+    COALESCE(rc.quality_score, 50)::DECIMAL AS health_score,
+    COALESCE(rs.like_rate, 0.5)::DECIMAL AS like_rate,
     (
       -- 40%: global like rate
-      COALESCE(rs.like_rate, 0.5) * 40.0
+      COALESCE(rs.like_rate, 0.5)::DECIMAL * 40.0
       +
       -- 30%: quality score normalized to 0-30
-      (COALESCE(rc.quality_score, 50) / 100.0) * 30.0
+      (COALESCE(rc.quality_score, 50)::DECIMAL / 100.0) * 30.0
       +
       -- 20%: user tag affinity
       COALESCE((
@@ -127,7 +127,7 @@ BEGIN
         WHEN (rc.repo_data->>'pushed_at')::TIMESTAMPTZ > NOW() - INTERVAL '30 days' THEN  5.0
         ELSE 0.0
       END
-    ) AS final_score
+    )::DECIMAL AS final_score
   FROM  repo_clusters rc
   LEFT JOIN repo_scores rs ON rs.repo_id = (rc.repo_data->>'id')
   WHERE rc.cluster_name = p_cluster
