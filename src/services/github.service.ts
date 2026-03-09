@@ -596,6 +596,9 @@ class GitHubService {
    * Fallback: raw.githubusercontent.com (no auth needed for public repos).
    */
   async getRepoReadme(fullName: string): Promise<string | null> {
+    // Guard: must be "owner/repo" format
+    if (!fullName || !fullName.includes('/')) return null;
+
     // Primary: GitHub API JSON endpoint
     try {
       const response = await fetch(`${this.baseUrl}/repos/${fullName}/readme`, {

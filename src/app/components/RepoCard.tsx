@@ -97,15 +97,29 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
 
   const langColor = getLangColor(repo.language);
 
+  // Derive a valid "owner/repo" full name from available fields.
+  // repo.url is always "https://github.com/owner/repo" so it's the most reliable fallback.
+  const resolvedFullName = (() => {
+    if (repo.fullName?.includes('/')) return repo.fullName;
+    if (repo.url?.includes('github.com/')) {
+      const path = repo.url.replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+      if (path.includes('/')) return path;
+    }
+    return null;
+  })();
+
   const openReadme = async (e: React.MouseEvent | React.PointerEvent) => {
     e.stopPropagation();
     setIsReadmeOpen(true);
     if (!readme && !readmeLoading && !readmeError) {
+      if (!resolvedFullName) {
+        setReadmeError('Could not determine repository name.');
+        return;
+      }
       setReadmeLoading(true);
       setReadmeError(null);
       try {
-        const fullName = repo.fullName || repo.name;
-        const content = await githubService.getRepoReadme(fullName);
+        const content = await githubService.getRepoReadme(resolvedFullName);
         setReadme(content ?? null);
       } catch (err) {
         console.error('Failed to load README:', err);
@@ -517,7 +531,7 @@ export const RepoCard = memo(function RepoCard({ repo, style, onSave, isFirstCar
       <ReadmeModal
         isOpen={isReadmeOpen}
         onClose={() => setIsReadmeOpen(false)}
-        repoFullName={repo.fullName || repo.name}
+        repoFullName={resolvedFullName || repo.fullName || repo.name}
         repoUrl={repo.url}
         ownerAvatarUrl={repo.owner?.avatarUrl}
         onSave={onSave}
