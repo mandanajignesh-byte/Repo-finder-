@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Sparkles, Zap, Heart, Bot, Database, User, Crown } from 'lucide-react';
+import { X, Zap, Bot, Bookmark, User, BarChart2, Headphones, Lock } from 'lucide-react';
 import { PayPalSubscriptionModal } from './PayPalSubscription';
 
 const PAYPAL_PLAN_ID = 'P-40J96093905927145NGWZMVI';
@@ -11,274 +11,172 @@ interface PaywallModalProps {
   onClose: () => void;
 }
 
-const PAYWALL_CONTENT: Record<PaywallType, { headline: string; body: string; emoji: string }> = {
+const PAYWALL_CONTENT: Record<PaywallType, { headline: string; body: string }> = {
   swipes: {
-    headline: "Daily Limit Reached",
-    body: "You've explored your free swipes for today. Unlock unlimited discovery now.",
-    emoji: "🚀",
+    headline: 'Daily Limit Reached',
+    body: "You've used all your free swipes for today.",
   },
   agent: {
-    headline: "AI Agent Limit Reached",
-    body: "Your AI assistant is taking a break. Upgrade for unlimited intelligent recommendations.",
-    emoji: "🤖",
+    headline: 'AI Agent Limit Reached',
+    body: 'Upgrade for unlimited AI-powered recommendations.',
   },
   save: {
-    headline: "Unlock Saved Repositories",
-    body: "Build your personal collection with unlimited saves and never lose track of amazing projects.",
-    emoji: "💎",
+    headline: 'Unlock Saved Repositories',
+    body: 'Save unlimited repos and build your personal collection.',
   },
   profile: {
-    headline: "Access Your Profile",
-    body: "Get full profile access with personalized insights, saved history, and custom preferences.",
-    emoji: "✨",
+    headline: 'Access Your Profile',
+    body: 'Get full profile access with personalized insights.',
   },
 };
 
-export function PaywallModal({ type, onClose }: PaywallModalProps) {
-  const { headline, body, emoji } = PAYWALL_CONTENT[type];
-  const [showPayPal, setShowPayPal] = useState(false);
+const FEATURES = [
+  { icon: Zap,        label: 'Unlimited daily swipes'       },
+  { icon: Bot,        label: 'Unlimited AI Agent queries'   },
+  { icon: Bookmark,   label: 'Save unlimited repositories'  },
+  { icon: User,       label: 'Full profile access'          },
+  { icon: BarChart2,  label: 'Personalized recommendations' },
+  { icon: Headphones, label: 'Priority support'             },
+];
 
-  const handleUpgradeClick = () => {
-    setShowPayPal(true);
-  };
+export function PaywallModal({ type, onClose }: PaywallModalProps) {
+  const { headline, body } = PAYWALL_CONTENT[type];
+  const [showPayPal, setShowPayPal] = useState(false);
 
   return (
     <>
+      {/* Backdrop */}
       <div
         className="fixed inset-0 z-[200] flex items-center justify-center p-4"
         style={{
-          background: 'rgba(0,0,0,0.7)',
+          background: 'rgba(0,0,0,0.75)',
           backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)'
+          WebkitBackdropFilter: 'blur(8px)',
         }}
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <div
-          className="max-w-sm w-full rounded-[24px] p-6 text-center relative overflow-y-auto"
+          className="w-full rounded-2xl relative flex flex-col overflow-hidden"
           style={{
+            maxWidth: 380,
             maxHeight: '90vh',
-            background: 'linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.98) 100%)',
-            border: '1px solid rgba(148,163,184,0.1)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(59,130,246,0.1)',
+            background: '#0d1117',
+            border: '1px solid #21262d',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
           }}
         >
-          {/* Animated gradient background */}
-          <div 
-            className="absolute inset-0 opacity-20"
-            style={{
-              background: 'radial-gradient(circle at 50% 0%, rgba(59,130,246,0.3) 0%, transparent 50%)',
-            }}
-          />
+          {/* Blue top bar */}
+          <div style={{ height: 2, background: '#2563eb', flexShrink: 0 }} />
 
-          {/* Close Button */}
+          {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-full transition-all z-10"
-            style={{ 
-              background: 'rgba(255,255,255,0.05)',
-              color: '#94a3b8',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-              e.currentTarget.style.color = '#cbd5e1';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-              e.currentTarget.style.color = '#94a3b8';
-            }}
+            className="absolute top-4 right-4 p-1.5 rounded-lg z-10 transition-colors"
+            style={{ color: '#6e7681' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#e6edf3'; e.currentTarget.style.background = '#161b22'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6e7681'; e.currentTarget.style.background = 'transparent'; }}
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
 
-          {/* Crown Icon with glow */}
-          <div className="relative inline-block mb-6">
-            <div
-              className="w-20 h-20 mx-auto rounded-[24px] flex items-center justify-center relative"
-              style={{
-                background: 'linear-gradient(135deg, rgba(59,130,246,0.2) 0%, rgba(147,51,234,0.2) 100%)',
-                border: '2px solid rgba(59,130,246,0.3)',
-                boxShadow: '0 0 40px rgba(59,130,246,0.3), inset 0 0 20px rgba(59,130,246,0.1)',
-              }}
-            >
-              <Crown className="w-10 h-10" style={{ color: '#60a5fa' }} />
-              <div 
-                className="absolute inset-0 rounded-[24px]"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(147,51,234,0.1) 100%)',
-                  filter: 'blur(8px)',
-                }}
-              />
-            </div>
-            {/* Floating emoji */}
-            <div 
-              className="absolute -top-2 -right-2 text-3xl"
-              style={{
-                animation: 'float 3s ease-in-out infinite',
-                textShadow: '0 4px 20px rgba(0,0,0,0.5)',
-              }}
-            >
-              {emoji}
-            </div>
-          </div>
+          <div className="overflow-y-auto flex-1" style={{ scrollbarWidth: 'none' }}>
 
-          {/* Headline */}
-          <h2 
-            className="text-2xl font-bold mb-3 leading-tight"
-            style={{
-              background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            {headline}
-          </h2>
-          
-          {/* Body text */}
-          <p className="text-base leading-relaxed mb-8 px-2" style={{ color: '#94a3b8' }}>
-            {body}
-          </p>
+            {/* Header */}
+            <div className="px-6 pt-7 pb-5">
+              {/* Brand */}
+              <div className="flex items-center gap-3 mb-5">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: '#161b22', border: '1px solid #30363d' }}
+                >
+                  <img src="/logo.png" alt="RepoVerse" className="w-6 h-6 object-contain rounded-lg" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold" style={{ color: '#e6edf3' }}>RepoVerse Pro</div>
+                  <div className="text-xs" style={{ color: '#6e7681' }}>Unlock everything</div>
+                </div>
+              </div>
 
-          {/* Quick features grid */}
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            <div 
-              className="p-3 rounded-2xl text-left"
-              style={{
-                background: 'rgba(59,130,246,0.05)',
-                border: '1px solid rgba(59,130,246,0.1)',
-              }}
-            >
-              <Zap className="w-5 h-5 mb-2" style={{ color: '#60a5fa' }} />
-              <div className="text-xs font-semibold text-white">Unlimited Swipes</div>
-              <div className="text-[10px]" style={{ color: '#64748b' }}>Never run out</div>
+              {/* Context message */}
+              <div
+                className="rounded-xl p-4 mb-1"
+                style={{ background: '#161b22', border: '1px solid #21262d' }}
+              >
+                <p className="text-sm font-semibold mb-1" style={{ color: '#e6edf3' }}>{headline}</p>
+                <p className="text-xs" style={{ color: '#8b949e' }}>{body}</p>
+              </div>
             </div>
-            
-            <div 
-              className="p-3 rounded-2xl text-left"
-              style={{
-                background: 'rgba(147,51,234,0.05)',
-                border: '1px solid rgba(147,51,234,0.1)',
-              }}
-            >
-              <Bot className="w-5 h-5 mb-2" style={{ color: '#a78bfa' }} />
-              <div className="text-xs font-semibold text-white">AI Agent</div>
-              <div className="text-[10px]" style={{ color: '#64748b' }}>Unlimited queries</div>
+
+            {/* Price */}
+            <div className="px-6 pb-4">
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold" style={{ color: '#e6edf3' }}>$4.99</span>
+                <span className="text-sm" style={{ color: '#6e7681' }}>/month</span>
+                <span className="ml-auto text-xs" style={{ color: '#6e7681' }}>Cancel anytime</span>
+              </div>
             </div>
-            
-            <div 
-              className="p-3 rounded-2xl text-left"
-              style={{
-                background: 'rgba(16,185,129,0.05)',
-                border: '1px solid rgba(16,185,129,0.1)',
-              }}
-            >
-              <Database className="w-5 h-5 mb-2" style={{ color: '#34d399' }} />
-              <div className="text-xs font-semibold text-white">Save Repos</div>
-              <div className="text-[10px]" style={{ color: '#64748b' }}>Unlimited saves</div>
+
+            {/* Features */}
+            <div className="px-6 pb-5">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#6e7681' }}>
+                What's included
+              </p>
+              <div className="space-y-2.5">
+                {FEATURES.map(({ icon: Icon, label }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.2)' }}
+                    >
+                      <Icon className="w-3.5 h-3.5" style={{ color: '#3b82f6' }} />
+                    </div>
+                    <span className="text-sm" style={{ color: '#c9d1d9' }}>{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            
-            <div 
-              className="p-3 rounded-2xl text-left"
-              style={{
-                background: 'rgba(236,72,153,0.05)',
-                border: '1px solid rgba(236,72,153,0.1)',
-              }}
-            >
-              <Sparkles className="w-5 h-5 mb-2" style={{ color: '#f472b6' }} />
-              <div className="text-xs font-semibold text-white">Pro Features</div>
-              <div className="text-[10px]" style={{ color: '#64748b' }}>All unlocked</div>
+
+            {/* CTA */}
+            <div className="px-6 pb-4">
+              <button
+                onClick={() => setShowPayPal(true)}
+                className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
+                style={{ background: '#2563eb' }}
+              >
+                Upgrade to Pro
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 text-sm mt-2 transition-colors"
+                style={{ color: '#6e7681' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#8b949e')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#6e7681')}
+              >
+                Maybe later
+              </button>
             </div>
-          </div>
 
-          {/* Price badge */}
-          <div 
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6"
-            style={{
-              background: 'rgba(59,130,246,0.1)',
-              border: '1px solid rgba(59,130,246,0.2)',
-            }}
-          >
-            <span className="text-sm" style={{ color: '#94a3b8' }}>Only</span>
-            <span className="text-2xl font-bold text-white">$4.99</span>
-            <span className="text-sm" style={{ color: '#94a3b8' }}>/month</span>
-          </div>
+            {/* Footer */}
+            <div className="px-6 pb-6 flex items-center justify-center gap-1.5">
+              <Lock className="w-3 h-3" style={{ color: '#6e7681' }} />
+              <span className="text-xs" style={{ color: '#6e7681' }}>
+                Secured by PayPal · SSL encrypted · PCI compliant
+              </span>
+            </div>
 
-          {/* CTA Button */}
-          <button
-            onClick={handleUpgradeClick}
-            className="w-full py-4 px-6 rounded-full font-bold text-base text-white transition-all mb-4 relative overflow-hidden group"
-            style={{
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              boxShadow: '0 10px 40px rgba(59,130,246,0.4)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 15px 50px rgba(59,130,246,0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 10px 40px rgba(59,130,246,0.4)';
-            }}
-          >
-            <span className="relative z-10 flex items-center justify-center gap-2">
-              <Crown className="w-5 h-5" />
-              Upgrade to Pro
-            </span>
-            <div 
-              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{
-                background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
-              }}
-            />
-          </button>
-
-          {/* Secondary action */}
-          <button
-            onClick={onClose}
-            className="w-full py-3 text-sm transition-all"
-            style={{ color: '#64748b' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#94a3b8')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
-          >
-            Maybe later
-          </button>
-
-          {/* Footer note */}
-          <div className="mt-6 pt-6 border-t" style={{ borderColor: 'rgba(148,163,184,0.1)' }}>
-            <p className="text-xs" style={{ color: '#475569' }}>
-              Cancel anytime • Secure payment • No hidden fees
-            </p>
           </div>
         </div>
       </div>
-
-      {/* Add animation keyframes */}
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-      `}</style>
 
       {/* PayPal Modal */}
       {showPayPal && (
         <PayPalSubscriptionModal
           isOpen={showPayPal}
-          onClose={() => {
-            setShowPayPal(false);
-            onClose();
-          }}
+          onClose={() => { setShowPayPal(false); onClose(); }}
           planId={PAYPAL_PLAN_ID}
           price="$4.99"
-          features={[
-            '♾️ Unlimited daily swipes',
-            '🤖 Unlimited AI Agent queries',
-            '💾 Save unlimited repositories',
-            '👤 Full profile access',
-            '📊 Personalized recommendations',
-            '🔔 Priority support',
-          ]}
+          features={[]}
         />
       )}
     </>
