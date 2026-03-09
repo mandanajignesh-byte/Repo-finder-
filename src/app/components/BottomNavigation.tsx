@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Compass, TrendingUp, Bot, User, Smartphone, X } from 'lucide-react';
 
-const APP_STORE_LINK = 'https://apps.apple.com/app/repoverse/id6746498585';
+const APP_STORE_LINK = 'https://apps.apple.com/us/app/repoverse/id6759513548';
 
 interface BottomNavigationProps {
   activeTab: 'discover' | 'trending' | 'agent' | 'profile';

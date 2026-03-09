@@ -592,35 +592,47 @@ class GitHubService {
 
   /**
    * Get README markdown for a repository by full name (owner/repo).
-   * Uses GitHub's /readme endpoint and decodes the base64 content.
+   * Primary: GitHub API with base64 decoding.
+   * Fallback: raw.githubusercontent.com (no auth needed for public repos).
    */
   async getRepoReadme(fullName: string): Promise<string | null> {
+    // Primary: GitHub API JSON endpoint
     try {
-      // Use the raw+json Accept header to get markdown directly (no base64 decoding needed)
-      const baseHeaders = this.getHeaders();
       const response = await fetch(`${this.baseUrl}/repos/${fullName}/readme`, {
-        headers: {
-          ...baseHeaders,
-          Accept: 'application/vnd.github.raw+json',
-        },
+        headers: this.getHeaders(),
       });
 
       if (response.status === 404) {
-        // Many repos simply don't have a README
         return null;
       }
 
-      if (!response.ok) {
-        throw new Error(`GitHub README error: ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.encoding === 'base64' && data.content) {
+          const binary = atob(data.content.replace(/\n/g, ''));
+          const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+          return new TextDecoder('utf-8').decode(bytes);
+        }
+        return data.content || null;
       }
-
-      // raw+json returns the file content directly as plain text
-      const text = await response.text();
-      return text || null;
-    } catch (error) {
-      console.error('Error fetching repo README:', error);
-      return null;
+    } catch {
+      // fall through to raw fallback
     }
+
+    // Fallback: raw.githubusercontent.com (works without auth for public repos)
+    try {
+      const rawUrl = `https://raw.githubusercontent.com/${fullName}/HEAD/README.md`;
+      const res = await fetch(rawUrl);
+      if (res.ok) return await res.text();
+      // Try lowercase readme
+      const rawLower = `https://raw.githubusercontent.com/${fullName}/HEAD/readme.md`;
+      const res2 = await fetch(rawLower);
+      if (res2.ok) return await res2.text();
+    } catch {
+      // ignore
+    }
+
+    return null;
   }
 
   /**

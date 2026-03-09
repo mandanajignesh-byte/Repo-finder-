@@ -998,7 +998,7 @@ export function DiscoveryScreen() {
   }
 
   return (
-    <div className="h-full flex flex-col pb-20 md:pb-16 relative overflow-hidden" style={{ background: '#0d1117' }}>
+    <div className="h-full flex flex-col pb-28 md:pb-16 relative overflow-hidden" style={{ background: '#0d1117' }}>
       {/* Header with bookmark, heart, and install button */}
       <div className="flex-shrink-0 p-4 md:p-6 flex justify-between items-center relative z-10 mb-1 md:mb-0">
         <h1 className="text-xl md:text-2xl" style={{ fontWeight: 700, color: '#e6edf3' }}>Explore</h1>
@@ -1140,7 +1140,7 @@ export function DiscoveryScreen() {
 
       {/* Skip / Undo / Like circular action buttons */}
       {cards.length > 0 && !showSaved && !showLiked && (
-        <div className="flex-shrink-0 flex items-center justify-center gap-5 md:gap-8 pb-4 md:pb-6 z-10">
+        <div className="flex-shrink-0 flex items-center justify-center gap-5 md:gap-8 pb-4 md:pb-6 pt-3 z-10">
           {/* Skip */}
           <motion.button
             whileTap={{ scale: 0.88 }}

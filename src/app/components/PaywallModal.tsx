@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { X, Sparkles, Zap, Heart, Bot, Database, User, Crown } from 'lucide-react';
 import { PayPalSubscriptionModal } from './PayPalSubscription';
 
-const APP_STORE_LINK = 'https://apps.apple.com/app/repoverse/id6746498585';
 const PAYPAL_PLAN_ID = 'P-40J96093905927145NGWZMVI';
 
 export type PaywallType = 'swipes' | 'agent' | 'save' | 'profile';
@@ -39,30 +38,25 @@ export function PaywallModal({ type, onClose }: PaywallModalProps) {
   const { headline, body, emoji } = PAYWALL_CONTENT[type];
   const [showPayPal, setShowPayPal] = useState(false);
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
   const handleUpgradeClick = () => {
-    if (isMobile) {
-      window.open(APP_STORE_LINK, '_blank');
-    } else {
-      setShowPayPal(true);
-    }
+    setShowPayPal(true);
   };
 
   return (
     <>
       <div
         className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-        style={{ 
-          background: 'rgba(0,0,0,0.9)', 
-          backdropFilter: 'blur(12px)', 
-          WebkitBackdropFilter: 'blur(12px)' 
+        style={{
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)'
         }}
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <div
-          className="max-w-md w-full rounded-[32px] p-8 text-center relative overflow-hidden"
+          className="max-w-sm w-full rounded-[24px] p-6 text-center relative overflow-y-auto"
           style={{
+            maxHeight: '90vh',
             background: 'linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.98) 100%)',
             border: '1px solid rgba(148,163,184,0.1)',
             boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 100px rgba(59,130,246,0.1)',
