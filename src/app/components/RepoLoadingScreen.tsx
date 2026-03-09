@@ -46,7 +46,7 @@ export function RepoLoadingScreen({ onComplete, minDisplayTime = 2000 }: RepoLoa
       {/* Animated background blur circles */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-200/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-200/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       {/* Content */}
@@ -71,7 +71,7 @@ export function RepoLoadingScreen({ onComplete, minDisplayTime = 2000 }: RepoLoa
           
           {/* Inner circle with icon */}
           <div className="relative w-24 h-24 flex items-center justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: '#2563eb' }}>
               <svg 
                 className="w-10 h-10 text-white animate-pulse" 
                 fill="none" 
@@ -101,7 +101,7 @@ export function RepoLoadingScreen({ onComplete, minDisplayTime = 2000 }: RepoLoa
 
         {/* Progress indicator */}
         <div className="w-64 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-progress" />
+          <div className="h-full rounded-full animate-progress" style={{ background: '#2563eb' }} />
         </div>
       </div>
 
