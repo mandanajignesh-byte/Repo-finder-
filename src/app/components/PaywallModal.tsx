@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { X, Zap, Bot, Bookmark, User, BarChart2, Headphones, Lock } from 'lucide-react';
+import { X, Zap, Bot, Bookmark, User, BarChart2, Headphones, Lock, RotateCcw } from 'lucide-react';
 import { PayPalSubscriptionModal } from './PayPalSubscription';
+import { supabaseService } from '@/services/supabase.service';
 
 const PAYPAL_PLAN_ID = 'P-40J96093905927145NGWZMVI';
 
@@ -42,6 +43,22 @@ const FEATURES = [
 export function PaywallModal({ type, onClose }: PaywallModalProps) {
   const { headline, body } = PAYWALL_CONTENT[type];
   const [showPayPal, setShowPayPal] = useState(false);
+  const [showRestore, setShowRestore] = useState(false);
+  const [restoreEmail, setRestoreEmail] = useState('');
+  const [restoreStatus, setRestoreStatus] = useState<'idle' | 'loading' | 'success' | 'notfound'>('idle');
+
+  const handleRestore = async () => {
+    const trimmed = restoreEmail.trim();
+    if (!trimmed || !/\S+@\S+\.\S+/.test(trimmed)) return;
+    setRestoreStatus('loading');
+    const found = await supabaseService.restoreSubscriptionByEmail(trimmed);
+    if (found) {
+      setRestoreStatus('success');
+      setTimeout(() => { onClose(); window.location.reload(); }, 1500);
+    } else {
+      setRestoreStatus('notfound');
+    }
+  };
 
   return (
     <>
@@ -156,6 +173,57 @@ export function PaywallModal({ type, onClose }: PaywallModalProps) {
                 Maybe later
               </button>
             </div>
+
+            {/* Already Pro? Restore access */}
+            {!showRestore ? (
+              <div className="px-6 pb-2 text-center">
+                <button
+                  onClick={() => setShowRestore(true)}
+                  className="text-xs flex items-center gap-1.5 mx-auto transition-colors"
+                  style={{ color: '#6e7681' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#3b82f6')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#6e7681')}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Already Pro? Restore access
+                </button>
+              </div>
+            ) : (
+              <div className="px-6 pb-3">
+                <div className="rounded-xl p-3" style={{ background: '#161b22', border: '1px solid #21262d' }}>
+                  <p className="text-xs font-medium mb-2" style={{ color: '#8b949e' }}>Enter your subscription email</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={restoreEmail}
+                      onChange={(e) => { setRestoreEmail(e.target.value); setRestoreStatus('idle'); }}
+                      placeholder="you@example.com"
+                      className="flex-1 rounded-lg px-3 py-1.5 text-xs outline-none"
+                      style={{ background: '#0d1117', border: '1px solid #30363d', color: '#e6edf3' }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleRestore()}
+                    />
+                    <button
+                      onClick={handleRestore}
+                      disabled={restoreStatus === 'loading' || restoreStatus === 'success'}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                      style={{ background: '#2563eb' }}
+                    >
+                      {restoreStatus === 'loading' ? '…' : restoreStatus === 'success' ? '✓' : 'Restore'}
+                    </button>
+                  </div>
+                  {restoreStatus === 'notfound' && (
+                    <p className="text-xs mt-1.5" style={{ color: '#ef4444' }}>
+                      No active subscription found for that email.
+                    </p>
+                  )}
+                  {restoreStatus === 'success' && (
+                    <p className="text-xs mt-1.5" style={{ color: '#22c55e' }}>
+                      ✓ Pro restored! Reloading…
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="px-6 pb-6 flex items-center justify-center gap-1.5">

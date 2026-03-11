@@ -359,39 +359,95 @@ class SupabaseService {
 
   /**
    * Check if the current user has an active subscription in the DB.
+   * Checks by user_id first, then falls back to cached email (new device restore).
    * Syncs the result to localStorage so isProUser() stays accurate.
    * Call this once on app startup.
    */
   async syncSubscriptionStatus(): Promise<boolean> {
     try {
       const userId = await this.getOrCreateUserId();
-      const { data, error } = await supabase
+
+      // 1. Check by user_id (fast path — same device / already linked)
+      const { data: byId, error: idError } = await supabase
         .from('user_subscriptions')
-        .select('status, subscription_id')
+        .select('status, subscription_id, email')
         .eq('user_id', userId)
         .eq('status', 'active')
         .limit(1)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error checking subscription:', error);
-        // Don't wipe localStorage on error — keep last known state
-        return localStorage.getItem('subscription_status') === 'active';
+      if (!idError && byId) {
+        localStorage.setItem('subscription_status', 'active');
+        localStorage.setItem('paypal_subscription_id', byId.subscription_id);
+        if (byId.email) localStorage.setItem('pro_email', byId.email);
+        return true;
       }
 
-      if (data) {
-        localStorage.setItem('subscription_status', 'active');
-        localStorage.setItem('paypal_subscription_id', data.subscription_id);
-        return true;
-      } else {
-        // No active row found — clear any stale localStorage
-        localStorage.removeItem('subscription_status');
-        localStorage.removeItem('paypal_subscription_id');
-        return false;
+      // 2. Fallback: check by email cached from a previous device
+      const cachedEmail = localStorage.getItem('pro_email');
+      if (cachedEmail) {
+        const { data: byEmail, error: emailError } = await supabase
+          .from('user_subscriptions')
+          .select('status, subscription_id')
+          .eq('email', cachedEmail.toLowerCase())
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+
+        if (!emailError && byEmail) {
+          // Link this device's user_id to the subscription for faster future lookups
+          await supabase
+            .from('user_subscriptions')
+            .update({ user_id: userId })
+            .eq('subscription_id', byEmail.subscription_id);
+
+          localStorage.setItem('subscription_status', 'active');
+          localStorage.setItem('paypal_subscription_id', byEmail.subscription_id);
+          return true;
+        }
       }
+
+      // 3. No active subscription found — clear stale state
+      localStorage.removeItem('subscription_status');
+      localStorage.removeItem('paypal_subscription_id');
+      return false;
     } catch (err) {
       console.error('Error in syncSubscriptionStatus:', err);
       return localStorage.getItem('subscription_status') === 'active';
+    }
+  }
+
+  /**
+   * Manually restore Pro access by email on a new device.
+   * Returns true if an active subscription was found for that email.
+   */
+  async restoreSubscriptionByEmail(email: string): Promise<boolean> {
+    try {
+      const trimmed = email.trim().toLowerCase();
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('status, subscription_id')
+        .eq('email', trimmed)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) return false;
+
+      // Link this device and set Pro status
+      const userId = await this.getOrCreateUserId();
+      await supabase
+        .from('user_subscriptions')
+        .update({ user_id: userId })
+        .eq('subscription_id', data.subscription_id);
+
+      localStorage.setItem('pro_email', trimmed);
+      localStorage.setItem('subscription_status', 'active');
+      localStorage.setItem('paypal_subscription_id', data.subscription_id);
+      return true;
+    } catch (err) {
+      console.error('Error in restoreSubscriptionByEmail:', err);
+      return false;
     }
   }
 }

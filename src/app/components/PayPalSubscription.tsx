@@ -107,12 +107,21 @@ export function PayPalSubscriptionModal({
   price,
 }: PayPalSubscriptionModalProps) {
   const [subscribed, setSubscribed] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   if (!isOpen) return null;
 
   const handleSuccess = async (subscriptionId: string) => {
-    // Save to Supabase DB first — this is the source of truth
-    await supabaseService.saveSubscription(subscriptionId, planId);
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !/\S+@\S+\.\S+/.test(trimmedEmail)) {
+      setEmailError('Please enter a valid email to save your Pro access.');
+      return;
+    }
+    // Save to Supabase DB with email — this is the source of truth
+    await supabaseService.saveSubscription(subscriptionId, planId, trimmedEmail);
+    // Also cache email in localStorage for future restore lookups
+    localStorage.setItem('pro_email', trimmedEmail);
     setSubscribed(true);
     setTimeout(() => { onClose(); window.location.reload(); }, 2200);
   };
@@ -229,6 +238,32 @@ export function PayPalSubscriptionModal({
                   <span className="text-sm" style={{ color: '#c9d1d9' }}>{label}</span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* ── Email (for cross-device restore) ───────────────────────── */}
+          <div className="px-6 pb-4">
+            <div className="mb-1">
+              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8b949e' }}>
+                Your email — to restore Pro on any device
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                placeholder="you@example.com"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none transition-colors"
+                style={{
+                  background: '#161b22',
+                  border: `1px solid ${emailError ? '#ef4444' : '#30363d'}`,
+                  color: '#e6edf3',
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = emailError ? '#ef4444' : '#2563eb'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = emailError ? '#ef4444' : '#30363d'; }}
+              />
+              {emailError && (
+                <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{emailError}</p>
+              )}
             </div>
           </div>
 
