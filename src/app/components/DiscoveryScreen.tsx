@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { X, Bookmark, Heart, XCircle, Loader2, Trash2, CornerUpLeft } from 'lucide-react';
 import { PaywallModal, PaywallType } from './PaywallModal';
-import { getSwipesUsedToday, incrementSwipesUsed, getSwipesLeft, FREE_SWIPES } from '@/utils/usageLimit';
+import { getSwipesUsedToday, incrementSwipesUsed, getSwipesLeft, FREE_SWIPES, isProUser } from '@/utils/usageLimit';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'motion/react';
 import { RepoCard } from './RepoCard';
 import { Repository } from '@/lib/types';
@@ -654,14 +654,19 @@ export function DiscoveryScreen() {
 
   const handleSave = useCallback(async (repo?: Repository) => {
     const repoToSave = repo || cards[0];
-    
-    // Handle save via recommendation engine (handles all tracking automatically)
-    if (repoToSave) {
+    if (!repoToSave) return;
+
+    // ── Pro users: save immediately, no paywall ──────────────────────────────
+    if (isProUser()) {
       await recommendationEngine.handleSave(repoToSave as any);
-      console.log(`✅ Saved: ${repoToSave.fullName || repoToSave.name}`);
+      setSavedRepos((prev) =>
+        prev.some((r) => r.id === repoToSave.id) ? prev : [...prev, repoToSave]
+      );
+      console.log(`✅ Saved (Pro): ${repoToSave.fullName || repoToSave.name}`);
+      return;
     }
-    
-    // ── Paywall: saving is a Pro feature ────────────────────────────────────
+
+    // ── Free users: show paywall ─────────────────────────────────────────────
     setPaywallType('save');
     setShowPaywall(true);
   }, [cards]);
@@ -1005,9 +1010,13 @@ export function DiscoveryScreen() {
         <div className="flex items-center gap-3">
           {/* Daily swipe counter + undo shortcut */}
           <span className="flex items-center gap-1.5 text-xs font-medium tabular-nums">
-            <span style={{ color: dailySwipesUsed >= FREE_SWIPES ? '#ef4444' : '#6b7280' }}>
-              {Math.max(0, FREE_SWIPES - dailySwipesUsed)} swipes left
-            </span>
+            {isProUser() ? (
+              <span style={{ color: '#3b82f6' }}>Pro ✦ Unlimited</span>
+            ) : (
+              <span style={{ color: dailySwipesUsed >= FREE_SWIPES ? '#ef4444' : '#6b7280' }}>
+                {Math.max(0, FREE_SWIPES - dailySwipesUsed)} swipes left
+              </span>
+            )}
             {skippedRepos.length > 0 && (
               <>
                 <span style={{ color: '#374151' }}>·</span>

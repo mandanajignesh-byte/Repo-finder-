@@ -10,6 +10,11 @@ const DATE_KEY = 'rv_usage_date';
 export const FREE_SWIPES = 5;
 export const FREE_AGENT_QUERIES = 2;
 
+/** Returns true if the user has an active Pro subscription */
+export function isProUser(): boolean {
+  return localStorage.getItem('subscription_status') === 'active';
+}
+
 function getTodayString(): string {
   return new Date().toDateString();
 }
@@ -40,6 +45,7 @@ export function incrementSwipesUsed(): number {
 }
 
 export function getSwipesLeft(): number {
+  if (isProUser()) return Infinity;
   return Math.max(0, FREE_SWIPES - getSwipesUsedToday());
 }
 
@@ -58,5 +64,6 @@ export function incrementAgentQueriesUsed(): number {
 }
 
 export function getAgentQueriesLeft(): number {
+  if (isProUser()) return Infinity;
   return Math.max(0, FREE_AGENT_QUERIES - getAgentQueriesUsedToday());
 }

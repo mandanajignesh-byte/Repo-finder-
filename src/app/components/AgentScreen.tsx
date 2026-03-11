@@ -34,6 +34,10 @@ const FREE_QUERIES_LIMIT = 2;
 const FREE_QUERIES_KEY = 'rv_agent_queries_used';
 const FREE_QUERIES_DATE_KEY = 'rv_agent_queries_date';
 
+function isProUser(): boolean {
+  return localStorage.getItem('subscription_status') === 'active';
+}
+
 function getQueriesUsedToday(): number {
   const storedDate = localStorage.getItem(FREE_QUERIES_DATE_KEY);
   const today = new Date().toDateString();
@@ -83,8 +87,9 @@ export function AgentScreen() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isPro = isProUser();
   const freeQueriesRemaining = Math.max(0, FREE_QUERIES_LIMIT - queriesUsed);
-  const isGated = freeQueriesRemaining <= 0;
+  const isGated = !isPro && freeQueriesRemaining <= 0;
 
   useTypedPlaceholder({
     strings: [
@@ -213,7 +218,9 @@ export function AgentScreen() {
           </div>
           {/* Query counter — friendly mini progress bar */}
           <div className="flex flex-col items-end gap-1">
-            {isGated ? (
+            {isPro ? (
+              <span className="text-xs font-medium" style={{ color: '#3b82f6' }}>Pro ✦ Unlimited</span>
+            ) : isGated ? (
               <span className="text-xs font-medium" style={{ color: '#f97316' }}>Daily limit reached</span>
             ) : (
               <>
