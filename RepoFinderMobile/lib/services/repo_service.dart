@@ -464,7 +464,6 @@ class RepoService extends ChangeNotifier {
           'user_id': userId,
           'repo_id': repo.githubId.toString(),
           'action': 'save',
-          'created_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
         debugPrint('Interaction already tracked: $e');
@@ -498,7 +497,6 @@ class RepoService extends ChangeNotifier {
           'user_id': userId,
           'repo_id': repo.githubId.toString(),
           'action': 'like',
-          'created_at': DateTime.now().toIso8601String(),
         });
       } catch (e) {
         debugPrint('Interaction already tracked: $e');

@@ -6,13 +6,14 @@ import '../theme/app_theme.dart';
 
 /// Full-screen Tinder-style discovery card with live LIKE/SKIP overlays.
 ///
-/// [dragOffsetX] and [dragOffsetY] drive the border color + badge overlays.
+/// [dragOffsetX] drives the border color + badge overlays.
 /// Positive [dragOffsetX] = dragging right (LIKE), negative = dragging left (SKIP).
-/// Negative [dragOffsetY] = dragging up (SAVE).
+/// [cardNumber] shows the position badge (#1, #2 …) in blue.
 class DiscoveryCard extends StatelessWidget {
   final Repository repo;
   final double dragOffsetX;
   final double dragOffsetY;
+  final int cardNumber;       // 1-based position shown as #1, #2 …
   final VoidCallback? onSave;
   final VoidCallback? onPreview;
 
@@ -21,6 +22,7 @@ class DiscoveryCard extends StatelessWidget {
     required this.repo,
     this.dragOffsetX = 0,
     this.dragOffsetY = 0,
+    this.cardNumber = 0,
     this.onSave,
     this.onPreview,
   });
@@ -121,14 +123,28 @@ class DiscoveryCard extends StatelessWidget {
                 child: _buildBadge('SKIP', AppTheme.error, _skipOpacity),
               ),
 
-            // ── SAVE badge (top-center) ──────────────────────────────────────
-            if (_saveOpacity > 0)
+            // ── Card number badge (#1, #2…) bottom-right ────────────────────
+            if (cardNumber > 0)
               Positioned(
-                top: 20,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: _buildBadge('SAVE', AppTheme.accent, _saveOpacity),
+                bottom: 100,
+                right: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: AppTheme.accent.withOpacity(0.3), width: 1),
+                  ),
+                  child: Text(
+                    '#$cardNumber',
+                    style: const TextStyle(
+                      color: AppTheme.accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
           ],

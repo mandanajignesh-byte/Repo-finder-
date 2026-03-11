@@ -23,28 +23,28 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   final AppinioSwiperController _swiperController = AppinioSwiperController();
 
   // ── Deck state ──────────────────────────────────────────────────────────────
-  List<Repository> _deck = [];          // cards currently shown in swiper
-  List<Repository> _nextBatch = [];     // pre-fetched, waiting to be added
+  List<Repository> _deck = [];
+  List<Repository> _nextBatch = [];
   bool _isLoading = true;
   bool _isFetchingNext = false;
   String? _error;
 
-  // ── Drag state (for live LIKE / SKIP overlays) ───────────────────────────────
+  // ── Drag state (live LIKE / SKIP overlays) ───────────────────────────────────
   double _dragOffsetX = 0;
   double _dragOffsetY = 0;
-  int _topCardIndex = 0;   // which card index is currently on top
+  int _topCardIndex = 0;
 
   // ── History for undo ──────────────────────────────────────────────────────────
   final List<Repository> _history = [];
 
-  // ── Cached user data ─────────────────────────────────────────────────────────
+  // ── Cached user / prefs ───────────────────────────────────────────────────────
   String? _userId;
   UserPreferences? _prefs;
 
   static const int _batchSize = 15;
-  static const int _prefetchAt = 4; // start prefetch when this many cards remain
+  static const int _prefetchAt = 4;
 
-  // ── Unique key forces AppinioSwiper to rebuild when we swap decks ────────────
+  // Forces AppinioSwiper rebuild when deck is replaced
   int _deckKey = 0;
 
   @override
@@ -60,7 +60,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // USER
+  // USER ID
   // ────────────────────────────────────────────────────────────────────────────
 
   Future<String> _getUserId() async {
@@ -92,30 +92,32 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       if (mounted) {
         setState(() {
           _deck = repos.take(_batchSize).toList();
-          _nextBatch = repos.length > _batchSize
-              ? repos.sublist(_batchSize)
-              : [];
+          _nextBatch =
+              repos.length > _batchSize ? repos.sublist(_batchSize) : [];
           _topCardIndex = 0;
           _dragOffsetX = 0;
           _dragOffsetY = 0;
-          _deckKey++;          // force fresh swiper
+          _deckKey++;
           _isLoading = false;
         });
       }
     } catch (e, st) {
       debugPrint('Discovery load error: $e\n$st');
-      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  /// Fetch a shuffled list of repos using multiple fallbacks.
   Future<List<Repository>> _fetchRepos() async {
     final repoService = Provider.of<RepoService>(context, listen: false);
     final cluster = _prefs?.primaryCluster ?? 'frontend';
     final techStack = _prefs?.techStack ?? [];
     final goals = _prefs?.goals ?? [];
 
-    // 1. Personalised repos
     var repos = await repoService.getPersonalizedRepos(
       primaryCluster: cluster,
       preferredLanguages: techStack,
@@ -123,7 +125,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       limit: _batchSize * 4,
     );
 
-    // 2. Cluster only
     if (repos.isEmpty) {
       repos = await repoService.getReposByCluster(
         cluster: cluster,
@@ -132,7 +133,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       );
     }
 
-    // 3. Trending as last resort
     if (repos.isEmpty) {
       repos = await repoService.getTrendingRepos(limit: _batchSize * 4);
     }
@@ -146,9 +146,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     _isFetchingNext = true;
     try {
       final more = await _fetchRepos();
-      if (mounted) {
-        setState(() => _nextBatch = [..._nextBatch, ...more]);
-      }
+      if (mounted) setState(() => _nextBatch = [..._nextBatch, ...more]);
     } catch (e) {
       debugPrint('Prefetch error: $e');
     } finally {
@@ -157,7 +155,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // SWIPER CALLBACKS
+  // SWIPER CALLBACKS  (v2.1.1 API)
   // ────────────────────────────────────────────────────────────────────────────
 
   void _onCardPositionChanged(SwiperPosition position) {
@@ -168,76 +166,74 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     });
   }
 
-  Future<void> _onSwipeEnd(
+  /// Called after each swipe completes.
+  /// [activity] is a sealed class: [Swipe], [Unswipe], [CancelSwipe], [DrivenActivity]
+  void _onSwipeEnd(
     int previousIndex,
-    int? currentIndex,
+    int targetIndex,
     SwiperActivity activity,
-  ) async {
-    // Reset drag visuals
+  ) {
     setState(() {
       _dragOffsetX = 0;
       _dragOffsetY = 0;
-      if (currentIndex != null) _topCardIndex = currentIndex;
+      _topCardIndex = targetIndex;
     });
 
-    if (activity == SwiperActivity.unswipe) return; // undo - nothing to track
+    // Undo — nothing to track
+    if (activity is Unswipe) return;
+    // Cancelled (didn't reach threshold) — nothing to track
+    if (activity is CancelSwipe) return;
 
     if (previousIndex < 0 || previousIndex >= _deck.length) return;
     final repo = _deck[previousIndex];
-    _history.add(repo);
 
-    // Background DB calls
-    _trackSwipe(repo, activity);
-
-    // Haptic + snack
-    switch (activity) {
-      case SwiperActivity.swipeRight:
-        HapticFeedback.mediumImpact();
-        _snack('liked ${repo.name}', AppTheme.success);
-        break;
-      case SwiperActivity.swipeLeft:
-        HapticFeedback.lightImpact();
-        break;
-      case SwiperActivity.swipeUp:
-        HapticFeedback.heavyImpact();
-        _snack('saved ${repo.name}', AppTheme.accent);
-        break;
-      default:
-        break;
+    if (activity is Swipe) {
+      switch (activity.direction) {
+        case AxisDirection.right:
+          // LIKE ❤️
+          _history.add(repo);
+          HapticFeedback.mediumImpact();
+          _snack('Liked ${repo.name}', AppTheme.success);
+          _trackSwipe(repo, 'like');
+          break;
+        case AxisDirection.left:
+          // SKIP ✕
+          _history.add(repo);
+          HapticFeedback.lightImpact();
+          _trackSwipe(repo, 'skip');
+          break;
+        default:
+          // Up/down disabled via SwipeOptions — should not occur
+          break;
+      }
     }
 
-    // Prefetch / extend deck when nearing end
-    if (currentIndex != null) {
-      final remaining = _deck.length - currentIndex;
-      if (remaining <= _prefetchAt) {
-        _extendDeck();
-      }
+    setState(() {});
+
+    // Extend deck when nearing end
+    final remaining = _deck.length - targetIndex;
+    if (remaining <= _prefetchAt) {
+      _extendDeck();
     }
   }
 
-  Future<void> _trackSwipe(Repository repo, SwiperActivity activity) async {
+  Future<void> _trackSwipe(Repository repo, String action) async {
     try {
       final userId = await _getUserId();
       if (!mounted) return;
       final repoSvc = Provider.of<RepoService>(context, listen: false);
       final appSvc = Provider.of<AppSupabaseService>(context, listen: false);
 
-      switch (activity) {
-        case SwiperActivity.swipeRight:
-          await repoSvc.likeRepo(userId, repo);
-          break;
-        case SwiperActivity.swipeLeft:
-          await appSvc.trackInteraction(
-            userId: userId,
-            repoGithubId: repo.githubId,
-            action: 'skip',
-          );
-          break;
-        case SwiperActivity.swipeUp:
-          await repoSvc.saveRepo(userId, repo);
-          break;
-        default:
-          break;
+      if (action == 'like') {
+        await repoSvc.likeRepo(userId, repo);
+      } else if (action == 'save') {
+        await repoSvc.saveRepo(userId, repo);
+      } else {
+        await appSvc.trackInteraction(
+          userId: userId,
+          repoGithubId: repo.githubId,
+          action: action,
+        );
       }
     } catch (e) {
       debugPrint('Track swipe error: $e');
@@ -254,9 +250,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             : [];
       });
     }
-    if (_nextBatch.length < _batchSize) {
-      _prefetchMore();
-    }
+    if (_nextBatch.length < _batchSize) _prefetchMore();
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -265,31 +259,37 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   void _undo() {
     if (_history.isEmpty) return;
-    _swiperController.unswipe();
+    // Remove from history BEFORE calling unswipe so the button stays visible
+    // during the animation (history will still have entries if there are more)
     final repo = _history.removeLast();
-    setState(() {});
+    setState(() {});               // hide undo button if history now empty
+    try {
+      _swiperController.unswipe();
+    } catch (e) {
+      // If unswipe fails (e.g. no card to undo), restore history entry
+      _history.add(repo);
+      setState(() {});
+      debugPrint('Undo failed: $e');
+      return;
+    }
     HapticFeedback.lightImpact();
-    _snack('Back to ${repo.name}', AppTheme.textSecondary);
+    _snack('↩ Back to ${repo.name}', AppTheme.textSecondary);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // PREVIEW / README
+  // README PREVIEW
   // ────────────────────────────────────────────────────────────────────────────
 
   Future<void> _showPreview(Repository repo) async {
-    // Track view in background
+    // Track view (fire-and-forget)
     _getUserId().then((uid) {
       if (!mounted) return;
       Provider.of<AppSupabaseService>(context, listen: false)
           .trackInteraction(
-            userId: uid,
-            repoGithubId: repo.githubId,
-            action: 'view',
-          )
+              userId: uid, repoGithubId: repo.githubId, action: 'view')
           .catchError((_) {});
     });
 
-    // Fetch README from GitHub
     String? readme;
     for (final branch in ['main', 'master', 'develop']) {
       try {
@@ -321,7 +321,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               .saveRepo(userId, repo);
           if (mounted) {
             Navigator.pop(context);
-            _snack('saved ${repo.name}', AppTheme.accent);
+            _snack('Saved ${repo.name}', AppTheme.accent);
           }
         },
       ),
@@ -412,7 +412,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                       ? 'Loading repos…'
                       : _deck.isEmpty
                           ? 'Tap refresh to load more!'
-                          : '→ like  •  ← skip  •  ↑ save',
+                          : '→ like  •  ← skip',
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 12,
@@ -458,11 +458,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               const Icon(Icons.wifi_off_rounded,
                   color: AppTheme.textSecondary, size: 52),
               const SizedBox(height: 16),
-              Text(
-                _error!,
-                style: const TextStyle(color: AppTheme.textSecondary),
-                textAlign: TextAlign.center,
-              ),
+              Text(_error!,
+                  style: const TextStyle(color: AppTheme.textSecondary),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _initialLoad,
@@ -490,7 +488,14 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       key: ValueKey(_deckKey),
       child: AppinioSwiper(
         controller: _swiperController,
-        cardsCount: _deck.length,
+        cardCount: _deck.length,          // ← v2.1.1: cardCount not cardsCount
+        allowUnSwipe: true,
+        allowUnlimitedUnSwipe: true,
+        // Only horizontal swipes — no up/down/diagonal
+        swipeOptions: const SwipeOptions.only(
+          left: true,
+          right: true,
+        ),
         onSwipeEnd: _onSwipeEnd,
         onCardPositionChanged: _onCardPositionChanged,
         cardBuilder: (BuildContext context, int index) {
@@ -502,6 +507,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           return DiscoveryCard(
             key: ValueKey(repo.id),
             repo: repo,
+            cardNumber: index + 1,          // #1, #2, #3 …
             dragOffsetX: isTop ? _dragOffsetX : 0,
             dragOffsetY: isTop ? _dragOffsetY : 0,
             onSave: () async {
@@ -509,7 +515,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               if (!mounted) return;
               await Provider.of<RepoService>(context, listen: false)
                   .saveRepo(userId, repo);
-              _snack('saved ${repo.name}', AppTheme.accent);
+              _snack('Saved ${repo.name}', AppTheme.accent);
               _swiperController.swipeLeft();
             },
             onPreview: () => _showPreview(repo),
@@ -537,7 +543,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             icon: Icons.bookmark_add_rounded,
             color: AppTheme.accent,
             size: 48,
-            onTap: () => _swiperController.swipeUp(),
+            onTap: () async {
+              // Save current top card then skip it (no upward swipe)
+              if (_topCardIndex < _deck.length) {
+                final repo = _deck[_topCardIndex];
+                final userId = await _getUserId();
+                if (!mounted) return;
+                await Provider.of<RepoService>(context, listen: false)
+                    .saveRepo(userId, repo);
+                _snack('Saved ${repo.name}', AppTheme.accent);
+                _swiperController.swipeLeft();
+              }
+            },
           ),
           _circleBtn(
             icon: Icons.favorite_rounded,

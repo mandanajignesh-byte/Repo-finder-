@@ -39,7 +39,14 @@ class AppSupabaseService extends ChangeNotifier {
     } else {
       // 2. Fallback to stored anonymous ID
       final prefs = await SharedPreferences.getInstance();
-      _userId = prefs.getString('app_user_id');
+      final stored = prefs.getString('app_user_id');
+
+      // Validate stored ID is a proper UUID — clear old 'app_user_<timestamp>' format
+      final uuidRegex = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        caseSensitive: false,
+      );
+      _userId = (stored != null && uuidRegex.hasMatch(stored)) ? stored : null;
 
       // 3. Create new anonymous ID — must be a valid UUID for Supabase
       if (_userId == null) {
@@ -174,7 +181,7 @@ class AppSupabaseService extends ChangeNotifier {
         'user_id': userId,
         'repo_id': repoGithubId.toString(), // text — matches web schema
         'action': action,
-        'created_at': DateTime.now().toIso8601String(),
+        // Note: created_at omitted — not present in all schema versions
       });
     } catch (e) {
       debugPrint('Error tracking interaction: $e');
