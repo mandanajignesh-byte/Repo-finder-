@@ -42,33 +42,35 @@ class RepoService extends ChangeNotifier {
     return goalTopics;
   }
 
-  /// Build a [Repository] from a raw `saved_repos` / `liked_repos` row.
-  Repository _repoFromSavedRow(Map<String, dynamic> row) {
-    final repoId = row['repo_id'] as String? ?? '';
+  /// Build a [Repository] from a `repos_master` row (used when loading
+  /// saved/liked repos via `app_saved_repos` / `app_liked_repos` join).
+  Repository _repoFromMasterRow(Map<String, dynamic> row) {
+    final githubId = row['repo_id'] as int? ?? 0;
+    final ownerLogin = row['owner_login'] as String? ?? '';
+    final fullName = row['full_name'] as String? ?? '';
     return Repository.fromJson({
-      'id': repoId,
-      'github_id': int.tryParse(repoId) ?? 0,
-      'name': row['repo_name'] ?? '',
-      'full_name': row['repo_full_name'] ?? '',
-      'description': row['repo_description'],
-      'owner_login':
-          (row['repo_full_name'] as String?)?.split('/').firstOrNull ?? '',
-      'owner_avatar': null,
-      'stars': row['repo_stars'] ?? 0,
-      'forks': 0,
-      'watchers': 0,
-      'open_issues': 0,
-      'language': row['repo_language'],
-      'topics': List<String>.from(row['repo_topics'] ?? []),
-      'license': null,
-      'repo_url': row['repo_url'] ?? '',
+      'id': githubId.toString(),
+      'github_id': githubId,
+      'name': row['name'] ?? '',
+      'full_name': fullName,
+      'description': row['description'],
+      'owner_login': ownerLogin,
+      'owner_avatar': row['avatar_url'] ?? 'https://github.com/$ownerLogin.png',
+      'stars': row['stars'] ?? 0,
+      'forks': row['forks'] ?? 0,
+      'watchers': row['watchers'] ?? 0,
+      'open_issues': row['open_issues'] ?? 0,
+      'language': row['language'],
+      'topics': List<String>.from(row['topics'] ?? []),
+      'license': row['license'],
+      'repo_url': row['html_url'] ?? 'https://github.com/$fullName',
       'homepage_url': null,
       'cluster': 'general',
       'recommendation_score': 0.7,
-      'popularity_score': 0.0,
-      'activity_score': 0.0,
-      'freshness_score': 0.0,
-      'quality_score': 0.0,
+      'popularity_score': ((row['stars'] as int? ?? 0) / 100000.0).clamp(0.0, 1.0),
+      'activity_score': 0.5,
+      'freshness_score': 0.5,
+      'quality_score': 0.5,
       'trending_score': 0.0,
     });
   }
@@ -436,33 +438,23 @@ class RepoService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // SAVE / LIKE  — unified saved_repos / liked_repos tables (same as web)
+  // SAVE / LIKE  — app_saved_repos / app_liked_repos (mobile-specific tables)
   // ---------------------------------------------------------------------------
 
-  /// Save a repository.  Writes to the unified `saved_repos` table so data is
-  /// visible on the web app too.
+  /// Save a repository.  Writes to `app_saved_repos` (user_id + repo_github_id).
   Future<void> saveRepo(String userId, Repository repo) async {
     try {
-      // upsert so swiping the same repo twice doesn't crash on unique constraint
-      await _supabase.from('saved_repos').upsert({
+      await _supabase.from('app_saved_repos').upsert({
         'user_id': userId,
-        'repo_id': repo.githubId.toString(), // text, matches web
-        'repo_name': repo.name,
-        'repo_full_name': repo.fullName,
-        'repo_description': repo.description,
-        'repo_stars': repo.stars,
-        'repo_language': repo.language,
-        'repo_url': repo.repoUrl,
-        'repo_tags': <String>[],
-        'repo_topics': repo.topics,
+        'repo_github_id': repo.githubId, // bigint
         'saved_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id,repo_id');
+      }, onConflict: 'user_id,repo_github_id');
 
-      // Track in unified user_interactions
+      // Track in app_user_interactions
       try {
-        await _supabase.from('user_interactions').insert({
+        await _supabase.from('app_user_interactions').insert({
           'user_id': userId,
-          'repo_id': repo.githubId.toString(),
+          'repo_github_id': repo.githubId, // bigint
           'action': 'save',
         });
       } catch (e) {
@@ -473,41 +465,31 @@ class RepoService extends ChangeNotifier {
     }
   }
 
-  /// Like a repository.  Writes to `liked_repos` AND `saved_repos` so liked
-  /// repos also appear in the Saved tab.
+  /// Like a repository.  Writes to `app_liked_repos` AND `app_saved_repos` so
+  /// liked repos also appear in the Saved tab.
   Future<void> likeRepo(String userId, Repository repo) async {
     final now = DateTime.now().toIso8601String();
-    final payload = {
-      'user_id': userId,
-      'repo_id': repo.githubId.toString(),
-      'repo_name': repo.name,
-      'repo_full_name': repo.fullName,
-      'repo_description': repo.description,
-      'repo_stars': repo.stars,
-      'repo_language': repo.language,
-      'repo_url': repo.repoUrl,
-      'repo_tags': <String>[],
-      'repo_topics': repo.topics,
-    };
 
     try {
-      // Write to liked_repos
-      await _supabase.from('liked_repos').upsert(
-        {...payload, 'liked_at': now},
-        onConflict: 'user_id,repo_id',
-      );
+      // Write to app_liked_repos
+      await _supabase.from('app_liked_repos').upsert({
+        'user_id': userId,
+        'repo_github_id': repo.githubId, // bigint
+        'liked_at': now,
+      }, onConflict: 'user_id,repo_github_id');
 
-      // Also write to saved_repos so liked repos appear in the Saved section
-      await _supabase.from('saved_repos').upsert(
-        {...payload, 'saved_at': now},
-        onConflict: 'user_id,repo_id',
-      );
+      // Also write to app_saved_repos so liked repos appear in the Saved section
+      await _supabase.from('app_saved_repos').upsert({
+        'user_id': userId,
+        'repo_github_id': repo.githubId, // bigint
+        'saved_at': now,
+      }, onConflict: 'user_id,repo_github_id');
 
-      // Track in user_interactions
+      // Track in app_user_interactions
       try {
-        await _supabase.from('user_interactions').insert({
+        await _supabase.from('app_user_interactions').insert({
           'user_id': userId,
-          'repo_id': repo.githubId.toString(),
+          'repo_github_id': repo.githubId, // bigint
           'action': 'like',
         });
       } catch (e) {
@@ -519,42 +501,102 @@ class RepoService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // LOAD SAVED / LIKED  — read from unified tables (no repos_master join needed)
+  // LOAD SAVED / LIKED  — read github IDs from app_ tables, join repos_master
   // ---------------------------------------------------------------------------
 
   Future<void> loadSavedRepos(String userId) async {
+    _isLoading = true;
+    notifyListeners();
     try {
-      final data = await _supabase
-          .from('saved_repos')
-          .select(
-              'repo_id, repo_name, repo_full_name, repo_description, repo_stars, '
-              'repo_language, repo_url, repo_topics, saved_at')
+      // Step 1: get saved repo IDs ordered by save time
+      final savedRows = await _supabase
+          .from('app_saved_repos')
+          .select('repo_github_id, saved_at')
           .eq('user_id', userId)
           .order('saved_at', ascending: false);
 
-      _savedRepos =
-          (data as List).map((row) => _repoFromSavedRow(row)).toList();
+      if ((savedRows as List).isEmpty) {
+        _savedRepos = [];
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Step 2: preserve ordering from save time
+      final orderedIds = savedRows.map((r) => r['repo_github_id'] as int).toList();
+
+      // Step 3: fetch full repo details from repos_master
+      final masterRows = await _supabase
+          .from('repos_master')
+          .select()
+          .inFilter('repo_id', orderedIds);
+
+      // Build lookup map for O(1) access
+      final masterMap = <int, Map<String, dynamic>>{
+        for (final row in (masterRows as List))
+          (row['repo_id'] as int): row as Map<String, dynamic>
+      };
+
+      // Reconstruct in original saved order, skip any IDs missing from master
+      _savedRepos = orderedIds
+          .where((id) => masterMap.containsKey(id))
+          .map((id) => _repoFromMasterRow(masterMap[id]!))
+          .toList();
+
+      _isLoading = false;
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading saved repos: $e');
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
   Future<void> loadLikedRepos(String userId) async {
+    _isLoading = true;
+    notifyListeners();
     try {
-      final data = await _supabase
-          .from('liked_repos')
-          .select(
-              'repo_id, repo_name, repo_full_name, repo_description, repo_stars, '
-              'repo_language, repo_url, repo_topics, liked_at')
+      // Step 1: get liked repo IDs ordered by like time
+      final likedRows = await _supabase
+          .from('app_liked_repos')
+          .select('repo_github_id, liked_at')
           .eq('user_id', userId)
           .order('liked_at', ascending: false);
 
-      _likedRepos =
-          (data as List).map((row) => _repoFromSavedRow(row)).toList();
+      if ((likedRows as List).isEmpty) {
+        _likedRepos = [];
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Step 2: preserve ordering from like time
+      final orderedIds = likedRows.map((r) => r['repo_github_id'] as int).toList();
+
+      // Step 3: fetch full repo details from repos_master
+      final masterRows = await _supabase
+          .from('repos_master')
+          .select()
+          .inFilter('repo_id', orderedIds);
+
+      // Build lookup map for O(1) access
+      final masterMap = <int, Map<String, dynamic>>{
+        for (final row in (masterRows as List))
+          (row['repo_id'] as int): row as Map<String, dynamic>
+      };
+
+      // Reconstruct in original liked order, skip any IDs missing from master
+      _likedRepos = orderedIds
+          .where((id) => masterMap.containsKey(id))
+          .map((id) => _repoFromMasterRow(masterMap[id]!))
+          .toList();
+
+      _isLoading = false;
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading liked repos: $e');
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }

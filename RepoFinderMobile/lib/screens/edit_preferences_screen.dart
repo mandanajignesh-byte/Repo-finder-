@@ -157,7 +157,7 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
         onboardingCompleted: true,
       );
 
-      // 1. Update user_preferences (cross-platform / web-visible)
+      // 1. Update app_user_preferences (mobile-specific table)
       await svc.saveUserPreferences(userId, prefs);
 
       // 2. Update ALL backend recommendation engine tables so that the

@@ -178,18 +178,18 @@ class AuthService extends ChangeNotifier {
       debugPrint('🔄 Migrating data from $oldUserId → $newUserId');
 
       // Migrate each table — update user_id references.
-      // All tables now use the unified schema (same as web app).
+      // Uses the app_-prefixed mobile-specific tables.
       final tables = [
-        'user_preferences',   // unified (was app_user_preferences)
-        'user_interactions',  // unified (was app_user_interactions)
-        'saved_repos',        // unified (was app_saved_repos)
-        'liked_repos',        // unified (was app_liked_repos)
-        'user_interests',     // iOS recommendation engine
-        'user_tech_stack',    // iOS recommendation engine
-        'user_profile',       // iOS recommendation engine
-        'user_goals',         // iOS recommendation engine
-        'user_current_projects',
-        'user_vectors',
+        'app_user_preferences',
+        'app_user_interactions',
+        'app_saved_repos',
+        'app_liked_repos',
+        'user_interests',        // iOS recommendation engine
+        'user_tech_stack',       // iOS recommendation engine
+        'user_profile',          // iOS recommendation engine
+        'user_goals',            // iOS recommendation engine
+        'user_current_projects', // iOS recommendation engine
+        'user_vectors',          // iOS recommendation engine
       ];
 
       for (final table in tables) {
@@ -204,17 +204,17 @@ class AuthService extends ChangeNotifier {
         }
       }
 
-      // Special case: users table uses 'id' as primary key (not 'user_id')
+      // Special case: app_users table uses 'id' as primary key (not 'user_id')
       try {
         await _supabase
-            .from('users') // unified (was app_users)
+            .from('app_users')
             .update({
               'id': newUserId,
               'updated_at': DateTime.now().toIso8601String(),
             })
             .eq('id', oldUserId);
       } catch (e) {
-        debugPrint('  Migration skipped for users.id: $e');
+        debugPrint('  Migration skipped for app_users.id: $e');
       }
 
       debugPrint('✅ Data migration complete');

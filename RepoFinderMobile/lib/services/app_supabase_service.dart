@@ -4,9 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/user_preferences.dart';
 
-/// Unified Supabase service — mirrors the web app's table structure so that
-/// iOS and web users share the same `users`, `user_preferences`, and
-/// `user_interactions` tables, enabling cross-platform sync.
+/// Mobile-specific Supabase service — uses the `app_` prefixed tables
+/// (`app_users`, `app_user_preferences`, `app_user_interactions`,
+/// `app_saved_repos`, `app_liked_repos`) that are dedicated to the iOS app.
 class AppSupabaseService extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   String? _userId;
@@ -34,9 +34,9 @@ class AppSupabaseService extends ChangeNotifier {
   /// Priority:
   ///  1. Supabase auth session (Apple Sign In) → use UUID
   ///  2. Persisted anonymous ID from SharedPreferences
-  ///  3. Generate a new anonymous ID (format: `app_user_<timestamp>`)
+  ///  3. Generate a new anonymous ID (valid UUID v4)
   ///
-  /// Writes to the unified `users` table (same as web).
+  /// Writes to the app-specific `app_users` table.
   Future<String> getOrCreateUserId({String? name}) async {
     if (_userId != null) return _userId!;
 
@@ -73,41 +73,45 @@ class AppSupabaseService extends ChangeNotifier {
       }
     }
 
-    // Upsert into unified `users` table (same as web app)
+    // Upsert into `app_users` table (mobile-specific)
     try {
+      final now = DateTime.now().toIso8601String();
       final existing = await _supabase
-          .from('users')
+          .from('app_users')
           .select('id')
           .eq('id', _userId!)
           .maybeSingle();
 
       if (existing == null) {
-        await _supabase.from('users').insert({
+        await _supabase.from('app_users').insert({
           'id': _userId!,
           'name': name,
-          'created_at': DateTime.now().toIso8601String(),
+          'platform': 'ios',
+          'created_at': now,
+          'last_active_at': now,
         });
-      } else if (name != null) {
-        await _supabase.from('users').update({
-          'name': name,
-          'updated_at': DateTime.now().toIso8601String(),
+      } else {
+        await _supabase.from('app_users').update({
+          if (name != null) 'name': name,
+          'last_active_at': now,
+          'updated_at': now,
         }).eq('id', _userId!);
       }
     } catch (e) {
-      debugPrint('Error ensuring user exists in users table: $e');
+      debugPrint('Error ensuring user exists in app_users table: $e');
     }
 
     return _userId!;
   }
 
   // ---------------------------------------------------------------------------
-  // USER PREFERENCES  (unified `user_preferences` table)
+  // USER PREFERENCES  (app_user_preferences table)
   // ---------------------------------------------------------------------------
 
   Future<UserPreferences?> getUserPreferences(String userId) async {
     try {
       final data = await _supabase
-          .from('user_preferences') // unified — same as web
+          .from('app_user_preferences') // mobile-specific table
           .select()
           .eq('user_id', userId)
           .maybeSingle();
@@ -141,7 +145,7 @@ class AppSupabaseService extends ChangeNotifier {
   Future<void> saveUserPreferences(
       String userId, UserPreferences preferences) async {
     try {
-      await _supabase.from('user_preferences').upsert({
+      await _supabase.from('app_user_preferences').upsert({
         'user_id': userId,
         'primary_cluster': preferences.primaryCluster,
         'secondary_clusters': preferences.secondaryClusters,
@@ -190,13 +194,12 @@ class AppSupabaseService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // INTERACTIONS  (unified `user_interactions` table)
+  // INTERACTIONS  (app_user_interactions table)
   // ---------------------------------------------------------------------------
 
   /// Track a user interaction.
   ///
-  /// [repoGithubId] — the integer GitHub repo ID (stored as text `repo_id`
-  ///                  so it matches what the web app stores).
+  /// [repoGithubId] — the integer GitHub repo ID (stored as bigint).
   /// [action]       — 'like', 'save', 'skip', 'view', 'swipe_up'
   Future<void> trackInteraction({
     required String userId,
@@ -204,11 +207,10 @@ class AppSupabaseService extends ChangeNotifier {
     required String action,
   }) async {
     try {
-      await _supabase.from('user_interactions').insert({
+      await _supabase.from('app_user_interactions').insert({
         'user_id': userId,
-        'repo_id': repoGithubId.toString(), // text — matches web schema
+        'repo_github_id': repoGithubId, // bigint — app_user_interactions schema
         'action': action,
-        // Note: created_at omitted — not present in all schema versions
       });
     } catch (e) {
       debugPrint('Error tracking interaction: $e');
@@ -220,7 +222,7 @@ class AppSupabaseService extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   /// Saves structured onboarding data to the iOS-specific recommendation tables
-  /// AND updates the unified `user_preferences` row.
+  /// AND updates the `app_user_preferences` row.
   Future<void> saveOnboardingData({
     required String userId,
     required List<String> interests,
@@ -324,9 +326,9 @@ class AppSupabaseService extends ChangeNotifier {
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'user_id');
 
-      // 7. Also update the unified user_preferences row so
-      //    preferences are visible cross-platform on the web too.
-      await _supabase.from('user_preferences').upsert({
+      // 7. Also update the app_user_preferences row so preferences
+      //    are stored in the mobile-specific table.
+      await _supabase.from('app_user_preferences').upsert({
         'user_id': userId,
         'tech_stack': techStack,
         'interests': interests,
