@@ -58,35 +58,6 @@ class _SignInScreenState extends State<SignInScreen>
     super.dispose();
   }
 
-  /// Skip sign-in — continue as anonymous/guest user.
-  Future<void> _handleSkip() async {
-    if (_isSigningIn) return;
-    setState(() { _isSigningIn = true; _error = null; });
-    try {
-      final supabaseService =
-          Provider.of<AppSupabaseService>(context, listen: false);
-      final userId = await supabaseService.getOrCreateUserId();
-      final isCompleted = await supabaseService.isOnboardingCompleted(userId);
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) =>
-              isCompleted ? const MainTabScreen() : const OnboardingScreen(),
-          transitionDuration: const Duration(milliseconds: 600),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSigningIn = false;
-          _error = 'Failed to continue. Please try again.';
-        });
-      }
-    }
-  }
-
   Future<void> _handleAppleSignIn() async {
     if (_isSigningIn) return;
 
@@ -275,34 +246,6 @@ class _SignInScreenState extends State<SignInScreen>
                                 ),
                               ],
                             ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Skip / Continue as Guest button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: TextButton(
-                      onPressed: _isSigningIn ? null : _handleSkip,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.textSecondary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(
-                            color: AppTheme.textSecondary.withOpacity(0.3),
-                          ),
-                        ),
-                      ),
-                      child: const Text(
-                        'Continue as Guest',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
                     ),
                   ),
 

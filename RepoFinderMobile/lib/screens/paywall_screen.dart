@@ -28,12 +28,10 @@ bool get _showDebugPreview => kDebugMode && _isUnsupportedPlatform;
 /// Layout: Logo → Title → Features → Plans → Button → Footer
 /// Optimized to fit on one screen without scrolling
 class PaywallScreen extends ConsumerStatefulWidget {
-  final VoidCallback? onClose;
   final VoidCallback? onSubscribed;
-  
+
   const PaywallScreen({
     super.key,
-    this.onClose,
     this.onSubscribed,
   });
 
@@ -231,38 +229,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Close button (top right) - optional for hard paywall
-                        if (widget.onClose != null)
-                          Align(
-                            alignment: Alignment.topRight,
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.close_rounded,
-                                  color: AppTheme.textSecondary,
-                                  size: 22,
-                                ),
-                                onPressed: () {
-                                  widget.onClose?.call();
-                                  // Navigate to main app
-                                  final canPop = Navigator.of(context).canPop();
-                                  if (canPop) {
-                                    Navigator.of(context).pop(false);
-                                  } else {
-                                    Navigator.of(context).pushReplacement(
-                                      MaterialPageRoute(
-                                        builder: (_) => const MainTabScreen(),
-                                      ),
-                                    );
-                                  }
-                                },
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
-                            ),
-                          ),
-                        
                         // Logo/Icon - smaller
                         _buildLogo(isSmallScreen),
                         SizedBox(height: isSmallScreen ? 16 : 20),

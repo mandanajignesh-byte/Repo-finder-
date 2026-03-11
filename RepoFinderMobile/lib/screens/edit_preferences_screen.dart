@@ -130,6 +130,15 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
       final svc = Provider.of<AppSupabaseService>(context, listen: false);
       final userId = await svc.getOrCreateUserId();
 
+      // Derive primaryCluster from first selected interest — same logic as onboarding.
+      // This is what the discovery backend uses to pick which repo cluster to query.
+      final primaryCluster = _selectedInterests.isNotEmpty
+          ? _selectedInterests.first
+          : svc.preferences?.primaryCluster;
+      final secondaryClusters = _selectedInterests.length > 1
+          ? _selectedInterests.sublist(1)
+          : <String>[];
+
       final prefs = UserPreferences(
         interests: _selectedInterests,
         techStack: _selectedTechStack,
@@ -137,9 +146,10 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
         goals: _selectedGoals,
         repoSize: [_repoSize],
         activityPreference: _activityPreference,
-        // Preserve existing values that aren't edited here
-        primaryCluster: svc.preferences?.primaryCluster,
-        secondaryClusters: svc.preferences?.secondaryClusters ?? [],
+        // Derived from selected interests (same as onboarding)
+        primaryCluster: primaryCluster,
+        secondaryClusters: secondaryClusters,
+        // Preserve other values
         projectTypes: svc.preferences?.projectTypes,
         popularityWeight: svc.preferences?.popularityWeight ?? 'medium',
         documentationImportance: svc.preferences?.documentationImportance,
@@ -147,9 +157,24 @@ class _EditPreferencesScreenState extends State<EditPreferencesScreen> {
         onboardingCompleted: true,
       );
 
+      // 1. Update user_preferences (cross-platform / web-visible)
       await svc.saveUserPreferences(userId, prefs);
 
-      // Notify discovery screen to reload with new preferences
+      // 2. Update ALL backend recommendation engine tables so that the
+      //    discovery feed reflects the new preferences immediately:
+      //    user_interests, user_tech_stack, user_profile (complexity vector),
+      //    user_goals, user_vectors — exactly the same tables onboarding writes.
+      await svc.saveOnboardingData(
+        userId: userId,
+        interests: _selectedInterests,
+        techStack: _selectedTechStack,
+        skillLevel: _skillLevel,
+        goals: _selectedGoals,
+        repoSizePref: _repoSize,
+        currentProject: '',
+      );
+
+      // 3. Notify discovery screen to show "Finding new repos…" and reload
       svc.bumpPrefsVersion();
 
       if (mounted) {

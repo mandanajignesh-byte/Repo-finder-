@@ -326,14 +326,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
       );
     } else {
-      // Show paywall with close button (soft paywall — user can skip)
+      // Hard paywall — no close/skip option
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => PaywallScreen(
-            onClose: () {
-              // User skipped paywall — go to main app
-            },
-          ),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const PaywallScreen(),
           transitionDuration: const Duration(milliseconds: 800),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
