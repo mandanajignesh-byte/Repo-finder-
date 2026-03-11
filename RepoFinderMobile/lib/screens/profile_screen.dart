@@ -5,7 +5,6 @@ import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
 import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
-import '../widgets/github_connect_card.dart';
 import '../theme/app_theme.dart';
 import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
@@ -147,12 +146,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   SliverToBoxAdapter(child: _buildHeader()),
                   SliverToBoxAdapter(child: _buildSubscriptionCard()),
                   SliverToBoxAdapter(child: _buildPreferencesCard()),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: const GitHubConnectCard(),
-                    ),
-                  ),
                   SliverToBoxAdapter(child: _buildActionsCard()),
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],

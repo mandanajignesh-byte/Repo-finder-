@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/app_supabase_service.dart';
-import '../services/github_service.dart';
 import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
 import '../theme/app_theme.dart';
@@ -27,7 +26,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   String? _skillLevel; // beginner, intermediate, advanced
   List<String> _selectedGoals = [];
   String? _repoSizePref; // small, medium, large
-  bool _githubConnected = false;
   String _currentProject = '';
 
   /// True while the backend is building the recommendations feed.
@@ -182,7 +180,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   void _nextStep() {
     HapticFeedback.selectionClick();
-    if (_currentStep < 7) {
+    if (_currentStep < 6) {
       // Smooth exit
       _fadeController.reverse();
       _scaleController.reverse();
@@ -415,7 +413,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   _buildSkillLevelStep(),
                   _buildGoalsStep(),
                   _buildRepoSizeStep(),
-                  _buildGitHubConnectStep(),
                   _buildCurrentProjectStep(),
                   _buildHowToUseStep(),
                 ],
@@ -468,7 +465,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         elevation: 0,
                       ),
                       child: Text(
-                        _currentStep < 7 ? 'Next' : 'Get Started',
+                        _currentStep < 6 ? 'Next' : 'Get Started',
                         style: AppTheme.buttonText,
                       ),
                     ),
@@ -1117,180 +1114,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  // Screen 6: GitHub Connect (Optional)
-  Widget _buildGitHubConnectStep() {
-    return Consumer<GitHubService>(
-      builder: (context, github, _) {
-        final isConnected = github.isConnected;
-        final isLoading = github.loading || github.syncing;
-
-        // Sync local flag with actual connection state
-        if (isConnected && !_githubConnected) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _githubConnected = true);
-          });
-        }
-
-        return FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    Text(
-                      'Connect GitHub to personalize instantly',
-                      style: AppTheme.displayLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Optional — We\'ll use your starred repos to improve recommendations',
-                      style: AppTheme.bodyMedium.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-                    Expanded(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // GitHub logo / icon
-                            Container(
-                              width: 88,
-                              height: 88,
-                              decoration: BoxDecoration(
-                                color: isConnected
-                                    ? AppTheme.accent.withOpacity(0.12)
-                                    : const Color(0xFF0D1117),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: isConnected
-                                      ? AppTheme.accent.withOpacity(0.4)
-                                      : const Color(0xFF30363D),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Icon(
-                                isConnected
-                                    ? Icons.check_circle_rounded
-                                    : Icons.code_rounded,
-                                size: 44,
-                                color: isConnected
-                                    ? AppTheme.accent
-                                    : AppTheme.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-
-                            // Connect button
-                            if (!isConnected)
-                              ElevatedButton(
-                                onPressed: isLoading
-                                    ? null
-                                    : () async {
-                                        HapticFeedback.selectionClick();
-                                        final supabase = context
-                                            .read<AppSupabaseService>();
-                                        final userId =
-                                            await supabase.getOrCreateUserId();
-                                        if (!mounted) return;
-                                        await github.connectGitHub(userId);
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF238636),
-                                  foregroundColor: AppTheme.textPrimary,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusMedium),
-                                  ),
-                                ),
-                                child: isLoading
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                  Colors.white),
-                                        ),
-                                      )
-                                    : const Text('Connect with GitHub'),
-                              ),
-
-                            // Connected state
-                            if (isConnected) ...[
-                              Text(
-                                '✓ GitHub Connected',
-                                style: AppTheme.buttonText.copyWith(
-                                  color: AppTheme.accent,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              if (github.connection != null)
-                                Text(
-                                  '@${github.connection!.githubLogin}',
-                                  style: AppTheme.metaText.copyWith(
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              if (github.syncing) ...[
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Syncing starred repos…',
-                                  style: AppTheme.metaText.copyWith(
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ],
-
-                            // Error
-                            if (github.error != null) ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                github.error!,
-                                style: AppTheme.metaText.copyWith(
-                                  color: AppTheme.error,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-
-                            const SizedBox(height: 20),
-                            // Skip hint
-                            Text(
-                              'You can always connect later in Settings',
-                              style: AppTheme.metaText.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Screen 7: Current Project (Optional)
+  // Screen 6: Current Project (Optional)
   Widget _buildCurrentProjectStep() {
     return FadeTransition(
       opacity: _fadeAnimation,
