@@ -35,6 +35,9 @@ void main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.implicit,
+      ),
     );
     
     // Initialize RevenueCat (non-blocking — app works without subscriptions)

@@ -123,6 +123,10 @@ class GitHubService extends ChangeNotifier {
   String? _pendingAppUserId;
   String? _preOAuthStoredUserId;
 
+  // Token captured during OAuth — used by syncStarredRepos to avoid
+  // a DB query while the Supabase session is temporarily unauthenticated
+  String? _pendingGitHubToken;
+
   // Auth state subscription
   void Function()? _authUnsubscribe;
 

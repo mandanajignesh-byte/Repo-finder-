@@ -1,0 +1,1 @@
+ C:\\Users\\manda\\github\\RepoFinderMobile\\.dart_tool\\flutter_build\\e396aac47c111eb1a57abc3c5afe24de\\native_assets.json: 

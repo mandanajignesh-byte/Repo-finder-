@@ -1,0 +1,73 @@
+---
+alwaysApply: true
+description: Repository activity tracking and freshness scoring system
+---
+
+# Repo Activity & Freshness Scoring System
+
+## Overview
+The system tracks repository activity using GitHub commit data to calculate freshness scores and activity badges. This improves recommendation quality by prioritizing actively maintained repositories.
+
+## Key Tables
+
+### `repo_activity`
+Stores commit activity metrics:
+- `last_commit_at` - Most recent commit date (source of truth, not `updated_at`)
+- `commits_30_days`, `commits_90_days` - Commit counts
+- `commit_velocity` - Commits per day
+- `freshness_score` - 0.0-1.0 based on days inactive
+- `activity_score` - Combined freshness (60%) + velocity (40%)
+
+### `repos_master.last_commit_at`
+Denormalized field for fast sorting (updated from `repo_activity`)
+
+## Freshness Score Mapping
+
+Days Inactive | Score
+-------------|------
+0-30 days    | 1.0
+30-90        | 0.85
+90-180       | 0.65
+180-365      | 0.45
+1-2 years    | 0.25
+>2 years     | 0.05
+
+## Recommendation Formula
+
+```
+final_score = 
+  (interest_match * 0.35) +
+  (tech_match * 0.15) +
+  (complexity_match * 0.10) +
+  (popularity * 0.10) +
+  (health_score * 0.20) +
+  (freshness_score * 0.10)
+```
+
+## Activity Badges
+
+Badge | Condition
+------|----------
+Actively Maintained | < 30 days
+Recently Updated | < 90 days
+Maintained | < 1 year
+Needs Attention | 1-2 years
+Dormant | > 2 years
+
+## Data Source
+Always use GitHub API `/repos/{owner}/{repo}/commits` endpoint to get the first (latest) commit date. Do NOT rely on `repo.updated_at` which includes issue/metadata updates.
+
+## User Preferences
+`user_preferences.exclude_inactive_repos` - If true, filter out repos with `last_commit_at > 1 year ago`
+
+## Functions
+- `calculate_freshness_score(last_commit_date)` - Calculates freshness from days inactive
+- `update_repo_freshness_score(repo_id)` - Updates all activity metrics for a repo
+- `assign_activity_badges(repo_id)` - Assigns appropriate activity badge
+
+## Cron Jobs
+- Fetch commits: Weekly
+- Update freshness score: Weekly  
+- Recompute health: Weekly
+- Refresh badges: Weekly
+- Trending repos: Daily

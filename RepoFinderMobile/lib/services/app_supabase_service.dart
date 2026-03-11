@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../models/user_preferences.dart';
 
 /// Unified Supabase service — mirrors the web app's table structure so that
@@ -40,10 +41,17 @@ class AppSupabaseService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _userId = prefs.getString('app_user_id');
 
-      // 3. Create new anonymous ID
+      // 3. Create new anonymous ID — must be a valid UUID for Supabase
       if (_userId == null) {
-        _userId =
-            'app_user_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
+        // Try Supabase anonymous auth first (gives a real UUID)
+        try {
+          final response = await _supabase.auth.signInAnonymously();
+          _userId = response.session?.user.id ?? response.user?.id;
+        } catch (e) {
+          debugPrint('Anonymous auth unavailable, generating UUID: $e');
+        }
+        // Fallback: generate a proper UUID v4
+        _userId ??= const Uuid().v4();
         await prefs.setString('app_user_id', _userId!);
       }
     }
