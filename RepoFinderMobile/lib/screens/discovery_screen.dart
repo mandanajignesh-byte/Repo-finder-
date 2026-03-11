@@ -8,6 +8,7 @@ import '../models/user_preferences.dart';
 import '../services/repo_service.dart';
 import '../services/app_supabase_service.dart';
 import '../widgets/discovery_card.dart';
+import '../widgets/feed_loading_screen.dart';
 import '../widgets/readme_preview_modal.dart';
 import '../widgets/empty_state.dart';
 import '../theme/app_theme.dart';
@@ -44,8 +45,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   String? _userId;
   UserPreferences? _prefs;
 
-  static const int _batchSize = 15;
-  static const int _prefetchAt = 4;
+  // ── Batch loading overlay ─────────────────────────────────────────────────────
+  bool _showBatchLoader = false;
+
+  static const int _batchSize = 10;
+  static const int _prefetchAt = 3;
+  static const int _batchLoaderMinMs = 1800;
 
   // Forces AppinioSwiper rebuild when deck is replaced
   int _deckKey = 0;
@@ -84,7 +89,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
   }
 
-  /// Shows the "Finding new repos for you…" overlay then reloads the deck.
+  /// Shows the "Finding new repos for you…" overlay, calls the backend to
+  /// regenerate the 500-repo recommendation list, then reloads the deck.
   Future<void> _reloadForPrefsChange() async {
     if (!mounted) return;
     setState(() {
@@ -93,8 +99,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       _error = null;
     });
 
-    // Let the overlay render for a beat, then kick off the real load
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Regenerate recommendations in the backend before reloading the deck
+    final svc = Provider.of<AppSupabaseService>(context, listen: false);
+    final uid = await _getUserId();
+    await svc.generateRecommendations(uid);
+
+    // Now reload from the freshly-generated recommendations
     await _initialLoad();
 
     if (mounted) {
@@ -156,6 +166,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Future<List<Repository>> _fetchRepos() async {
     final repoService = Provider.of<RepoService>(context, listen: false);
+
+    // ── Tier 1: pre-computed recommendations (fast, personalised) ───────────
+    if (_userId != null) {
+      final recs = await repoService.loadRecommendedRepos(_userId!);
+      if (recs.isNotEmpty) {
+        recs.shuffle();
+        return recs;
+      }
+    }
+
+    // ── Tier 2: live personalised query (first-time / fallback) ──────────────
     final cluster = _prefs?.primaryCluster ?? 'frontend';
     final techStack = _prefs?.techStack ?? [];
     final goals = _prefs?.goals ?? [];
@@ -167,6 +188,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       limit: _batchSize * 4,
     );
 
+    // ── Tier 3: cluster-only fallback ────────────────────────────────────────
     if (repos.isEmpty) {
       repos = await repoService.getReposByCluster(
         cluster: cluster,
@@ -175,6 +197,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       );
     }
 
+    // ── Tier 4: trending as last resort ──────────────────────────────────────
     if (repos.isEmpty) {
       repos = await repoService.getTrendingRepos(limit: _batchSize * 4);
     }
@@ -250,11 +273,29 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
     setState(() {});
 
-    // Extend deck when nearing end
+    // Extend deck when nearing end; show batch loader at last 2 cards
     final remaining = _deck.length - targetIndex;
     if (remaining <= _prefetchAt) {
       _extendDeck();
     }
+    if (remaining <= 2 && !_showBatchLoader) {
+      _triggerBatchLoad();
+    }
+  }
+
+  /// Shows the aesthetic batch-loading overlay for at least [_batchLoaderMinMs]ms
+  /// while silently extending the deck from the next batch.
+  Future<void> _triggerBatchLoad() async {
+    if (_showBatchLoader) return;
+    setState(() => _showBatchLoader = true);
+    final minDelay = Future.delayed(
+      const Duration(milliseconds: _batchLoaderMinMs),
+    );
+    // Ensure next batch is ready (may be a no-op if already cached)
+    if (_nextBatch.isEmpty) await _prefetchMore();
+    _extendDeck();
+    await minDelay;
+    if (mounted) setState(() => _showBatchLoader = false);
   }
 
   Future<void> _trackSwipe(Repository repo, String action) async {
@@ -526,44 +567,51 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       );
     }
 
-    return KeyedSubtree(
-      key: ValueKey(_deckKey),
-      child: AppinioSwiper(
-        controller: _swiperController,
-        cardCount: _deck.length,          // ← v2.1.1: cardCount not cardsCount
-        allowUnSwipe: true,
-        allowUnlimitedUnSwipe: true,
-        // Only horizontal swipes — no up/down/diagonal
-        swipeOptions: const SwipeOptions.only(
-          left: true,
-          right: true,
-        ),
-        onSwipeEnd: _onSwipeEnd,
-        onCardPositionChanged: _onCardPositionChanged,
-        cardBuilder: (BuildContext context, int index) {
-          if (index < 0 || index >= _deck.length) {
-            return const SizedBox.shrink();
-          }
-          final repo = _deck[index];
-          final isTop = index == _topCardIndex;
-          return DiscoveryCard(
-            key: ValueKey(repo.id),
-            repo: repo,
-            cardNumber: index + 1,          // #1, #2, #3 …
-            // Only the top card gets the notifier; background cards are static.
-            dragNotifier: isTop ? _dragNotifier : null,
-            onSave: () async {
-              final userId = await _getUserId();
-              if (!mounted) return;
-              await Provider.of<RepoService>(context, listen: false)
-                  .saveRepo(userId, repo);
-              _snack('Saved ${repo.name}', AppTheme.accent);
-              _swiperController.swipeLeft();
+    return Stack(
+      children: [
+        KeyedSubtree(
+          key: ValueKey(_deckKey),
+          child: AppinioSwiper(
+            controller: _swiperController,
+            cardCount: _deck.length,
+            allowUnSwipe: true,
+            allowUnlimitedUnSwipe: true,
+            // Only horizontal swipes — no up/down/diagonal
+            swipeOptions: const SwipeOptions.only(
+              left: true,
+              right: true,
+            ),
+            onSwipeEnd: _onSwipeEnd,
+            onCardPositionChanged: _onCardPositionChanged,
+            cardBuilder: (BuildContext context, int index) {
+              if (index < 0 || index >= _deck.length) {
+                return const SizedBox.shrink();
+              }
+              final repo = _deck[index];
+              final isTop = index == _topCardIndex;
+              return DiscoveryCard(
+                key: ValueKey(repo.id),
+                repo: repo,
+                cardNumber: index + 1,
+                dragNotifier: isTop ? _dragNotifier : null,
+                onSave: () async {
+                  final userId = await _getUserId();
+                  if (!mounted) return;
+                  await Provider.of<RepoService>(context, listen: false)
+                      .saveRepo(userId, repo);
+                  _snack('Saved ${repo.name}', AppTheme.accent);
+                  _swiperController.swipeLeft();
+                },
+                onPreview: () => _showPreview(repo),
+              );
             },
-            onPreview: () => _showPreview(repo),
-          );
-        },
-      ),
+          ),
+        ),
+        // ── Batch loading overlay ─────────────────────────────────────────
+        // Shows an aesthetic full-screen message while next batch loads.
+        if (_showBatchLoader)
+          const FeedLoadingScreen(mode: FeedLoadingMode.batch),
+      ],
     );
   }
 

@@ -5,6 +5,7 @@ import '../services/app_supabase_service.dart';
 import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
 import '../theme/app_theme.dart';
+import '../widgets/feed_loading_screen.dart';
 import 'main_tab_screen.dart';
 import 'paywall_screen.dart';
 
@@ -27,6 +28,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   List<String> _selectedGoals = [];
   String? _repoSizePref; // small, medium, large
   String _currentProject = '';
+
+  // Loading overlay shown while the backend generates the initial feed
+  bool _isGeneratingFeed = false;
   
   late AnimationController _fadeController;
   late AnimationController _scaleController;
@@ -277,8 +281,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _completeOnboarding() async {
     final supabaseService = Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
-    
-    // Save to new tables structure
+
+    // Save preferences to Supabase
     try {
       await supabaseService.saveOnboardingData(
         userId: userId,
@@ -290,7 +294,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         currentProject: _currentProject.isNotEmpty ? _currentProject : null,
       );
 
-      // Also update app_user_preferences for backward compatibility
       final completedPrefs = UserPreferences(
         primaryCluster: _selectedInterests.isNotEmpty ? _selectedInterests[0] : null,
         secondaryClusters: _selectedInterests.length > 1 ? _selectedInterests.sublist(1) : [],
@@ -304,47 +307,44 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       await supabaseService.saveUserPreferences(userId, completedPrefs);
     } catch (e) {
       debugPrint('Error saving onboarding data: $e');
-      // Continue anyway - user can retry later
+      // Continue anyway — user can still use the app
     }
+
+    // Show loading overlay while the backend builds the personalised feed
+    if (mounted) setState(() => _isGeneratingFeed = true);
+
+    // Generate the initial 500-repo recommendation set in the backend
+    await supabaseService.generateRecommendations(userId);
 
     // Always mark onboarding completed locally so it never shows again
     await supabaseService.markOnboardingCompleted();
 
     if (!mounted) return;
 
-    // Check if user already has Pro access (VIP or subscriber)
+    // Navigate: Pro users skip paywall, others hit the hard paywall
     final revenueCat = RevenueCatService.instance;
-    if (revenueCat.isProUser) {
-      // VIP or already subscribed — skip paywall, go to main app
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const MainTabScreen(),
-          transitionDuration: const Duration(milliseconds: 800),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    } else {
-      // Hard paywall — no close/skip option
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const PaywallScreen(),
-          transitionDuration: const Duration(milliseconds: 800),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    }
+    final destination = revenueCat.isProUser
+        ? const MainTabScreen()
+        : const PaywallScreen();
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => destination,
+        transitionDuration: const Duration(milliseconds: 800),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: SafeArea(
+      body: Stack(
+        children: [
+          SafeArea(
         child: Column(
           children: [
             // Progress indicator
@@ -444,6 +444,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ],
         ),
+      ),
+      // ── Feed generation loading overlay ────────────────────────────────────
+      // Full-screen animated overlay shown while the Edge Function generates
+      // the user's personalised 500-repo feed. Prevents interaction with form.
+      if (_isGeneratingFeed)
+        const Positioned.fill(
+          child: FeedLoadingScreen(mode: FeedLoadingMode.onboarding),
+        ),
+        ],
       ),
     );
   }
@@ -1086,6 +1095,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
       ),
+
+    ],
+  ),
     );
   }
 }

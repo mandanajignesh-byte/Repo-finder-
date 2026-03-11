@@ -438,6 +438,60 @@ class RepoService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
+  // RECOMMENDATIONS  — read from app_user_recommendations + repos_master join
+  // ---------------------------------------------------------------------------
+
+  /// Returns the pre-computed, ranked list of repositories for [userId].
+  ///
+  /// Reads `app_user_recommendations` (populated by the `generate-recommendations`
+  /// Edge Function) and joins against `repos_master` for full repo details.
+  /// Returns an empty list if no recommendations have been generated yet.
+  Future<List<Repository>> loadRecommendedRepos(String userId) async {
+    try {
+      // Step 1: get ranked repo IDs for the user
+      final recRows = await _supabase
+          .from('app_user_recommendations')
+          .select('repo_github_id, rank')
+          .eq('user_id', userId)
+          .order('rank', ascending: true);
+
+      if ((recRows as List).isEmpty) return [];
+
+      final orderedIds = recRows
+          .map((r) => r['repo_github_id'] as int)
+          .toList();
+
+      // Step 2: fetch full details from repos_master (batch if large)
+      const batchSize = 500;
+      final masterRows = <Map<String, dynamic>>[];
+      for (int i = 0; i < orderedIds.length; i += batchSize) {
+        final batch = orderedIds.sublist(
+            i, (i + batchSize).clamp(0, orderedIds.length));
+        final rows = await _supabase
+            .from('repos_master')
+            .select()
+            .inFilter('repo_id', batch);
+        for (final row in (rows as List)) {
+          masterRows.add(row as Map<String, dynamic>);
+        }
+      }
+
+      // Step 3: rebuild in original ranked order
+      final masterMap = <int, Map<String, dynamic>>{
+        for (final row in masterRows) (row['repo_id'] as int): row,
+      };
+
+      return orderedIds
+          .where((id) => masterMap.containsKey(id))
+          .map((id) => _repoFromMasterRow(masterMap[id]!))
+          .toList();
+    } catch (e) {
+      debugPrint('loadRecommendedRepos error: $e');
+      return [];
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // SAVE / LIKE  — app_saved_repos / app_liked_repos (mobile-specific tables)
   // ---------------------------------------------------------------------------
 

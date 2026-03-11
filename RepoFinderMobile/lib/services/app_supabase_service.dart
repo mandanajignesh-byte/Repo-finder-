@@ -194,6 +194,38 @@ class AppSupabaseService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
+  // RECOMMENDATIONS  (app_user_recommendations — Edge Function)
+  // ---------------------------------------------------------------------------
+
+  /// Calls the `generate-recommendations` Edge Function which:
+  ///  1. Reads the user's preferences from `app_user_preferences`
+  ///  2. Scores up to 500 repos from `repos_master` based on cluster /
+  ///     tech stack / goals
+  ///  3. Deletes old rows and inserts the new ranked list into
+  ///     `app_user_recommendations`
+  ///
+  /// Returns `true` on success (or if the function is unavailable — we never
+  /// want this to block the user).
+  Future<bool> generateRecommendations(String userId) async {
+    try {
+      debugPrint('🔮 Generating recommendations for $userId…');
+      final response = await _supabase.functions.invoke(
+        'generate-recommendations',
+        body: {'user_id': userId},
+      );
+      if (response.status != 200) {
+        debugPrint('⚠️ generate-recommendations returned ${response.status}: ${response.data}');
+        return false;
+      }
+      debugPrint('✅ Recommendations generated: ${response.data}');
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ generateRecommendations failed (non-fatal): $e');
+      return false; // non-fatal — discovery falls back to live query
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // INTERACTIONS  (app_user_interactions table)
   // ---------------------------------------------------------------------------
 

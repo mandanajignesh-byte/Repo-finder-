@@ -301,11 +301,15 @@ class _TrendingScreenState extends State<TrendingScreen> {
       child: ListView.builder(
         padding: const EdgeInsets.only(top: 8, bottom: 40),
         itemCount: _repos.length,
+        addAutomaticKeepAlives: false,
         itemBuilder: (context, index) {
-          return _TrendingRepoCard(
-            rank: index + 1,
-            repo: _repos[index],
-            onPreviewReadme: () => _showReadme(_repos[index]),
+          return RepaintBoundary(
+            key: ValueKey(_repos[index].id),
+            child: _TrendingRepoCard(
+              rank: index + 1,
+              repo: _repos[index],
+              onPreviewReadme: () => _showReadme(_repos[index]),
+            ),
           );
         },
       ),
@@ -325,6 +329,11 @@ class _TrendingRepoCard extends StatelessWidget {
     required this.onPreviewReadme,
   });
 
+  // Pre-computed static consts — avoids Color allocation on every scroll frame
+  static const _shadowColor    = Color(0x2E000000); // black.withOpacity(0.18)
+  static const _tagBgColor     = Color(0x1A0A84FF); // accent.withOpacity(0.10)
+  static const _tagBorderColor = Color(0x400A84FF); // accent.withOpacity(0.25)
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -333,11 +342,11 @@ class _TrendingRepoCard extends StatelessWidget {
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.hairlineBorder, width: 1),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.18),
+            color: _shadowColor,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -410,12 +419,11 @@ class _TrendingRepoCard extends StatelessWidget {
                 children: repo.topics.take(4).map((t) {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppTheme.accent.withOpacity(0.25),
-                        width: 1,
+                    decoration: const BoxDecoration(
+                      color: _tagBgColor,
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                      border: Border.fromBorderSide(
+                        BorderSide(color: _tagBorderColor, width: 1),
                       ),
                     ),
                     child: Text(
@@ -528,7 +536,7 @@ class _TrendingRepoCard extends StatelessWidget {
           height: 38,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppTheme.accent.withOpacity(0.6), const Color(0xFF5E5CE6)],
+              colors: [const Color(0x990A84FF), const Color(0xFF5E5CE6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -545,7 +553,7 @@ class _TrendingRepoCard extends StatelessWidget {
           height: 38,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppTheme.accent.withOpacity(0.6), const Color(0xFF5E5CE6)],
+              colors: [const Color(0x990A84FF), const Color(0xFF5E5CE6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -610,21 +618,27 @@ class _TrendingRepoCard extends StatelessWidget {
     );
   }
 
+  // Pre-computed grade chip colors — avoids per-frame withOpacity() allocation
+  static const _gradeA = (Color(0xFF34C759), Color(0x1F34C759), Color(0x5934C759));
+  static const _gradeB = (Color(0xFF30D158), Color(0x1F30D158), Color(0x5930D158));
+  static const _gradeC = (Color(0xFFFFCC00), Color(0x1FFFFF00), Color(0x59FFCC00));
+  static const _gradeD = (Color(0xFFFF3B30), Color(0x1FFF3B30), Color(0x59FF3B30));
+
   Widget _buildHealthChip() {
     final score = (repo.recommendationScore * 100).toInt();
-    Color chipColor;
+    final (Color chipColor, Color bgColor, Color borderColor);
     String grade;
-    if (score >= 80) { grade = 'A'; chipColor = AppTheme.success; }
-    else if (score >= 60) { grade = 'B'; chipColor = const Color(0xFF30D158); }
-    else if (score >= 40) { grade = 'C'; chipColor = const Color(0xFFFFCC00); }
-    else { grade = 'D'; chipColor = AppTheme.error; }
+    if (score >= 80)      { grade = 'A'; (chipColor, bgColor, borderColor) = _gradeA; }
+    else if (score >= 60) { grade = 'B'; (chipColor, bgColor, borderColor) = _gradeB; }
+    else if (score >= 40) { grade = 'C'; (chipColor, bgColor, borderColor) = _gradeC; }
+    else                  { grade = 'D'; (chipColor, bgColor, borderColor) = _gradeD; }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.12),
+        color: bgColor,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: chipColor.withOpacity(0.35), width: 1),
+        border: Border.all(color: borderColor, width: 1),
       ),
       child: Text(
         grade,
