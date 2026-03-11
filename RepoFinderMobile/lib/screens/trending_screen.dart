@@ -619,19 +619,35 @@ class _TrendingRepoCard extends StatelessWidget {
   }
 
   // Pre-computed grade chip colors — avoids per-frame withOpacity() allocation
-  static const _gradeA = (Color(0xFF34C759), Color(0x1F34C759), Color(0x5934C759));
-  static const _gradeB = (Color(0xFF30D158), Color(0x1F30D158), Color(0x5930D158));
-  static const _gradeC = (Color(0xFFFFCC00), Color(0x1FFFFF00), Color(0x59FFCC00));
-  static const _gradeD = (Color(0xFFFF3B30), Color(0x1FFF3B30), Color(0x59FF3B30));
+  static const _gradeAChip   = Color(0xFF34C759);
+  static const _gradeABg     = Color(0x1F34C759);
+  static const _gradeABorder = Color(0x5934C759);
+  static const _gradeBChip   = Color(0xFF30D158);
+  static const _gradeBBg     = Color(0x1F30D158);
+  static const _gradeBBorder = Color(0x5930D158);
+  static const _gradeCChip   = Color(0xFFFFCC00);
+  static const _gradeCBg     = Color(0x1FFFFF00);
+  static const _gradeCBorder = Color(0x59FFCC00);
+  static const _gradeDChip   = Color(0xFFFF3B30);
+  static const _gradeDBg     = Color(0x1FFF3B30);
+  static const _gradeDBorder = Color(0x59FF3B30);
 
   Widget _buildHealthChip() {
     final score = (repo.recommendationScore * 100).toInt();
-    final (Color chipColor, Color bgColor, Color borderColor);
-    String grade;
-    if (score >= 80)      { grade = 'A'; (chipColor, bgColor, borderColor) = _gradeA; }
-    else if (score >= 60) { grade = 'B'; (chipColor, bgColor, borderColor) = _gradeB; }
-    else if (score >= 40) { grade = 'C'; (chipColor, bgColor, borderColor) = _gradeC; }
-    else                  { grade = 'D'; (chipColor, bgColor, borderColor) = _gradeD; }
+    final String grade;
+    final Color chipColor;
+    final Color bgColor;
+    final Color borderColor;
+
+    if (score >= 80) {
+      grade = 'A'; chipColor = _gradeAChip; bgColor = _gradeABg; borderColor = _gradeABorder;
+    } else if (score >= 60) {
+      grade = 'B'; chipColor = _gradeBChip; bgColor = _gradeBBg; borderColor = _gradeBBorder;
+    } else if (score >= 40) {
+      grade = 'C'; chipColor = _gradeCChip; bgColor = _gradeCBg; borderColor = _gradeCBorder;
+    } else {
+      grade = 'D'; chipColor = _gradeDChip; bgColor = _gradeDBg; borderColor = _gradeDBorder;
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
