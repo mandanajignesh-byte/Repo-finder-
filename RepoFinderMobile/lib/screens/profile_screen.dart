@@ -7,6 +7,7 @@ import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
 import '../theme/app_theme.dart';
 import 'onboarding_screen.dart';
+import 'edit_preferences_screen.dart';
 import 'paywall_screen.dart';
 import 'sign_in_screen.dart';
 
@@ -80,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await authService.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const SignInScreen()),
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
           (route) => false,
         );
       }
@@ -124,6 +125,137 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     }
+  }
+
+  /// Opens a dialog to edit the display name only (no full onboarding redirect).
+  Future<void> _editName() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentName =
+        authService.displayName ?? _preferences?.name ?? '';
+    final controller = TextEditingController(text: currentName);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
+        title: const Text('Edit Name',
+            style: TextStyle(color: AppTheme.textPrimary)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: AppTheme.textPrimary),
+          cursorColor: AppTheme.accent,
+          decoration: InputDecoration(
+            hintText: 'Your display name',
+            hintStyle: const TextStyle(color: AppTheme.textSecondary),
+            filled: true,
+            fillColor: AppTheme.elevatedSurface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.hairlineBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppTheme.accent, width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppTheme.hairlineBorder),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save',
+                style: TextStyle(color: AppTheme.accent)),
+          ),
+        ],
+      ),
+    );
+
+    if (newName != null && newName.isNotEmpty && mounted) {
+      try {
+        final svc =
+            Provider.of<AppSupabaseService>(context, listen: false);
+        final userId = await svc.getOrCreateUserId(name: newName);
+        // Also update the user_preferences row if it exists
+        if (_preferences != null) {
+          final updated = UserPreferences(
+            name: newName,
+            primaryCluster: _preferences!.primaryCluster,
+            secondaryClusters: _preferences!.secondaryClusters,
+            techStack: _preferences!.techStack,
+            interests: _preferences!.interests,
+            experienceLevel: _preferences!.experienceLevel,
+            goals: _preferences!.goals,
+            projectTypes: _preferences!.projectTypes,
+            activityPreference: _preferences!.activityPreference,
+            popularityWeight: _preferences!.popularityWeight,
+            documentationImportance:
+                _preferences!.documentationImportance,
+            licensePreference: _preferences!.licensePreference,
+            repoSize: _preferences!.repoSize,
+            onboardingCompleted: _preferences!.onboardingCompleted,
+          );
+          await svc.saveUserPreferences(userId, updated);
+        }
+        if (mounted) {
+          setState(() {
+            _preferences = _preferences != null
+                ? UserPreferences(
+                    name: newName,
+                    primaryCluster: _preferences!.primaryCluster,
+                    secondaryClusters: _preferences!.secondaryClusters,
+                    techStack: _preferences!.techStack,
+                    interests: _preferences!.interests,
+                    experienceLevel: _preferences!.experienceLevel,
+                    goals: _preferences!.goals,
+                    projectTypes: _preferences!.projectTypes,
+                    activityPreference: _preferences!.activityPreference,
+                    popularityWeight: _preferences!.popularityWeight,
+                    documentationImportance:
+                        _preferences!.documentationImportance,
+                    licensePreference: _preferences!.licensePreference,
+                    repoSize: _preferences!.repoSize,
+                    onboardingCompleted:
+                        _preferences!.onboardingCompleted,
+                  )
+                : null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Name updated to "$newName"'),
+              backgroundColor: AppTheme.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error updating name: $e');
+      }
+    }
+  }
+
+  /// Opens the dedicated edit-preferences page (no full onboarding wizard).
+  void _openEditPreferences() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditPreferencesScreen()),
+    ).then((updated) {
+      if (updated == true) _loadPreferences();
+    });
   }
 
   @override
@@ -258,13 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.edit_outlined,
                 color: AppTheme.textSecondary),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const OnboardingScreen()),
-              ).then((_) => _loadPreferences());
-            },
+            onPressed: _editName,
           ),
         ],
       ),
@@ -377,13 +503,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const Spacer(),
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const OnboardingScreen()),
-                    ).then((_) => _loadPreferences());
-                  },
+                  onTap: _openEditPreferences,
                   child: const Text('Edit',
                       style: TextStyle(
                           color: AppTheme.accent, fontSize: 14)),
@@ -513,13 +633,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.tune_rounded,
               iconColor: AppTheme.accent,
               label: 'Edit Preferences',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const OnboardingScreen()),
-                ).then((_) => _loadPreferences());
-              },
+              onTap: _openEditPreferences,
             ),
             _divider(),
             Consumer<AuthService>(

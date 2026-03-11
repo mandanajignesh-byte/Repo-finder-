@@ -29,9 +29,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   bool _isFetchingNext = false;
   String? _error;
 
-  // ── Drag state (live LIKE / SKIP overlays) ───────────────────────────────────
-  double _dragOffsetX = 0;
-  double _dragOffsetY = 0;
+  // ── Prefs-change reload ───────────────────────────────────────────────────
+  int _lastPrefsVersion = 0;
+  bool _isReloadingForPrefs = false;
+
+  // ── Drag state (ValueNotifier → only the top card rebuilds, not the screen) ──
+  final _dragNotifier = ValueNotifier<Offset>(Offset.zero);
   int _topCardIndex = 0;
 
   // ── History for undo ──────────────────────────────────────────────────────────
@@ -50,13 +53,53 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initialLoad());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Seed the baseline version so the first real bump is detected
+      final svc = Provider.of<AppSupabaseService>(context, listen: false);
+      _lastPrefsVersion = svc.prefsVersion;
+      svc.addListener(_onPrefsServiceChanged);
+      _initialLoad();
+    });
   }
 
   @override
   void dispose() {
+    // Safe guard: context may be gone so we use a try/catch
+    try {
+      final svc = Provider.of<AppSupabaseService>(context, listen: false);
+      svc.removeListener(_onPrefsServiceChanged);
+    } catch (_) {}
     _swiperController.dispose();
+    _dragNotifier.dispose();
     super.dispose();
+  }
+
+  /// Called whenever [AppSupabaseService] notifies — check if prefs changed.
+  void _onPrefsServiceChanged() {
+    if (!mounted) return;
+    final svc = Provider.of<AppSupabaseService>(context, listen: false);
+    if (svc.prefsVersion != _lastPrefsVersion) {
+      _lastPrefsVersion = svc.prefsVersion;
+      _reloadForPrefsChange();
+    }
+  }
+
+  /// Shows the "Finding new repos for you…" overlay then reloads the deck.
+  Future<void> _reloadForPrefsChange() async {
+    if (!mounted) return;
+    setState(() {
+      _isReloadingForPrefs = true;
+      _isLoading = true;
+      _error = null;
+    });
+
+    // Let the overlay render for a beat, then kick off the real load
+    await Future.delayed(const Duration(milliseconds: 300));
+    await _initialLoad();
+
+    if (mounted) {
+      setState(() => _isReloadingForPrefs = false);
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -90,13 +133,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final repos = await _fetchRepos();
 
       if (mounted) {
-        setState(() {
+        _dragNotifier.value = Offset.zero;
+      setState(() {
           _deck = repos.take(_batchSize).toList();
           _nextBatch =
               repos.length > _batchSize ? repos.sublist(_batchSize) : [];
           _topCardIndex = 0;
-          _dragOffsetX = 0;
-          _dragOffsetY = 0;
           _deckKey++;
           _isLoading = false;
         });
@@ -159,11 +201,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   // ────────────────────────────────────────────────────────────────────────────
 
   void _onCardPositionChanged(SwiperPosition position) {
-    setState(() {
-      _dragOffsetX = position.offset.dx;
-      _dragOffsetY = position.offset.dy;
-      _topCardIndex = position.index;
-    });
+    // Update notifier only — the DiscoveryScreen does NOT rebuild.
+    // Only the top DiscoveryCard listens and rebuilds its own overlays.
+    _dragNotifier.value = position.offset;
+    _topCardIndex = position.index;
   }
 
   /// Called after each swipe completes.
@@ -173,9 +214,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     int targetIndex,
     SwiperActivity activity,
   ) {
+    _dragNotifier.value = Offset.zero; // reset overlays instantly
     setState(() {
-      _dragOffsetX = 0;
-      _dragOffsetY = 0;
       _topCardIndex = targetIndex;
     });
 
@@ -440,12 +480,14 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
-          strokeWidth: 2,
-        ),
-      );
+      return _isReloadingForPrefs
+          ? _buildPrefsReloadOverlay()
+          : const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                strokeWidth: 2,
+              ),
+            );
     }
 
     if (_error != null) {
@@ -508,8 +550,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             key: ValueKey(repo.id),
             repo: repo,
             cardNumber: index + 1,          // #1, #2, #3 …
-            dragOffsetX: isTop ? _dragOffsetX : 0,
-            dragOffsetY: isTop ? _dragOffsetY : 0,
+            // Only the top card gets the notifier; background cards are static.
+            dragNotifier: isTop ? _dragNotifier : null,
             onSave: () async {
               final userId = await _getUserId();
               if (!mounted) return;
@@ -521,6 +563,62 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             onPreview: () => _showPreview(repo),
           );
         },
+      ),
+    );
+  }
+
+  /// Full-screen overlay shown while repos are reloaded after preference change.
+  Widget _buildPrefsReloadOverlay() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.accent.withValues(alpha: 0.15),
+                border:
+                    Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
+              ),
+              child: const Icon(Icons.tune_rounded,
+                  color: AppTheme.accent, size: 34),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Finding new repos for you',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'We\'re personalising your feed based on your updated preferences…',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                strokeWidth: 2.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

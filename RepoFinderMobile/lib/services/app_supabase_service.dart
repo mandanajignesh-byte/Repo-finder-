@@ -15,6 +15,16 @@ class AppSupabaseService extends ChangeNotifier {
   String? get userId => _userId;
   UserPreferences? get preferences => _preferences;
 
+  /// Increments each time the user saves new preferences.
+  /// Listeners (e.g. DiscoveryScreen) use this to detect that repos need reload.
+  int prefsVersion = 0;
+
+  /// Called after user saves new preferences so discovery deck refreshes.
+  void bumpPrefsVersion() {
+    prefsVersion++;
+    notifyListeners();
+  }
+
   // ---------------------------------------------------------------------------
   // USER IDENTITY
   // ---------------------------------------------------------------------------

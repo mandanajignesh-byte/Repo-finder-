@@ -6,50 +6,83 @@ import '../theme/app_theme.dart';
 
 /// Full-screen Tinder-style discovery card with live LIKE/SKIP overlays.
 ///
-/// [dragOffsetX] drives the border color + badge overlays.
-/// Positive [dragOffsetX] = dragging right (LIKE), negative = dragging left (SKIP).
-/// [cardNumber] shows the position badge (#1, #2 …) in blue.
-class DiscoveryCard extends StatelessWidget {
+/// Accepts a [dragNotifier] (only for the top card). When the notifier value
+/// changes the card updates its own overlays without triggering a rebuild of
+/// the parent [DiscoveryScreen] — eliminating the 60 fps setState lag.
+///
+/// Background cards pass [dragNotifier] = null and are completely static.
+class DiscoveryCard extends StatefulWidget {
   final Repository repo;
-  final double dragOffsetX;
-  final double dragOffsetY;
-  final int cardNumber;       // 1-based position shown as #1, #2 …
+
+  /// Non-null only for the *top* card. Null = background card (no overlays).
+  final ValueNotifier<Offset>? dragNotifier;
+
+  final int cardNumber; // 1-based (#1, #2 …)
   final VoidCallback? onSave;
   final VoidCallback? onPreview;
 
   const DiscoveryCard({
     super.key,
     required this.repo,
-    this.dragOffsetX = 0,
-    this.dragOffsetY = 0,
+    this.dragNotifier,
     this.cardNumber = 0,
     this.onSave,
     this.onPreview,
   });
 
-  // ── overlay thresholds ──────────────────────────────────────────────────────
-  static const double _threshold = 60.0; // px before overlay appears
-  static const double _maxOffset = 160.0; // px for full opacity
+  @override
+  State<DiscoveryCard> createState() => _DiscoveryCardState();
+}
 
+class _DiscoveryCardState extends State<DiscoveryCard> {
+  static const double _threshold = 60.0;
+  static const double _maxOffset = 160.0;
+
+  Offset _offset = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.dragNotifier?.addListener(_onDragUpdate);
+  }
+
+  @override
+  void didUpdateWidget(DiscoveryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dragNotifier != widget.dragNotifier) {
+      oldWidget.dragNotifier?.removeListener(_onDragUpdate);
+      widget.dragNotifier?.addListener(_onDragUpdate);
+      _offset = widget.dragNotifier?.value ?? Offset.zero;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.dragNotifier?.removeListener(_onDragUpdate);
+    super.dispose();
+  }
+
+  void _onDragUpdate() {
+    // Only this card rebuilds — the parent DiscoveryScreen is untouched.
+    if (mounted) setState(() => _offset = widget.dragNotifier!.value);
+  }
+
+  // ── Overlay values ──────────────────────────────────────────────────────────
   double get _likeOpacity =>
-      ((dragOffsetX - _threshold) / _maxOffset).clamp(0.0, 1.0);
+      ((_offset.dx - _threshold) / _maxOffset).clamp(0.0, 1.0);
   double get _skipOpacity =>
-      ((-dragOffsetX - _threshold) / _maxOffset).clamp(0.0, 1.0);
-  double get _saveOpacity =>
-      ((-dragOffsetY - _threshold) / _maxOffset).clamp(0.0, 1.0);
+      ((-_offset.dx - _threshold) / _maxOffset).clamp(0.0, 1.0);
 
-  // ── border color based on drag ───────────────────────────────────────────────
   Color get _borderColor {
     if (_likeOpacity > 0) {
-      return AppTheme.success.withOpacity(_likeOpacity.clamp(0.0, 0.85));
+      return AppTheme.success.withValues(alpha: _likeOpacity.clamp(0.0, 0.85));
     } else if (_skipOpacity > 0) {
-      return AppTheme.error.withOpacity(_skipOpacity.clamp(0.0, 0.85));
-    } else if (_saveOpacity > 0) {
-      return AppTheme.accent.withOpacity(_saveOpacity.clamp(0.0, 0.85));
+      return AppTheme.error.withValues(alpha: _skipOpacity.clamp(0.0, 0.85));
     }
     return AppTheme.hairlineBorder;
   }
 
+  // ────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -59,15 +92,14 @@ class DiscoveryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: _borderColor,
-          width: _likeOpacity > 0 || _skipOpacity > 0 || _saveOpacity > 0
-              ? 2.5
-              : 1.0,
+          width:
+              _likeOpacity > 0 || _skipOpacity > 0 ? 2.5 : 1.0,
         ),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.55),
+            color: Color(0x8C000000),
             blurRadius: 32,
-            offset: const Offset(0, 12),
+            offset: Offset(0, 12),
           ),
         ],
       ),
@@ -75,7 +107,7 @@ class DiscoveryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(27),
         child: Stack(
           children: [
-            // ── Scrollable content ──────────────────────────────────────────
+            // ── Scrollable content (static) ────────────────────────────────
             SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
@@ -86,11 +118,11 @@ class DiscoveryCard extends StatelessWidget {
                   const SizedBox(height: 20),
                   _buildRepoName(),
                   const SizedBox(height: 12),
-                  if (repo.description?.isNotEmpty == true) ...[
+                  if (widget.repo.description?.isNotEmpty == true) ...[
                     _buildDescription(),
                     const SizedBox(height: 16),
                   ],
-                  if (repo.topics.isNotEmpty) ...[
+                  if (widget.repo.topics.isNotEmpty) ...[
                     _buildTopics(),
                     const SizedBox(height: 16),
                   ],
@@ -99,7 +131,7 @@ class DiscoveryCard extends StatelessWidget {
               ),
             ),
 
-            // ── Gradient action bar at bottom ───────────────────────────────
+            // ── Gradient action bar ────────────────────────────────────────
             Positioned(
               left: 0,
               right: 0,
@@ -107,37 +139,22 @@ class DiscoveryCard extends StatelessWidget {
               child: _buildActionBar(),
             ),
 
-            // ── LIKE badge (top-left) ────────────────────────────────────────
-            if (_likeOpacity > 0)
-              Positioned(
-                top: 20,
-                left: 16,
-                child: _buildBadge('LIKE', AppTheme.success, _likeOpacity),
-              ),
-
-            // ── SKIP badge (top-right) ───────────────────────────────────────
-            if (_skipOpacity > 0)
-              Positioned(
-                top: 20,
-                right: 16,
-                child: _buildBadge('SKIP', AppTheme.error, _skipOpacity),
-              ),
-
-            // ── Card number badge (#1, #2…) bottom-right ────────────────────
-            if (cardNumber > 0)
+            // ── Card number badge ──────────────────────────────────────────
+            if (widget.cardNumber > 0)
               Positioned(
                 bottom: 100,
                 right: 14,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppTheme.accent.withOpacity(0.12),
+                    color: const Color(0x1F0A84FF),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: AppTheme.accent.withOpacity(0.3), width: 1),
+                        color: const Color(0x4D0A84FF), width: 1),
                   ),
                   child: Text(
-                    '#$cardNumber',
+                    '#${widget.cardNumber}',
                     style: const TextStyle(
                       color: AppTheme.accent,
                       fontSize: 11,
@@ -146,6 +163,22 @@ class DiscoveryCard extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
+
+            // ── LIKE badge ─────────────────────────────────────────────────
+            if (_likeOpacity > 0)
+              Positioned(
+                top: 20,
+                left: 16,
+                child: _buildBadge('LIKE', AppTheme.success, _likeOpacity),
+              ),
+
+            // ── SKIP badge ─────────────────────────────────────────────────
+            if (_skipOpacity > 0)
+              Positioned(
+                top: 20,
+                right: 16,
+                child: _buildBadge('SKIP', AppTheme.error, _skipOpacity),
               ),
           ],
         ),
@@ -158,9 +191,10 @@ class DiscoveryCard extends StatelessWidget {
     return Opacity(
       opacity: opacity.clamp(0.0, 1.0),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.10),
           border: Border.all(color: color, width: 2.5),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -180,11 +214,11 @@ class DiscoveryCard extends StatelessWidget {
   // ── Owner header ─────────────────────────────────────────────────────────────
   Widget _buildOwnerHeader() {
     final avatarUrl =
-        repo.ownerAvatar ?? 'https://github.com/${repo.ownerLogin}.png';
+        widget.repo.ownerAvatar ??
+        'https://github.com/${widget.repo.ownerLogin}.png';
 
     return Row(
       children: [
-        // Avatar
         ClipOval(
           child: CachedNetworkImage(
             imageUrl: avatarUrl,
@@ -196,14 +230,12 @@ class DiscoveryCard extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-
-        // Owner + full name
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                repo.ownerLogin,
+                widget.repo.ownerLogin,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 14,
@@ -211,7 +243,7 @@ class DiscoveryCard extends StatelessWidget {
                 ),
               ),
               Text(
-                repo.fullName,
+                widget.repo.fullName,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12,
@@ -222,16 +254,16 @@ class DiscoveryCard extends StatelessWidget {
             ],
           ),
         ),
-
-        // Language badge
-        if (repo.language != null) _buildLanguageBadge(repo.language!),
+        if (widget.repo.language != null)
+          _buildLanguageBadge(widget.repo.language!),
       ],
     );
   }
 
   Widget _avatarFallback() {
-    final initial =
-        repo.ownerLogin.isNotEmpty ? repo.ownerLogin[0].toUpperCase() : 'R';
+    final initial = widget.repo.ownerLogin.isNotEmpty
+        ? widget.repo.ownerLogin[0].toUpperCase()
+        : 'R';
     return Container(
       width: 44,
       height: 44,
@@ -261,9 +293,9 @@ class DiscoveryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -287,10 +319,9 @@ class DiscoveryCard extends StatelessWidget {
     );
   }
 
-  // ── Repo name ─────────────────────────────────────────────────────────────
   Widget _buildRepoName() {
     return Text(
-      repo.name,
+      widget.repo.name,
       style: const TextStyle(
         color: AppTheme.textPrimary,
         fontSize: 26,
@@ -303,10 +334,9 @@ class DiscoveryCard extends StatelessWidget {
     );
   }
 
-  // ── Description ───────────────────────────────────────────────────────────
   Widget _buildDescription() {
     return Text(
-      repo.description!,
+      widget.repo.description!,
       style: const TextStyle(
         color: AppTheme.textSecondary,
         fontSize: 15,
@@ -317,17 +347,15 @@ class DiscoveryCard extends StatelessWidget {
     );
   }
 
-  // ── Topics ────────────────────────────────────────────────────────────────
   Widget _buildTopics() {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children: repo.topics
+      children: widget.repo.topics
           .take(7)
           .map(
             (topic) => Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: AppTheme.elevatedSurface,
                 borderRadius: BorderRadius.circular(20),
@@ -338,7 +366,6 @@ class DiscoveryCard extends StatelessWidget {
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 12,
-                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
@@ -347,27 +374,23 @@ class DiscoveryCard extends StatelessWidget {
     );
   }
 
-  // ── Stats row ─────────────────────────────────────────────────────────────
   Widget _buildStats() {
     return Row(
       children: [
-        _statItem(Icons.star_outline_rounded, _fmt(repo.stars),
-            const Color(0xFFFFD60A)),
+        _statItem(
+            Icons.star_outline_rounded, _fmt(widget.repo.stars), const Color(0xFFFFD60A)),
         const SizedBox(width: 14),
-        _statItem(Icons.call_split_rounded, _fmt(repo.forks),
+        _statItem(Icons.call_split_rounded, _fmt(widget.repo.forks),
             AppTheme.textSecondary),
-        if (repo.openIssues > 0) ...[
+        if (widget.repo.openIssues > 0) ...[
           const SizedBox(width: 14),
-          _statItem(Icons.bug_report_outlined, '${repo.openIssues}',
+          _statItem(Icons.bug_report_outlined, '${widget.repo.openIssues}',
               AppTheme.textSecondary),
         ],
         const Spacer(),
         Text(
-          repo.timeAgo,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-          ),
+          widget.repo.timeAgo,
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
         ),
       ],
     );
@@ -391,7 +414,6 @@ class DiscoveryCard extends StatelessWidget {
     );
   }
 
-  // ── Gradient action bar ───────────────────────────────────────────────────
   Widget _buildActionBar() {
     return Container(
       decoration: BoxDecoration(
@@ -399,8 +421,8 @@ class DiscoveryCard extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppTheme.surface.withOpacity(0),
-            AppTheme.surface.withOpacity(0.95),
+            AppTheme.surface.withValues(alpha: 0),
+            AppTheme.surface.withValues(alpha: 0.95),
             AppTheme.surface,
           ],
           stops: const [0, 0.4, 1],
@@ -409,19 +431,16 @@ class DiscoveryCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
       child: Row(
         children: [
-          // Preview button
           Expanded(
             child: _actionBtn(
               icon: Icons.description_outlined,
               label: 'README',
               color: AppTheme.textSecondary,
               bg: AppTheme.elevatedSurface,
-              onTap: onPreview,
+              onTap: widget.onPreview,
             ),
           ),
           const SizedBox(width: 10),
-
-          // Save button (primary)
           Expanded(
             flex: 2,
             child: _actionBtn(
@@ -429,12 +448,10 @@ class DiscoveryCard extends StatelessWidget {
               label: 'Save',
               color: Colors.white,
               bg: AppTheme.accent,
-              onTap: onSave,
+              onTap: widget.onSave,
             ),
           ),
           const SizedBox(width: 10),
-
-          // Open in GitHub
           Expanded(
             child: _actionBtn(
               icon: Icons.open_in_new_rounded,
@@ -489,12 +506,11 @@ class DiscoveryCard extends StatelessWidget {
   }
 
   void _openGitHub() async {
-    final raw = repo.repoUrl.isNotEmpty
-        ? repo.repoUrl
-        : 'https://github.com/${repo.fullName}';
+    final raw = widget.repo.repoUrl.isNotEmpty
+        ? widget.repo.repoUrl
+        : 'https://github.com/${widget.repo.fullName}';
     try {
-      await launchUrl(Uri.parse(raw),
-          mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(raw), mode: LaunchMode.externalApplication);
     } catch (_) {}
   }
 
