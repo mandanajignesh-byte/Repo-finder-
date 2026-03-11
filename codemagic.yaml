@@ -102,7 +102,6 @@ workflows:
         script: |
           cd RepoFinderMobile
           flutter build ios --release \
-            --build-name=1.0.0 \
             --build-number=$(($(date +%s) / 60))
       - name: Build IPA with Codemagic
         script: |
