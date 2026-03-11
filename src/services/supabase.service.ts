@@ -323,6 +323,77 @@ class SupabaseService {
       console.error('Error in removeSkipInteraction:', error);
     }
   }
+
+  // ─── Subscription management ────────────────────────────────────────────────
+
+  /**
+   * Save a PayPal subscription to the database.
+   * Called immediately after PayPal onApprove fires.
+   */
+  async saveSubscription(subscriptionId: string, planId: string, email?: string): Promise<void> {
+    try {
+      const userId = await this.getOrCreateUserId();
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .upsert({
+          user_id: userId,
+          subscription_id: subscriptionId,
+          status: 'active',
+          plan_id: planId,
+          email: email ?? null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'subscription_id' });
+
+      if (error) {
+        console.error('Error saving subscription:', error);
+      } else {
+        // Mirror to localStorage so isProUser() works synchronously
+        localStorage.setItem('subscription_status', 'active');
+        localStorage.setItem('paypal_subscription_id', subscriptionId);
+        console.log('✅ Subscription saved to DB:', subscriptionId);
+      }
+    } catch (err) {
+      console.error('Error in saveSubscription:', err);
+    }
+  }
+
+  /**
+   * Check if the current user has an active subscription in the DB.
+   * Syncs the result to localStorage so isProUser() stays accurate.
+   * Call this once on app startup.
+   */
+  async syncSubscriptionStatus(): Promise<boolean> {
+    try {
+      const userId = await this.getOrCreateUserId();
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('status, subscription_id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking subscription:', error);
+        // Don't wipe localStorage on error — keep last known state
+        return localStorage.getItem('subscription_status') === 'active';
+      }
+
+      if (data) {
+        localStorage.setItem('subscription_status', 'active');
+        localStorage.setItem('paypal_subscription_id', data.subscription_id);
+        return true;
+      } else {
+        // No active row found — clear any stale localStorage
+        localStorage.removeItem('subscription_status');
+        localStorage.removeItem('paypal_subscription_id');
+        return false;
+      }
+    } catch (err) {
+      console.error('Error in syncSubscriptionStatus:', err);
+      return localStorage.getItem('subscription_status') === 'active';
+    }
+  }
 }
 
 export const supabaseService = new SupabaseService();

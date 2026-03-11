@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Check, X, Zap, Bot, Bookmark, User, BarChart2, Headphones, Lock } from 'lucide-react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { supabaseService } from '@/services/supabase.service';
 
 const PAYPAL_CLIENT_ID = 'AYwkXJG9M9cemxGfH7Cd96oYoqXQAnVzwSEg80-Vo1ti_2OLXc_9TWGyOC_eFBRqIfmgxRipMmyfjxKT';
 
@@ -109,9 +110,9 @@ export function PayPalSubscriptionModal({
 
   if (!isOpen) return null;
 
-  const handleSuccess = (subscriptionId: string) => {
-    localStorage.setItem('paypal_subscription_id', subscriptionId);
-    localStorage.setItem('subscription_status', 'active');
+  const handleSuccess = async (subscriptionId: string) => {
+    // Save to Supabase DB first — this is the source of truth
+    await supabaseService.saveSubscription(subscriptionId, planId);
     setSubscribed(true);
     setTimeout(() => { onClose(); window.location.reload(); }, 2200);
   };

@@ -66,6 +66,12 @@ class RevenueCatService extends ChangeNotifier {
   /// Only active in debug builds — never bypasses paywall in production.
   bool get _isVipUser {
     if (!kDebugMode) return false;
+    // On Android in debug mode: iOS App Store products can never load on Android,
+    // so automatically grant developer access to test the app.
+    if (Platform.isAndroid) {
+      debugPrint('🛠️ DEBUG on Android: Granting developer access (iOS products unavailable on Android)');
+      return true;
+    }
     try {
       final email = Supabase.instance.client.auth.currentUser?.email;
       if (email == null) return false;

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
 import '../services/revenuecat_service.dart';
+import '../theme/app_theme.dart';
 import 'sign_in_screen.dart';
 import 'onboarding_screen.dart';
 import 'main_tab_screen.dart';
@@ -16,6 +17,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  String _statusMessage = 'Loading…';
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkAuthAndNavigate() async {
     try {
       // Brief splash delay for branding
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(milliseconds: 1200));
 
       if (!mounted) return;
 
@@ -42,57 +45,143 @@ class _SplashScreenState extends State<SplashScreen> {
           debugPrint('RevenueCat login skipped: $e');
         }
 
-        // User is signed in — check if onboarding is done
         final supabaseService =
             Provider.of<AppSupabaseService>(context, listen: false);
-        final isOnboarded = await supabaseService
-            .isOnboardingCompleted(authService.userId!);
+
+        // Ensure the user row exists in app_users
+        final userId = await supabaseService.getOrCreateUserId();
+
+        // Check onboarding status
+        final isOnboarded =
+            await supabaseService.isOnboardingCompleted(userId);
 
         if (!mounted) return;
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) =>
-                isOnboarded ? const MainTabScreen() : const OnboardingScreen(),
-          ),
-        );
+        if (!isOnboarded) {
+          // Onboarding not done — go there
+          _navigateTo(const OnboardingScreen());
+          return;
+        }
+
+        // Onboarding done — check if recommendations feed exists
+        final hasFeed = await supabaseService.hasRecommendationFeed(userId);
+
+        if (!hasFeed) {
+          // Feed is missing (first launch after onboarding, or expired).
+          // Rebuild in the background while showing a message.
+          if (mounted) setState(() => _statusMessage = 'Personalising your feed…');
+
+          final count = await supabaseService.buildRecommendations(userId);
+          debugPrint('Splash: built $count recommendations');
+        }
+
+        if (!mounted) return;
+        _navigateTo(const MainTabScreen());
       } else {
         // No session — show sign-in screen
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const SignInScreen()),
-        );
+        if (!mounted) return;
+        _navigateTo(const SignInScreen());
       }
     } catch (e) {
-      if (!mounted) return;
-
       debugPrint('Error during splash check: $e');
-      // On error, default to sign-in screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const SignInScreen()),
-      );
+      if (!mounted) return;
+      _navigateTo(const SignInScreen());
     }
+  }
+
+  void _navigateTo(Widget screen) {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => screen,
+        transitionDuration: const Duration(milliseconds: 600),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Repoverse',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            // App icon
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(
+                Icons.explore_rounded,
+                size: 36,
+                color: AppTheme.accent,
               ),
             ),
-            const SizedBox(height: 20),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            const SizedBox(height: 24),
+
+            // App name
+            Text(
+              'Repoverse',
+              style: AppTheme.titleLarge.copyWith(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
             ),
+            const SizedBox(height: 40),
+
+            // Spinner
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Status message (changes during feed rebuild)
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              child: Text(
+                _statusMessage,
+                key: ValueKey(_statusMessage),
+                style: AppTheme.metaText.copyWith(
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+            ),
+
+            // Debug skip button (only in debug builds)
+            if (kDebugMode) ...[
+              const SizedBox(height: 32),
+              TextButton(
+                onPressed: () => _navigateTo(const OnboardingScreen()),
+                child: Text(
+                  '🛠️ Go to Onboarding (Debug)',
+                  style: TextStyle(
+                    color: Colors.orange.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => _navigateTo(const MainTabScreen()),
+                child: Text(
+                  '🛠️ Go to Main App (Debug)',
+                  style: TextStyle(
+                    color: Colors.orange.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -4,249 +4,219 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/repository.dart';
 import '../theme/app_theme.dart';
 
-/// Full-screen Tinder-style discovery card with live LIKE/SKIP overlays.
+/// Full-screen Tinder-style repository discovery card.
 ///
-/// Accepts a [dragNotifier] (only for the top card). When the notifier value
-/// changes the card updates its own overlays without triggering a rebuild of
-/// the parent [DiscoveryScreen] — eliminating the 60 fps setState lag.
-///
-/// Background cards pass [dragNotifier] = null and are completely static.
-class DiscoveryCard extends StatefulWidget {
+/// Shows live LIKE/SKIP overlays based on [dragOffsetX].
+/// Embeds three action buttons: Save, Preview, GitHub.
+class DiscoveryCard extends StatelessWidget {
   final Repository repo;
+  final double dragOffsetX;
+  final double dragOffsetY;
+  final bool isDragging;
 
-  /// Non-null only for the *top* card. Null = background card (no overlays).
-  final ValueNotifier<Offset>? dragNotifier;
-
-  final int cardNumber; // 1-based (#1, #2 …)
+  /// Called when user taps the in-card Save button.
   final VoidCallback? onSave;
+
+  /// Called when user taps the in-card Preview button.
   final VoidCallback? onPreview;
 
   const DiscoveryCard({
     super.key,
     required this.repo,
-    this.dragNotifier,
-    this.cardNumber = 0,
+    this.dragOffsetX = 0,
+    this.dragOffsetY = 0,
+    this.isDragging = false,
     this.onSave,
     this.onPreview,
   });
 
-  @override
-  State<DiscoveryCard> createState() => _DiscoveryCardState();
-}
+  double get _likeStrength => (dragOffsetX / 120).clamp(0.0, 1.0);
+  double get _skipStrength => (-dragOffsetX / 120).clamp(0.0, 1.0);
 
-class _DiscoveryCardState extends State<DiscoveryCard> {
-  static const double _threshold = 60.0;
-  static const double _maxOffset = 160.0;
-
-  Offset _offset = Offset.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.dragNotifier?.addListener(_onDragUpdate);
-  }
-
-  @override
-  void didUpdateWidget(DiscoveryCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.dragNotifier != widget.dragNotifier) {
-      oldWidget.dragNotifier?.removeListener(_onDragUpdate);
-      widget.dragNotifier?.addListener(_onDragUpdate);
-      _offset = widget.dragNotifier?.value ?? Offset.zero;
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.dragNotifier?.removeListener(_onDragUpdate);
-    super.dispose();
-  }
-
-  void _onDragUpdate() {
-    // Only this card rebuilds — the parent DiscoveryScreen is untouched.
-    if (mounted) setState(() => _offset = widget.dragNotifier!.value);
-  }
-
-  // ── Overlay values ──────────────────────────────────────────────────────────
-  double get _likeOpacity =>
-      ((_offset.dx - _threshold) / _maxOffset).clamp(0.0, 1.0);
-  double get _skipOpacity =>
-      ((-_offset.dx - _threshold) / _maxOffset).clamp(0.0, 1.0);
-
-  Color get _borderColor {
-    if (_likeOpacity > 0) {
-      return AppTheme.success.withValues(alpha: _likeOpacity.clamp(0.0, 0.85));
-    } else if (_skipOpacity > 0) {
-      return AppTheme.error.withValues(alpha: _skipOpacity.clamp(0.0, 0.85));
-    }
-    return AppTheme.hairlineBorder;
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: _borderColor,
-          width:
-              _likeOpacity > 0 || _skipOpacity > 0 ? 2.5 : 1.0,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x8C000000),
-            blurRadius: 32,
-            offset: Offset(0, 12),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: _likeStrength > 0.1
+                ? AppTheme.success.withOpacity(_likeStrength.clamp(0.0, 0.8))
+                : _skipStrength > 0.1
+                    ? AppTheme.error.withOpacity(_skipStrength.clamp(0.0, 0.8))
+                    : AppTheme.hairlineBorder,
+            width: (_likeStrength > 0.1 || _skipStrength > 0.1) ? 2.5 : 1,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(27),
-        child: Stack(
-          children: [
-            // ── Scrollable content (static) ────────────────────────────────
-            SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildOwnerHeader(),
-                  const SizedBox(height: 20),
-                  _buildRepoName(),
-                  const SizedBox(height: 12),
-                  if (widget.repo.description?.isNotEmpty == true) ...[
-                    _buildDescription(),
-                    const SizedBox(height: 16),
-                  ],
-                  if (widget.repo.topics.isNotEmpty) ...[
-                    _buildTopics(),
-                    const SizedBox(height: 16),
-                  ],
-                  _buildStats(),
-                ],
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
             ),
-
-            // ── Gradient action bar ────────────────────────────────────────
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _buildActionBar(),
-            ),
-
-            // ── Card number badge ──────────────────────────────────────────
-            if (widget.cardNumber > 0)
-              Positioned(
-                bottom: 100,
-                right: 14,
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Stack(
+            children: [
+              // Background gradient
+              Positioned.fill(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0x1F0A84FF),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: const Color(0x4D0A84FF), width: 1),
-                  ),
-                  child: Text(
-                    '#${widget.cardNumber}',
-                    style: const TextStyle(
-                      color: AppTheme.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.elevatedSurface,
+                        AppTheme.background,
+                      ],
                     ),
                   ),
                 ),
               ),
 
-            // ── LIKE badge ─────────────────────────────────────────────────
-            if (_likeOpacity > 0)
-              Positioned(
-                top: 20,
-                left: 16,
-                child: _buildBadge('LIKE', AppTheme.success, _likeOpacity),
+              // Content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 20),
+
+                    // Repo name
+                    Text(
+                      repo.name,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Description
+                    if (repo.description != null &&
+                        repo.description!.isNotEmpty) ...[
+                      Text(
+                        repo.description!,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: Color(0xFFA1A1AA),
+                          height: 1.55,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Badges + topics
+                    if (repo.badges.isNotEmpty || repo.topics.isNotEmpty) ...[
+                      _buildTags(),
+                      const SizedBox(height: 14),
+                    ],
+
+                    const Spacer(),
+
+                    // Stats row
+                    _buildStats(),
+                    const SizedBox(height: 10),
+
+                    // Language + match score
+                    _buildFooter(),
+                    const SizedBox(height: 16),
+
+                    // ── Action buttons ─────────────────────────────────────
+                    _buildActionButtons(),
+                  ],
+                ),
               ),
 
-            // ── SKIP badge ─────────────────────────────────────────────────
-            if (_skipOpacity > 0)
-              Positioned(
-                top: 20,
-                right: 16,
-                child: _buildBadge('SKIP', AppTheme.error, _skipOpacity),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+              // SAVE indicator (right swipe)
+              if (_likeStrength > 0.05)
+                Positioned(
+                  top: 28,
+                  left: 22,
+                  child: _SwipeLabel(
+                    text: 'SAVE',
+                    color: AppTheme.success,
+                    strength: _likeStrength,
+                    rotateLeft: true,
+                  ),
+                ),
 
-  // ── Overlay badge ────────────────────────────────────────────────────────────
-  Widget _buildBadge(String text, Color color, double opacity) {
-    return Opacity(
-      opacity: opacity.clamp(0.0, 1.0),
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          border: Border.all(color: color, width: 2.5),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 3,
+              // SKIP indicator (left swipe)
+              if (_skipStrength > 0.05)
+                Positioned(
+                  top: 28,
+                  right: 22,
+                  child: _SwipeLabel(
+                    text: 'SKIP',
+                    color: AppTheme.error,
+                    strength: _skipStrength,
+                    rotateLeft: false,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // ── Owner header ─────────────────────────────────────────────────────────────
-  Widget _buildOwnerHeader() {
-    final avatarUrl =
-        widget.repo.ownerAvatar ??
-        'https://github.com/${widget.repo.ownerLogin}.png';
-
+  Widget _buildHeader() {
     return Row(
       children: [
+        // Owner avatar
         ClipOval(
           child: CachedNetworkImage(
-            imageUrl: avatarUrl,
-            width: 44,
-            height: 44,
+            imageUrl: repo.ownerAvatar ??
+                'https://github.com/${repo.ownerLogin}.png',
+            width: 42,
+            height: 42,
             fit: BoxFit.cover,
-            placeholder: (context, url) => _avatarFallback(),
-            errorWidget: (context, url, error) => _avatarFallback(),
+            placeholder: (_, __) => Container(
+              width: 42,
+              height: 42,
+              color: AppTheme.divider,
+            ),
+            errorWidget: (_, __, ___) => Container(
+              width: 42,
+              height: 42,
+              color: AppTheme.divider,
+              child: const Icon(
+                Icons.person_outline,
+                color: AppTheme.textSecondary,
+                size: 20,
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 11),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.repo.ownerLogin,
+                repo.ownerLogin,
                 style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  color: Color(0xFFA1A1AA),
+                  fontWeight: FontWeight.w400,
                 ),
               ),
               Text(
-                widget.repo.fullName,
+                repo.fullName,
                 style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
+                  fontSize: 11,
+                  color: Color(0xFF6B7280),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -254,248 +224,288 @@ class _DiscoveryCardState extends State<DiscoveryCard> {
             ],
           ),
         ),
-        if (widget.repo.language != null)
-          _buildLanguageBadge(widget.repo.language!),
+        // Feed rank badge
+        if (repo.feedRank != null)
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppTheme.accent.withOpacity(0.25),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              '#${repo.feedRank}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _avatarFallback() {
-    final initial = widget.repo.ownerLogin.isNotEmpty
-        ? widget.repo.ownerLogin[0].toUpperCase()
-        : 'R';
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          initial,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildTags() {
+    // Badges first (with colors), then grey topic tags
+    final badges = repo.badges.take(3).toList();
+    final remaining = 4 - badges.length;
+    final topics = repo.topics.take(remaining).toList();
 
-  Widget _buildLanguageBadge(String language) {
-    final color = _languageColor(language);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            language,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRepoName() {
-    return Text(
-      widget.repo.name,
-      style: const TextStyle(
-        color: AppTheme.textPrimary,
-        fontSize: 26,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.5,
-        height: 1.2,
-      ),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildDescription() {
-    return Text(
-      widget.repo.description!,
-      style: const TextStyle(
-        color: AppTheme.textSecondary,
-        fontSize: 15,
-        height: 1.55,
-      ),
-      maxLines: 5,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildTopics() {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children: widget.repo.topics
-          .take(7)
-          .map(
-            (topic) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppTheme.elevatedSurface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.hairlineBorder),
-              ),
-              child: Text(
-                '#$topic',
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          )
-          .toList(),
+      children: [
+        for (final badge in badges)
+          _BadgeTag(text: badge, color: _badgeColor(badge)),
+        for (final topic in topics)
+          _TopicTag(text: topic),
+      ],
     );
   }
 
   Widget _buildStats() {
     return Row(
       children: [
-        _statItem(
-            Icons.star_outline_rounded, _fmt(widget.repo.stars), const Color(0xFFFFD60A)),
-        const SizedBox(width: 14),
-        _statItem(Icons.call_split_rounded, _fmt(widget.repo.forks),
-            AppTheme.textSecondary),
-        if (widget.repo.openIssues > 0) ...[
-          const SizedBox(width: 14),
-          _statItem(Icons.bug_report_outlined, '${widget.repo.openIssues}',
-              AppTheme.textSecondary),
-        ],
-        const Spacer(),
-        Text(
-          widget.repo.timeAgo,
-          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-        ),
-      ],
-    );
-  }
-
-  Widget _statItem(IconData icon, String value, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: color),
+        const Icon(Icons.star_outline_rounded,
+            size: 15, color: Color(0xFFF59E0B)),
         const SizedBox(width: 4),
         Text(
-          value,
-          style: TextStyle(
-            color: color,
+          _fmt(repo.stars),
+          style: const TextStyle(
             fontSize: 13,
+            color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
         ),
+        const SizedBox(width: 16),
+        const Icon(Icons.call_split_outlined,
+            size: 15, color: Color(0xFFA1A1AA)),
+        const SizedBox(width: 4),
+        Text(
+          _fmt(repo.forks),
+          style: const TextStyle(fontSize: 12, color: Color(0xFFA1A1AA)),
+        ),
+        if (repo.openIssues > 0) ...[
+          const SizedBox(width: 16),
+          const Icon(Icons.bug_report_outlined,
+              size: 14, color: Color(0xFFA1A1AA)),
+          const SizedBox(width: 4),
+          Text(
+            _fmt(repo.openIssues),
+            style: const TextStyle(
+                fontSize: 12, color: Color(0xFFA1A1AA)),
+          ),
+        ],
+        const Spacer(),
+        if (repo.pushedAt != null)
+          Text(
+            repo.timeAgo,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF6B7280),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildActionBar() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppTheme.surface.withValues(alpha: 0),
-            AppTheme.surface.withValues(alpha: 0.95),
-            AppTheme.surface,
-          ],
-          stops: const [0, 0.4, 1],
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-      child: Row(
-        children: [
-          Expanded(
-            child: _actionBtn(
-              icon: Icons.description_outlined,
-              label: 'README',
-              color: AppTheme.textSecondary,
-              bg: AppTheme.elevatedSurface,
-              onTap: widget.onPreview,
+  Widget _buildFooter() {
+    final langColor = _langColor(repo.language);
+    return Row(
+      children: [
+        if (repo.language != null) ...[
+          Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(
+              color: langColor,
+              shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
-            child: _actionBtn(
-              icon: Icons.bookmark_add_rounded,
-              label: 'Save',
-              color: Colors.white,
-              bg: AppTheme.accent,
-              onTap: widget.onSave,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _actionBtn(
-              icon: Icons.open_in_new_rounded,
-              label: 'GitHub',
-              color: AppTheme.textSecondary,
-              bg: AppTheme.elevatedSurface,
-              onTap: _openGitHub,
+          const SizedBox(width: 6),
+          Text(
+            repo.language!,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFFA1A1AA),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
-      ),
+        const Spacer(),
+        if (repo.recommendationScore > 0)
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Text(
+              '${(repo.recommendationScore * 100).toInt()}% match',
+              style: const TextStyle(
+                fontSize: 10,
+                color: AppTheme.accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _actionBtn({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color bg,
-    VoidCallback? onTap,
-  }) {
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        // 🔖 Save
+        Expanded(
+          child: _CardButton(
+            icon: Icons.bookmark_rounded,
+            label: 'Save',
+            color: const Color(0xFF22C55E),
+            bgColor: const Color(0xFF166534).withOpacity(0.5),
+            onTap: onSave,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 👁 Preview
+        Expanded(
+          child: _CardButton(
+            icon: Icons.article_outlined,
+            label: 'Preview',
+            color: const Color(0xFF60A5FA),
+            bgColor: const Color(0xFF1E3A5F).withOpacity(0.6),
+            onTap: onPreview,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // GitHub
+        Expanded(
+          child: _CardButton(
+            icon: Icons.open_in_new_rounded,
+            label: 'GitHub',
+            color: const Color(0xFFA78BFA),
+            bgColor: const Color(0xFF2E1065).withOpacity(0.5),
+            onTap: () => _openGitHub(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openGitHub() {
+    launchUrl(
+      Uri.parse(repo.repoUrl),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+
+  String _fmt(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+    return '$n';
+  }
+
+  /// Returns a badge color based on the badge text content.
+  Color _badgeColor(String badge) {
+    final b = badge.toLowerCase();
+    if (b.contains('actively') || b.contains('well-maint') || b.contains('active')) {
+      return const Color(0xFF22C55E); // green
+    }
+    if (b.contains('community') || b.contains('driven')) {
+      return const Color(0xFF14B8A6); // teal
+    }
+    if (b.contains('needs') || b.contains('maintenance') || b.contains('stale')) {
+      return const Color(0xFFEF4444); // red
+    }
+    if (b.contains('trending') || b.contains('popular')) {
+      return const Color(0xFFF59E0B); // amber
+    }
+    if (b.contains('beginner') || b.contains('friendly') || b.contains('good first')) {
+      return const Color(0xFF06B6D4); // cyan
+    }
+    if (b.contains('production') || b.contains('ready')) {
+      return const Color(0xFF8B5CF6); // purple
+    }
+    if (b.contains('fast') || b.contains('performance')) {
+      return const Color(0xFFF97316); // orange
+    }
+    return AppTheme.accent;
+  }
+
+  Color _langColor(String? lang) {
+    switch (lang?.toLowerCase()) {
+      case 'python':        return const Color(0xFF3572A5);
+      case 'javascript':    return const Color(0xFFF1E05A);
+      case 'typescript':    return const Color(0xFF2B7489);
+      case 'dart':          return const Color(0xFF00B4AB);
+      case 'java':          return const Color(0xFFB07219);
+      case 'kotlin':        return const Color(0xFFA97BFF);
+      case 'swift':         return const Color(0xFFFFAC45);
+      case 'rust':          return const Color(0xFFDEA584);
+      case 'go':            return const Color(0xFF00ADD8);
+      case 'c++':           return const Color(0xFFF34B7D);
+      case 'c':             return const Color(0xFF555555);
+      case 'ruby':          return const Color(0xFF701516);
+      case 'php':           return const Color(0xFF4F5D95);
+      case 'shell':         return const Color(0xFF89E051);
+      case 'html':          return const Color(0xFFE34C26);
+      case 'css':           return const Color(0xFF563D7C);
+      default:              return AppTheme.textSecondary;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-card action button
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CardButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color bgColor;
+  final VoidCallback? onTap;
+
+  const _CardButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.bgColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 48,
+        height: 42,
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: bg == AppTheme.accent
-                ? Colors.transparent
-                : AppTheme.hairlineBorder,
+            color: color.withOpacity(0.3),
+            width: 1,
           ),
         ),
-        child: Column(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(height: 2),
+            Icon(icon, color: color, size: 16),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 10,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -504,43 +514,126 @@ class _DiscoveryCardState extends State<DiscoveryCard> {
       ),
     );
   }
+}
 
-  void _openGitHub() async {
-    final raw = widget.repo.repoUrl.isNotEmpty
-        ? widget.repo.repoUrl
-        : 'https://github.com/${widget.repo.fullName}';
-    try {
-      await launchUrl(Uri.parse(raw), mode: LaunchMode.externalApplication);
-    } catch (_) {}
+// ─────────────────────────────────────────────────────────────────────────────
+// Badge tag (colored)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BadgeTag extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _BadgeTag({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withOpacity(0.35),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 5),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
 
-  String _fmt(int n) =>
-      n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+// ─────────────────────────────────────────────────────────────────────────────
+// Topic tag (grey, plain)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  Color _languageColor(String lang) {
-    const map = {
-      'Dart': Color(0xFF00B4AB),
-      'Swift': Color(0xFFFA7343),
-      'Kotlin': Color(0xFF7F52FF),
-      'JavaScript': Color(0xFFF7DF1E),
-      'TypeScript': Color(0xFF3178C6),
-      'Python': Color(0xFF3572A5),
-      'Rust': Color(0xFFDEA584),
-      'Go': Color(0xFF00ADD8),
-      'Java': Color(0xFFB07219),
-      'C++': Color(0xFFf34b7d),
-      'C#': Color(0xFF178600),
-      'Ruby': Color(0xFF701516),
-      'PHP': Color(0xFF4F5D95),
-      'Shell': Color(0xFF89E051),
-      'HTML': Color(0xFFE34C26),
-      'CSS': Color(0xFF563D7C),
-      'Zig': Color(0xFFEC915C),
-      'Elixir': Color(0xFF6E4A7E),
-      'Lua': Color(0xFF000080),
-      'Haskell': Color(0xFF5D4F85),
-      'Scala': Color(0xFFDC322F),
-    };
-    return map[lang] ?? AppTheme.textSecondary;
+class _TopicTag extends StatelessWidget {
+  final String text;
+
+  const _TopicTag({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppTheme.divider,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          color: Color(0xFFA1A1AA),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Swipe label overlay (SAVE / SKIP)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SwipeLabel extends StatelessWidget {
+  final String text;
+  final Color color;
+  final double strength;
+  final bool rotateLeft;
+
+  const _SwipeLabel({
+    required this.text,
+    required this.color,
+    required this.strength,
+    required this.rotateLeft,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: strength.clamp(0.0, 1.0),
+      child: Transform.rotate(
+        angle: rotateLeft ? -0.35 : 0.35,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            border: Border.all(color: color, width: 2.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: 3,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

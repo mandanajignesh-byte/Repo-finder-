@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/app_supabase_service.dart';
+import '../services/github_service.dart';
 import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
 import '../theme/app_theme.dart';
-import '../widgets/feed_loading_screen.dart';
 import 'main_tab_screen.dart';
 import 'paywall_screen.dart';
 
@@ -20,17 +20,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
   final PageController _pageController = PageController();
-  
+
   // New onboarding data
   List<String> _selectedInterests = []; // Max 5
   List<String> _selectedTechStack = [];
   String? _skillLevel; // beginner, intermediate, advanced
   List<String> _selectedGoals = [];
   String? _repoSizePref; // small, medium, large
+  bool _githubConnected = false;
   String _currentProject = '';
 
-  // Loading overlay shown while the backend generates the initial feed
-  bool _isGeneratingFeed = false;
+  /// True while the backend is building the recommendations feed.
+  /// Shows a full-screen loading overlay.
+  bool _isBuildingFeed = false;
+  int _builtCount = 0;
   
   late AnimationController _fadeController;
   late AnimationController _scaleController;
@@ -179,7 +182,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   void _nextStep() {
     HapticFeedback.selectionClick();
-    if (_currentStep < 5) {
+    if (_currentStep < 7) {
       // Smooth exit
       _fadeController.reverse();
       _scaleController.reverse();
@@ -271,7 +274,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return _selectedGoals.isNotEmpty;
       case 4: // Repo Size
         return _repoSizePref != null;
-      case 5: // Current Project (optional)
+      case 5: // GitHub Connect (optional)
+        return true;
+      case 6: // Current Project (optional)
+        return true;
+      case 7: // How to use (always proceed)
         return true;
       default:
         return false;
@@ -279,61 +286,85 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _completeOnboarding() async {
-    final supabaseService = Provider.of<AppSupabaseService>(context, listen: false);
+    final supabaseService =
+        Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
 
-    // Save preferences to Supabase
+    // 1. Save preferences to app_user_preferences (single canonical call)
+    final clusterMap = {
+      'ai_ml': 'ai_ml',
+      'web_dev': 'web_dev',
+      'mobile': 'mobile',
+      'devops': 'devops',
+      'data_science': 'data_science',
+      'game_dev': 'game_dev',
+      'cybersecurity': 'cybersecurity',
+      'automation': 'automation',
+      'blockchain': 'blockchain',
+      'open_source': 'open_source',
+      'database': 'database',
+    };
+    final primaryCluster = _selectedInterests.isNotEmpty
+        ? (clusterMap[_selectedInterests.first] ?? _selectedInterests.first)
+        : 'web_dev';
+    final secondaryClusters = _selectedInterests.length > 1
+        ? _selectedInterests
+            .skip(1)
+            .map((i) => clusterMap[i] ?? i)
+            .toList()
+        : <String>[];
+
     try {
-      await supabaseService.saveOnboardingData(
-        userId: userId,
-        interests: _selectedInterests,
-        techStack: _selectedTechStack,
-        skillLevel: _skillLevel,
-        goals: _selectedGoals,
-        repoSizePref: _repoSizePref,
-        currentProject: _currentProject.isNotEmpty ? _currentProject : null,
+      await supabaseService.saveUserPreferences(
+        userId,
+        UserPreferences(
+          primaryCluster: primaryCluster,
+          secondaryClusters: secondaryClusters,
+          techStack: _selectedTechStack,
+          interests: _selectedInterests,
+          goals: _selectedGoals,
+          experienceLevel: _skillLevel ?? 'intermediate',
+          repoSize: _repoSizePref != null ? [_repoSizePref!] : [],
+          onboardingCompleted: true,
+        ),
       );
-
-      final completedPrefs = UserPreferences(
-        primaryCluster: _selectedInterests.isNotEmpty ? _selectedInterests[0] : null,
-        secondaryClusters: _selectedInterests.length > 1 ? _selectedInterests.sublist(1) : [],
-        techStack: _selectedTechStack,
-        goals: _selectedGoals,
-        experienceLevel: _skillLevel ?? 'intermediate',
-        repoSize: _repoSizePref != null ? [_repoSizePref!] : [],
-        onboardingCompleted: true,
-      );
-
-      await supabaseService.saveUserPreferences(userId, completedPrefs);
     } catch (e) {
       debugPrint('Error saving onboarding data: $e');
-      // Continue anyway — user can still use the app
+      // Continue — we still want to build recommendations
     }
-
-    // Show loading overlay while the backend builds the personalised feed
-    if (mounted) setState(() => _isGeneratingFeed = true);
-
-    // Generate the initial 500-repo recommendation set in the backend
-    await supabaseService.generateRecommendations(userId);
-
-    // Always mark onboarding completed locally so it never shows again
-    await supabaseService.markOnboardingCompleted();
 
     if (!mounted) return;
 
-    // Navigate: Pro users skip paywall, others hit the hard paywall
+    // 2. Show the "building feed" overlay
+    setState(() => _isBuildingFeed = true);
+
+    // 3. Build recommendations in parallel with a minimum 2-second delay
+    //    (so the user actually sees the loading screen)
+    try {
+      final results = await Future.wait([
+        supabaseService.buildRecommendations(userId),
+        Future.delayed(const Duration(seconds: 2)),
+      ]);
+      if (mounted) {
+        setState(() => _builtCount = (results[0] as int?) ?? 0);
+      }
+    } catch (e) {
+      debugPrint('Error building recommendations: $e');
+    }
+
+    if (!mounted) return;
+
+    // 4. Navigate to main app (or paywall)
     final revenueCat = RevenueCatService.instance;
-    final destination = revenueCat.isProUser
-        ? const MainTabScreen()
-        : const PaywallScreen();
+    final Widget nextScreen =
+        revenueCat.isProUser ? const MainTabScreen() : PaywallScreen(onClose: () {});
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => destination,
+        pageBuilder: (_, __, ___) => nextScreen,
         transitionDuration: const Duration(milliseconds: 800),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -344,21 +375,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       backgroundColor: AppTheme.background,
       body: Stack(
         children: [
+          // ── Main onboarding content ────────────────────────────────────────
           SafeArea(
-        child: Column(
+            child: Column(
           children: [
             // Progress indicator
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: Row(
-                children: List.generate(6, (index) {
+                children: List.generate(8, (index) {
                   return Expanded(
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 600), // Slower progress animation
                       curve: Curves.easeInOut,
                       height: 3,
                       margin: EdgeInsets.only(
-                        right: index < 5 ? 8 : 0,
+                        right: index < 7 ? 8 : 0,
                       ),
                       decoration: BoxDecoration(
                         color: index <= _currentStep 
@@ -383,7 +415,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   _buildSkillLevelStep(),
                   _buildGoalsStep(),
                   _buildRepoSizeStep(),
+                  _buildGitHubConnectStep(),
                   _buildCurrentProjectStep(),
+                  _buildHowToUseStep(),
                 ],
               ),
             ),
@@ -434,7 +468,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         elevation: 0,
                       ),
                       child: Text(
-                        _currentStep < 5 ? 'Next' : 'Complete',
+                        _currentStep < 7 ? 'Next' : 'Get Started',
                         style: AppTheme.buttonText,
                       ),
                     ),
@@ -445,14 +479,74 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ],
         ),
       ),
-      // ── Feed generation loading overlay ────────────────────────────────────
-      // Full-screen animated overlay shown while the Edge Function generates
-      // the user's personalised 500-repo feed. Prevents interaction with form.
-      if (_isGeneratingFeed)
-        const Positioned.fill(
-          child: FeedLoadingScreen(mode: FeedLoadingMode.onboarding),
-        ),
+          // ── "Building your feed" full-screen overlay ──────────────────────
+          if (_isBuildingFeed) _buildFeedLoadingOverlay(),
         ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Building-feed overlay
+  // ---------------------------------------------------------------------------
+
+  Widget _buildFeedLoadingOverlay() {
+    return Positioned.fill(
+      child: Container(
+        color: AppTheme.background,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon / logo area
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 40,
+                color: AppTheme.accent,
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Building your feed',
+              style: AppTheme.titleLarge.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Finding the best repos\nmatched to your interests…',
+              style: AppTheme.bodyMedium.copyWith(
+                color: AppTheme.textSecondary,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 48),
+            SizedBox(
+              width: 200,
+              child: LinearProgressIndicator(
+                backgroundColor: AppTheme.divider,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+              ),
+            ),
+            if (_builtCount > 0) ...[
+              const SizedBox(height: 24),
+              Text(
+                '✓ $_builtCount repos ready',
+                style: AppTheme.metaText.copyWith(
+                  color: AppTheme.success,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1023,7 +1117,180 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  // Screen 6: Current Project (Optional)
+  // Screen 6: GitHub Connect (Optional)
+  Widget _buildGitHubConnectStep() {
+    return Consumer<GitHubService>(
+      builder: (context, github, _) {
+        final isConnected = github.isConnected;
+        final isLoading = github.loading || github.syncing;
+
+        // Sync local flag with actual connection state
+        if (isConnected && !_githubConnected) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _githubConnected = true);
+          });
+        }
+
+        return FadeTransition(
+          opacity: _fadeAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    Text(
+                      'Connect GitHub to personalize instantly',
+                      style: AppTheme.displayLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Optional — We\'ll use your starred repos to improve recommendations',
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // GitHub logo / icon
+                            Container(
+                              width: 88,
+                              height: 88,
+                              decoration: BoxDecoration(
+                                color: isConnected
+                                    ? AppTheme.accent.withOpacity(0.12)
+                                    : const Color(0xFF0D1117),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: isConnected
+                                      ? AppTheme.accent.withOpacity(0.4)
+                                      : const Color(0xFF30363D),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Icon(
+                                isConnected
+                                    ? Icons.check_circle_rounded
+                                    : Icons.code_rounded,
+                                size: 44,
+                                color: isConnected
+                                    ? AppTheme.accent
+                                    : AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // Connect button
+                            if (!isConnected)
+                              ElevatedButton(
+                                onPressed: isLoading
+                                    ? null
+                                    : () async {
+                                        HapticFeedback.selectionClick();
+                                        final supabase = context
+                                            .read<AppSupabaseService>();
+                                        final userId =
+                                            await supabase.getOrCreateUserId();
+                                        if (!mounted) return;
+                                        await github.connectGitHub(userId);
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF238636),
+                                  foregroundColor: AppTheme.textPrimary,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                        AppTheme.radiusMedium),
+                                  ),
+                                ),
+                                child: isLoading
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      )
+                                    : const Text('Connect with GitHub'),
+                              ),
+
+                            // Connected state
+                            if (isConnected) ...[
+                              Text(
+                                '✓ GitHub Connected',
+                                style: AppTheme.buttonText.copyWith(
+                                  color: AppTheme.accent,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              if (github.connection != null)
+                                Text(
+                                  '@${github.connection!.githubLogin}',
+                                  style: AppTheme.metaText.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              if (github.syncing) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Syncing starred repos…',
+                                  style: AppTheme.metaText.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ],
+
+                            // Error
+                            if (github.error != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                github.error!,
+                                style: AppTheme.metaText.copyWith(
+                                  color: AppTheme.error,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+
+                            const SizedBox(height: 20),
+                            // Skip hint
+                            Text(
+                              'You can always connect later in Settings',
+                              style: AppTheme.metaText.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Screen 7: Current Project (Optional)
   Widget _buildCurrentProjectStep() {
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -1095,6 +1362,149 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
       ),
+    );
+  }
+
+  // ─── Step 8: How to use Repoverse ─────────────────────────────────────────
+
+  Widget _buildHowToUseStep() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  'How to use\nRepoverse',
+                  style: AppTheme.displayLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Swipe to discover and save repositories',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Tutorial items
+                _HowToItem(
+                  color: AppTheme.success,
+                  icon: Icons.swipe_right_alt_rounded,
+                  title: 'Swipe Right to Save',
+                  subtitle:
+                      'Swipe a card right or tap Save to bookmark a repository.',
+                ),
+                const SizedBox(height: 16),
+                _HowToItem(
+                  color: AppTheme.error,
+                  icon: Icons.swipe_left_alt_rounded,
+                  title: 'Swipe Left to Skip',
+                  subtitle: 'Not interested? Swipe left or tap Skip to pass.',
+                ),
+                const SizedBox(height: 16),
+                _HowToItem(
+                  color: const Color(0xFF60A5FA),
+                  icon: Icons.article_outlined,
+                  title: 'Preview',
+                  subtitle:
+                      'Tap Preview on any card to read a description without leaving.',
+                ),
+                const SizedBox(height: 16),
+                _HowToItem(
+                  color: const Color(0xFFA78BFA),
+                  icon: Icons.open_in_new_rounded,
+                  title: 'Open on GitHub',
+                  subtitle:
+                      'Tap GitHub to open the repository directly in your browser.',
+                ),
+                const SizedBox(height: 16),
+                _HowToItem(
+                  color: const Color(0xFFF59E0B),
+                  icon: Icons.favorite_rounded,
+                  title: 'Like to Endorse',
+                  subtitle:
+                      'Tap Like (heart) to signal you love a repo — helps us tailor your feed.',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: single "How to use" instruction row
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HowToItem extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _HowToItem({
+    required this.color,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: color.withOpacity(0.25),
+              width: 0.8,
+            ),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: Color(0xFFA1A1AA),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

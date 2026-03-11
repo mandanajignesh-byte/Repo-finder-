@@ -6,6 +6,7 @@ import { SplashScreen } from '@/app/components/SplashScreen';
 import { BottomNavigation } from '@/app/components/BottomNavigation';
 import { Loader2 } from 'lucide-react';
 import { updateSEO, getSEOForRoute } from '@/utils/seo';
+import { supabaseService } from '@/services/supabase.service';
 
 // Lazy load ALL heavy components for code splitting - including DiscoveryScreen
 const LandingPage = lazy(() => import('@/app/components/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -84,6 +85,11 @@ function AppContent() {
       });
     }
   }, [location.pathname, showSplash, analyticsLoaded]);
+
+  // Sync Pro subscription status from Supabase on every app load
+  useEffect(() => {
+    supabaseService.syncSubscriptionStatus().catch(() => {/* silent — localStorage keeps last known state */});
+  }, []);
 
   useEffect(() => {
     // OPTIMIZATION: Show splash screen for minimal time - just enough for initial render

@@ -5,9 +5,9 @@ import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
 import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
+import '../widgets/github_connect_card.dart';
 import '../theme/app_theme.dart';
 import 'onboarding_screen.dart';
-import 'edit_preferences_screen.dart';
 import 'paywall_screen.dart';
 import 'sign_in_screen.dart';
 
@@ -30,14 +30,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadPreferences() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
-
     final supabaseService =
         Provider.of<AppSupabaseService>(context, listen: false);
     final userId = await supabaseService.getOrCreateUserId();
     if (!mounted) return;
     final prefs = await supabaseService.getUserPreferences(userId);
-
     if (mounted) {
       setState(() {
         _preferences = prefs;
@@ -50,19 +47,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Clear All Data',
-            style: TextStyle(color: AppTheme.textPrimary)),
+            style: TextStyle(color: Colors.white)),
         content: const Text(
-            'This will delete all your preferences and saved repos. Continue?',
-            style: TextStyle(color: AppTheme.textSecondary)),
+          'This will delete all your preferences and saved repos. This action cannot be undone.',
+          style: TextStyle(color: Color(0xFF8B8B99)),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel',
-                style: TextStyle(color: AppTheme.textSecondary)),
+                style: TextStyle(color: AppTheme.accent)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -77,46 +75,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       if (!mounted) return;
-      final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.signOut();
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-          (route) => false,
-        );
-      }
-    }
-  }
-
-  Future<void> _signOut() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
-        title: const Text('Sign Out',
-            style: TextStyle(color: AppTheme.textPrimary)),
-        content: const Text('You will need to sign in again to use the app.',
-            style: TextStyle(color: AppTheme.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sign Out',
-                style: TextStyle(color: AppTheme.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      if (!mounted) return;
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService =
+          Provider.of<AuthService>(context, listen: false);
       await authService.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -127,141 +87,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Opens a dialog to edit the display name only (no full onboarding redirect).
-  Future<void> _editName() async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentName =
-        authService.displayName ?? _preferences?.name ?? '';
-    final controller = TextEditingController(text: currentName);
-
-    final newName = await showDialog<String>(
+  Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge)),
-        title: const Text('Edit Name',
-            style: TextStyle(color: AppTheme.textPrimary)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: const TextStyle(color: AppTheme.textPrimary),
-          cursorColor: AppTheme.accent,
-          decoration: InputDecoration(
-            hintText: 'Your display name',
-            hintStyle: const TextStyle(color: AppTheme.textSecondary),
-            filled: true,
-            fillColor: AppTheme.elevatedSurface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.hairlineBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppTheme.accent, width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppTheme.hairlineBorder),
-            ),
-          ),
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sign Out',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'You will need to sign in again to use the app.',
+          style: TextStyle(color: Color(0xFF8B8B99)),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel',
-                style: TextStyle(color: AppTheme.textSecondary)),
+                style: TextStyle(color: AppTheme.accent)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Save',
-                style: TextStyle(color: AppTheme.accent)),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign Out',
+                style: TextStyle(color: AppTheme.warning)),
           ),
         ],
       ),
     );
 
-    if (newName != null && newName.isNotEmpty && mounted) {
-      try {
-        final svc =
-            Provider.of<AppSupabaseService>(context, listen: false);
-        final userId = await svc.getOrCreateUserId(name: newName);
-        // Also update the user_preferences row if it exists
-        if (_preferences != null) {
-          final updated = UserPreferences(
-            name: newName,
-            primaryCluster: _preferences!.primaryCluster,
-            secondaryClusters: _preferences!.secondaryClusters,
-            techStack: _preferences!.techStack,
-            interests: _preferences!.interests,
-            experienceLevel: _preferences!.experienceLevel,
-            goals: _preferences!.goals,
-            projectTypes: _preferences!.projectTypes,
-            activityPreference: _preferences!.activityPreference,
-            popularityWeight: _preferences!.popularityWeight,
-            documentationImportance:
-                _preferences!.documentationImportance,
-            licensePreference: _preferences!.licensePreference,
-            repoSize: _preferences!.repoSize,
-            onboardingCompleted: _preferences!.onboardingCompleted,
-          );
-          await svc.saveUserPreferences(userId, updated);
-        }
-        if (mounted) {
-          setState(() {
-            _preferences = _preferences != null
-                ? UserPreferences(
-                    name: newName,
-                    primaryCluster: _preferences!.primaryCluster,
-                    secondaryClusters: _preferences!.secondaryClusters,
-                    techStack: _preferences!.techStack,
-                    interests: _preferences!.interests,
-                    experienceLevel: _preferences!.experienceLevel,
-                    goals: _preferences!.goals,
-                    projectTypes: _preferences!.projectTypes,
-                    activityPreference: _preferences!.activityPreference,
-                    popularityWeight: _preferences!.popularityWeight,
-                    documentationImportance:
-                        _preferences!.documentationImportance,
-                    licensePreference: _preferences!.licensePreference,
-                    repoSize: _preferences!.repoSize,
-                    onboardingCompleted:
-                        _preferences!.onboardingCompleted,
-                  )
-                : null;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Name updated to "$newName"'),
-              backgroundColor: AppTheme.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint('Error updating name: $e');
+    if (confirmed == true) {
+      if (!mounted) return;
+      final authService =
+          Provider.of<AuthService>(context, listen: false);
+      await authService.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const SignInScreen()),
+          (route) => false,
+        );
       }
     }
-  }
-
-  /// Opens the dedicated edit-preferences page (no full onboarding wizard).
-  void _openEditPreferences() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const EditPreferencesScreen()),
-    ).then((updated) {
-      if (updated == true) _loadPreferences();
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: _isLoading
             ? const Center(
@@ -271,441 +142,650 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   strokeWidth: 2,
                 ),
               )
-            : SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 24),
-                    _buildSubscriptionCard(),
-                    const SizedBox(height: 16),
-                    if (_preferences != null) _buildPreferencesCard(),
-                    if (_preferences != null) const SizedBox(height: 16),
-                    _buildActionsCard(),
-                  ],
-                ),
+            : CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildHeader()),
+                  SliverToBoxAdapter(child: _buildSubscriptionCard()),
+                  SliverToBoxAdapter(child: _buildPreferencesCard()),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: const GitHubConnectCard(),
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: _buildActionsCard()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                ],
               ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final displayName =
-        authService.displayName ?? _preferences?.name ?? 'Developer';
-    final initial =
-        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'D';
-    final isSignedIn = authService.isSignedIn;
+  // ─────────────────────────────────────────────────────────────────────────
+  // Header
+  // ─────────────────────────────────────────────────────────────────────────
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.hairlineBorder)),
-      ),
-      child: Row(
-        children: [
-          // Gradient avatar circle
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0A84FF).withOpacity(0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
+  Widget _buildHeader() {
+    return Consumer<AuthService>(
+      builder: (context, auth, _) {
+        final name = auth.displayName ?? _preferences?.name ?? 'Developer';
+        final email = auth.email;
+        final initial =
+            name.isNotEmpty ? name[0].toUpperCase() : 'D';
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          child: Row(
+            children: [
+              // Avatar with gradient
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0A84FF).withOpacity(0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  isSignedIn ? (authService.email ?? 'Apple ID') : 'Guest User',
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isSignedIn
-                        ? AppTheme.success.withOpacity(0.12)
-                        : AppTheme.textSecondary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSignedIn
-                          ? AppTheme.success.withOpacity(0.3)
-                          : AppTheme.textSecondary.withOpacity(0.2),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  child: Text(
-                    isSignedIn ? '● Signed In' : '● Guest',
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    if (email != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        email,
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    if (auth.isSignedIn)
+                      _StatusBadge(
+                        icon: Icons.apple_rounded,
+                        label: 'Apple ID',
+                        color: Colors.white,
+                        bgColor: const Color(0xFF1C1C1E),
+                      ),
+                  ],
+                ),
+              ),
+              // Refresh icon
+              IconButton(
+                onPressed: _loadPreferences,
+                icon: const Icon(Icons.refresh_rounded,
+                    color: Colors.white38),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Subscription card
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildSubscriptionCard() {
+    final isPro = RevenueCatService.instance.isProUser;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: GestureDetector(
+        onTap: isPro ? null : () => showPaywallScreen(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isPro
+                  ? [const Color(0xFF2D1B00), const Color(0xFF1A1000)]
+                  : [
+                      const Color(0xFF0D2140),
+                      const Color(0xFF071628),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isPro
+                  ? const Color(0xFFFFD700).withOpacity(0.3)
+                  : AppTheme.accent.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isPro
+                      ? const Color(0xFFFFD700).withOpacity(0.12)
+                      : AppTheme.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.workspace_premium_rounded,
+                  color: isPro
+                      ? const Color(0xFFFFD700)
+                      : AppTheme.accent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isPro ? 'Repoverse Pro' : 'Upgrade to Pro',
+                      style: TextStyle(
+                        color: isPro
+                            ? const Color(0xFFFFD700)
+                            : AppTheme.accent,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isPro
+                          ? 'Active subscription • Unlimited swipes'
+                          : 'Unlock unlimited swipes & more',
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isPro)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Upgrade',
                     style: TextStyle(
-                      color: isSignedIn
-                          ? AppTheme.success
-                          : AppTheme.textSecondary,
-                      fontSize: 11,
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD700).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFFFFD700).withOpacity(0.3),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: const Text(
+                    'Active',
+                    style: TextStyle(
+                      color: Color(0xFFFFD700),
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Preferences card
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildPreferencesCard() {
+    if (_preferences == null) return const SizedBox.shrink();
+    final p = _preferences!;
+
+    return _SectionCard(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      title: 'My Preferences',
+      titleTrailing: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        ).then((_) => _loadPreferences()),
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.accent.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppTheme.accent.withOpacity(0.3),
+              width: 0.8,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined,
-                color: AppTheme.textSecondary),
-            onPressed: _editName,
+          child: const Text(
+            'Edit',
+            style: TextStyle(
+              color: AppTheme.accent,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+      children: [
+        // Experience level
+        _PrefRow(
+          label: 'Experience',
+          value: _capitalize(p.experienceLevel),
+          icon: Icons.school_outlined,
+          iconColor: const Color(0xFF60A5FA),
+        ),
+
+        // Primary focus
+        if (p.primaryCluster != null)
+          _PrefRow(
+            label: 'Primary Focus',
+            value: _capitalize(p.primaryCluster!.replaceAll('_', ' ')),
+            icon: Icons.category_outlined,
+            iconColor: const Color(0xFF34D399),
+          ),
+
+        // Tech stack chips
+        if (p.techStack.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _ChipLabel(label: 'Tech Stack', icon: Icons.code_rounded),
+          const SizedBox(height: 8),
+          _ChipRow(
+            items: p.techStack,
+            color: const Color(0xFF8B5CF6),
+          ),
+        ],
+
+        // Interests chips
+        if (p.interests.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _ChipLabel(
+              label: 'Interests', icon: Icons.favorite_outline_rounded),
+          const SizedBox(height: 8),
+          _ChipRow(
+            items: p.interests,
+            color: const Color(0xFFF59E0B),
+          ),
+        ],
+
+        // Goals chips
+        if (p.goals.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _ChipLabel(label: 'Goals', icon: Icons.flag_outlined),
+          const SizedBox(height: 8),
+          _ChipRow(
+            items:
+                p.goals.map((g) => g.replaceAll('-', ' ')).toList(),
+            color: const Color(0xFF22C55E),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Actions card
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildActionsCard() {
+    return _SectionCard(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      title: 'Account',
+      children: [
+        _ActionRow(
+          icon: Icons.edit_outlined,
+          iconColor: AppTheme.accent,
+          label: 'Edit Preferences',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+          ).then((_) => _loadPreferences()),
+        ),
+        _divider(),
+        _ActionRow(
+          icon: Icons.logout_rounded,
+          iconColor: AppTheme.warning,
+          label: 'Sign Out',
+          labelColor: AppTheme.warning,
+          onTap: _signOut,
+        ),
+        _divider(),
+        _ActionRow(
+          icon: Icons.delete_outline_rounded,
+          iconColor: AppTheme.error,
+          label: 'Clear All Data',
+          labelColor: AppTheme.error,
+          onTap: _clearData,
+        ),
+      ],
+    );
+  }
+
+  Widget _divider() => const Divider(
+        color: Color(0xFF1C1C24),
+        height: 1,
+        thickness: 0.8,
+        indent: 44,
+      );
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StatusBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color bgColor;
+
+  const _StatusBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.bgColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.08),
+          width: 0.7,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildSubscriptionCard() {
-    final isPro = RevenueCatService.instance.isProUser;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isPro
-                ? [const Color(0xFF2D2000), const Color(0xFF1A1200)]
-                : [const Color(0xFF001A2E), const Color(0xFF000D1A)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(
-            color: isPro
-                ? const Color(0xFFFFD60A).withOpacity(0.3)
-                : AppTheme.accent.withOpacity(0.3),
-          ),
-        ),
-        child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          leading: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isPro
-                  ? const Color(0xFFFFD60A).withOpacity(0.15)
-                  : AppTheme.accent.withOpacity(0.15),
-            ),
-            child: Icon(
-              Icons.workspace_premium_rounded,
-              color: isPro ? const Color(0xFFFFD60A) : AppTheme.accent,
-              size: 24,
-            ),
-          ),
-          title: Text(
-            isPro ? 'Repoverse Pro' : 'Upgrade to Pro',
-            style: TextStyle(
-              color: isPro ? const Color(0xFFFFD60A) : AppTheme.accent,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-          subtitle: Text(
-            isPro
-                ? '✓ All features unlocked'
-                : 'Unlimited swipes, AI recommendations & more',
-            style: const TextStyle(
-                color: AppTheme.textSecondary, fontSize: 12),
-          ),
-          trailing: isPro
-              ? null
-              : GestureDetector(
-                  onTap: () => showPaywallScreen(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Upgrade',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-          onTap: isPro ? null : () => showPaywallScreen(context),
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final Widget? titleTrailing;
+  final List<Widget> children;
+  final EdgeInsets margin;
+
+  const _SectionCard({
+    required this.title,
+    required this.children,
+    this.titleTrailing,
+    this.margin = EdgeInsets.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      decoration: BoxDecoration(
+        color: const Color(0xFF111218),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.06),
+          width: 0.7,
         ),
       ),
-    );
-  }
-
-  Widget _buildPreferencesCard() {
-    final prefs = _preferences!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(color: AppTheme.hairlineBorder),
-        ),
-        padding: const EdgeInsets.all(20),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Text(
-                  'Your Preferences',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const Spacer(),
-                GestureDetector(
-                  onTap: _openEditPreferences,
-                  child: const Text('Edit',
-                      style: TextStyle(
-                          color: AppTheme.accent, fontSize: 14)),
-                ),
+                if (titleTrailing != null) titleTrailing!,
               ],
             ),
-            const SizedBox(height: 16),
-            if (prefs.primaryCluster != null) ...[
-              _prefRow('Focus', Icons.hub_outlined,
-                  _chipRow([prefs.primaryCluster!], const Color(0xFF0A84FF))),
-              const SizedBox(height: 12),
-            ],
-            if (prefs.techStack.isNotEmpty) ...[
-              _prefRow('Stack', Icons.code_rounded,
-                  _chipRow(prefs.techStack, const Color(0xFF30D158))),
-              const SizedBox(height: 12),
-            ],
-            if (prefs.interests.isNotEmpty) ...[
-              _prefRow('Interests', Icons.interests_outlined,
-                  _chipRow(prefs.interests, const Color(0xFFFF9F0A))),
-              const SizedBox(height: 12),
-            ],
-            if (prefs.goals.isNotEmpty) ...[
-              _prefRow(
-                  'Goals',
-                  Icons.flag_outlined,
-                  _chipRow(
-                      prefs.goals
-                          .map((g) => g.replaceAll('-', ' '))
-                          .toList(),
-                      const Color(0xFFBF5AF2))),
-              const SizedBox(height: 16),
-            ],
-            Row(
-              children: [
-                _metaBadge(
-                    prefs.experienceLevel.toUpperCase(),
-                    Icons.bar_chart_rounded),
-                const SizedBox(width: 8),
-                _metaBadge(
-                    prefs.activityPreference, Icons.timeline_rounded),
-              ],
-            ),
+            const SizedBox(height: 14),
+            ...children,
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _prefRow(String label, IconData icon, Widget content) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: AppTheme.textSecondary),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 68,
-          child: Text(label,
-              style: const TextStyle(
-                  color: AppTheme.textSecondary, fontSize: 13)),
-        ),
-        Expanded(child: content),
-      ],
-    );
-  }
+class _PrefRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color iconColor;
 
-  Widget _chipRow(List<String> items, Color color) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: items.take(6).map((item) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withOpacity(0.3)),
+  const _PrefRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 15, color: iconColor),
           ),
-          child: Text(
-            item,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 13,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _metaBadge(String text, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppTheme.elevatedSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.hairlineBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: AppTheme.textSecondary),
-          const SizedBox(width: 4),
-          Text(text,
-              style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
+}
 
-  Widget _buildActionsCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(color: AppTheme.hairlineBorder),
+class _ChipLabel extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const _ChipLabel({required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: const Color(0xFF6B7280)),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        child: Column(
-          children: [
-            _actionTile(
-              icon: Icons.tune_rounded,
-              iconColor: AppTheme.accent,
-              label: 'Edit Preferences',
-              onTap: _openEditPreferences,
-            ),
-            _divider(),
-            Consumer<AuthService>(
-              builder: (context, auth, _) {
-                if (!auth.isSignedIn) return const SizedBox.shrink();
-                return Column(children: [
-                  _actionTile(
-                    icon: Icons.logout_rounded,
-                    iconColor: AppTheme.warning,
-                    label: 'Sign Out',
-                    onTap: _signOut,
-                  ),
-                  _divider(),
-                ]);
-              },
-            ),
-            _actionTile(
-              icon: Icons.delete_sweep_outlined,
-              iconColor: AppTheme.error,
-              label: 'Clear All Data',
-              onTap: _clearData,
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
+}
 
-  Widget _actionTile({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
+class _ChipRow extends StatelessWidget {
+  final List<String> items;
+  final Color color;
+
+  const _ChipRow({required this.items, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: items
+          .map(
+            (item) => Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: color.withOpacity(0.25),
+                  width: 0.8,
+                ),
+              ),
+              child: Text(
+                item,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final Color labelColor;
+  final VoidCallback onTap;
+
+  const _ActionRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    this.labelColor = Colors.white,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+      behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.12),
+                color: iconColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 18, color: iconColor),
+              child: Icon(icon, size: 17, color: iconColor),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Text(
               label,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
+              style: TextStyle(
+                color: labelColor,
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),
             ),
             const Spacer(),
             const Icon(Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary, size: 18),
+                color: Color(0xFF3A3A4A), size: 20),
           ],
         ),
       ),
     );
   }
-
-  Widget _divider() => const Divider(
-        color: AppTheme.hairlineBorder,
-        height: 1,
-        indent: 20,
-        endIndent: 20,
-      );
 }

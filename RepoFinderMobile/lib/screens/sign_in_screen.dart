@@ -111,6 +111,7 @@ class _SignInScreenState extends State<SignInScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
@@ -248,6 +249,33 @@ class _SignInScreenState extends State<SignInScreen>
                             ),
                     ),
                   ),
+
+                  // Debug skip button — only visible in debug builds on Android
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) =>
+                                const OnboardingScreen(),
+                            transitionDuration: const Duration(milliseconds: 800),
+                            transitionsBuilder:
+                                (context, animation, secondaryAnimation, child) {
+                              return FadeTransition(opacity: animation, child: child);
+                            },
+                          ),
+                        );
+                      },
+                      child: Text(
+                        '🛠️ Skip Sign In (Debug Only)',
+                        style: TextStyle(
+                          color: Colors.orange.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 16),
 

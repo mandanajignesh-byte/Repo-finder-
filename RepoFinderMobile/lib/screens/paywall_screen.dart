@@ -28,10 +28,12 @@ bool get _showDebugPreview => kDebugMode && _isUnsupportedPlatform;
 /// Layout: Logo → Title → Features → Plans → Button → Footer
 /// Optimized to fit on one screen without scrolling
 class PaywallScreen extends ConsumerStatefulWidget {
+  final VoidCallback? onClose;
   final VoidCallback? onSubscribed;
-
+  
   const PaywallScreen({
     super.key,
+    this.onClose,
     this.onSubscribed,
   });
 
@@ -229,6 +231,38 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Close button (top right) - optional for hard paywall
+                        if (widget.onClose != null)
+                          Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: AppTheme.textSecondary,
+                                  size: 22,
+                                ),
+                                onPressed: () {
+                                  widget.onClose?.call();
+                                  // Navigate to main app
+                                  final canPop = Navigator.of(context).canPop();
+                                  if (canPop) {
+                                    Navigator.of(context).pop(false);
+                                  } else {
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => const MainTabScreen(),
+                                      ),
+                                    );
+                                  }
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ),
+                          ),
+                        
                         // Logo/Icon - smaller
                         _buildLogo(isSmallScreen),
                         SizedBox(height: isSmallScreen ? 16 : 20),
@@ -266,7 +300,32 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen>
                         // Continue Button - flexible height
                         _buildPurchaseButton(),
                         const SizedBox(height: 8),
-                        
+
+                        // Debug bypass button — only visible in debug builds
+                        if (kDebugMode) ...[
+                          TextButton(
+                            onPressed: () {
+                              final canPop = Navigator.of(context).canPop();
+                              if (canPop) {
+                                Navigator.of(context).pop(true);
+                              } else {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => const MainTabScreen(),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Text(
+                              '🛠️ Skip Paywall (Debug Only)',
+                              style: TextStyle(
+                                color: Colors.orange.withOpacity(0.7),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+
                         // Footer Links - compact
                         _buildLegalLinks(),
                         SizedBox(height: isSmallScreen ? 6 : 8),

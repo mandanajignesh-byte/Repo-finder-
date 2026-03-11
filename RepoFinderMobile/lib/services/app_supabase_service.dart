@@ -1,12 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 import '../models/user_preferences.dart';
 
-/// Mobile-specific Supabase service — uses the `app_` prefixed tables
-/// (`app_users`, `app_user_preferences`, `app_user_interactions`,
-/// `app_saved_repos`, `app_liked_repos`) that are dedicated to the iOS app.
+/// Unified Supabase service using the NEW app_* tables.
+/// These tables are separate from the web app tables and are
+/// optimised for mobile — no cross-platform conflicts.
 class AppSupabaseService extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   String? _userId;
@@ -15,103 +14,61 @@ class AppSupabaseService extends ChangeNotifier {
   String? get userId => _userId;
   UserPreferences? get preferences => _preferences;
 
-  /// Increments each time the user saves new preferences.
-  /// Listeners (e.g. DiscoveryScreen) use this to detect that repos need reload.
-  int prefsVersion = 0;
-
-  /// Called after user saves new preferences so discovery deck refreshes.
-  void bumpPrefsVersion() {
-    prefsVersion++;
-    notifyListeners();
-  }
-
   // ---------------------------------------------------------------------------
-  // USER IDENTITY
+  // USER IDENTITY  →  app_users
   // ---------------------------------------------------------------------------
 
   /// Returns the current user's ID.
   ///
   /// Priority:
-  ///  1. Supabase auth session (Apple Sign In) → use UUID
-  ///  2. Persisted anonymous ID from SharedPreferences
-  ///  3. Generate a new anonymous ID (valid UUID v4)
-  ///
-  /// Writes to the app-specific `app_users` table.
+  ///  1. Supabase auth session (Apple Sign-In) → UUID
+  ///  2. Persisted anonymous ID (SharedPreferences)
+  ///  3. Generate new anonymous ID  `app_user_<ts>_<us>`
   Future<String> getOrCreateUserId({String? name}) async {
     if (_userId != null) return _userId!;
 
-    // 1. Prefer Supabase auth user (Apple Sign In)
+    // 1. Prefer authenticated user
     final authUser = _supabase.auth.currentUser;
     if (authUser != null) {
       _userId = authUser.id;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('app_user_id', _userId!);
     } else {
-      // 2. Fallback to stored anonymous ID
+      // 2. Restore persisted anonymous ID
       final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString('app_user_id');
+      _userId = prefs.getString('app_user_id');
 
-      // Validate stored ID is a proper UUID — clear old 'app_user_<timestamp>' format
-      final uuidRegex = RegExp(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-        caseSensitive: false,
-      );
-      _userId = (stored != null && uuidRegex.hasMatch(stored)) ? stored : null;
-
-      // 3. Create new anonymous ID — must be a valid UUID for Supabase
+      // 3. Create brand-new anonymous ID
       if (_userId == null) {
-        // Try Supabase anonymous auth first (gives a real UUID)
-        try {
-          final response = await _supabase.auth.signInAnonymously();
-          _userId = response.session?.user.id ?? response.user?.id;
-        } catch (e) {
-          debugPrint('Anonymous auth unavailable, generating UUID: $e');
-        }
-        // Fallback: generate a proper UUID v4
-        _userId ??= const Uuid().v4();
+        _userId =
+            'app_user_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
         await prefs.setString('app_user_id', _userId!);
       }
     }
 
-    // Upsert into `app_users` table (mobile-specific)
+    // Upsert into app_users (touch last_active_at on every launch)
     try {
-      final now = DateTime.now().toIso8601String();
-      final existing = await _supabase
-          .from('app_users')
-          .select('id')
-          .eq('id', _userId!)
-          .maybeSingle();
-
-      if (existing == null) {
-        await _supabase.from('app_users').insert({
-          'id': _userId!,
-          'name': name,
-          'platform': 'ios',
-          'created_at': now,
-          'last_active_at': now,
-        });
-      } else {
-        await _supabase.from('app_users').update({
-          if (name != null) 'name': name,
-          'last_active_at': now,
-          'updated_at': now,
-        }).eq('id', _userId!);
-      }
+      await _supabase.from('app_users').upsert({
+        'id': _userId!,
+        'platform': 'android',
+        'name': name,
+        'last_active_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'id');
     } catch (e) {
-      debugPrint('Error ensuring user exists in app_users table: $e');
+      debugPrint('Error upserting app_users: $e');
     }
 
     return _userId!;
   }
 
   // ---------------------------------------------------------------------------
-  // USER PREFERENCES  (app_user_preferences table)
+  // USER PREFERENCES  →  app_user_preferences
   // ---------------------------------------------------------------------------
 
   Future<UserPreferences?> getUserPreferences(String userId) async {
     try {
       final data = await _supabase
-          .from('app_user_preferences') // mobile-specific table
+          .from('app_user_preferences')
           .select()
           .eq('user_id', userId)
           .maybeSingle();
@@ -137,7 +94,7 @@ class AppSupabaseService extends ChangeNotifier {
       notifyListeners();
       return _preferences;
     } catch (e) {
-      debugPrint('Error getting user preferences: $e');
+      debugPrint('Error getting app_user_preferences: $e');
       return null;
     }
   }
@@ -166,95 +123,102 @@ class AppSupabaseService extends ChangeNotifier {
       _preferences = preferences;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error saving user preferences: $e');
+      debugPrint('Error saving app_user_preferences: $e');
       rethrow;
     }
   }
 
   Future<bool> isOnboardingCompleted(String userId) async {
-    // Check local cache first — survives UUID rotation
-    final sharedPrefs = await SharedPreferences.getInstance();
-    final localDone = sharedPrefs.getBool('onboarding_completed') ?? false;
-    if (localDone) return true;
-
-    // Fall back to Supabase
     final prefs = await getUserPreferences(userId);
-    final done = prefs?.onboardingCompleted ?? false;
-    if (done) {
-      // Cache locally so next check is instant even if UUID changes
-      await sharedPrefs.setBool('onboarding_completed', true);
-    }
-    return done;
-  }
-
-  /// Call after onboarding finishes to persist completion locally.
-  Future<void> markOnboardingCompleted() async {
-    final sharedPrefs = await SharedPreferences.getInstance();
-    await sharedPrefs.setBool('onboarding_completed', true);
+    return prefs?.onboardingCompleted ?? false;
   }
 
   // ---------------------------------------------------------------------------
-  // RECOMMENDATIONS  (app_user_recommendations — Edge Function)
+  // INTERACTIONS  →  app_user_interactions
   // ---------------------------------------------------------------------------
 
-  /// Calls the `generate-recommendations` Edge Function which:
-  ///  1. Reads the user's preferences from `app_user_preferences`
-  ///  2. Scores up to 500 repos from `repos_master` based on cluster /
-  ///     tech stack / goals
-  ///  3. Deletes old rows and inserts the new ranked list into
-  ///     `app_user_recommendations`
-  ///
-  /// Returns `true` on success (or if the function is unavailable — we never
-  /// want this to block the user).
-  Future<bool> generateRecommendations(String userId) async {
-    try {
-      debugPrint('🔮 Generating recommendations for $userId…');
-      final response = await _supabase.functions.invoke(
-        'generate-recommendations',
-        body: {'user_id': userId},
-      );
-      if (response.status != 200) {
-        debugPrint('⚠️ generate-recommendations returned ${response.status}: ${response.data}');
-        return false;
-      }
-      debugPrint('✅ Recommendations generated: ${response.data}');
-      return true;
-    } catch (e) {
-      debugPrint('⚠️ generateRecommendations failed (non-fatal): $e');
-      return false; // non-fatal — discovery falls back to live query
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // INTERACTIONS  (app_user_interactions table)
-  // ---------------------------------------------------------------------------
-
-  /// Track a user interaction.
-  ///
-  /// [repoGithubId] — the integer GitHub repo ID (stored as bigint).
-  /// [action]       — 'like', 'save', 'skip', 'view', 'swipe_up'
+  /// Track a user interaction (view / like / save / skip / swipe_up).
   Future<void> trackInteraction({
     required String userId,
     required int repoGithubId,
     required String action,
   }) async {
     try {
-      await _supabase.from('app_user_interactions').insert({
+      await _supabase.from('app_user_interactions').upsert({
         'user_id': userId,
-        'repo_github_id': repoGithubId, // bigint — app_user_interactions schema
+        'repo_github_id': repoGithubId,
         'action': action,
-      });
+        'created_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id,repo_github_id,action');
     } catch (e) {
       debugPrint('Error tracking interaction: $e');
     }
   }
 
+  /// Returns every repo ID this user has already seen
+  /// (for deduplication / exclusion from discovery).
+  Future<List<int>> getAllSeenRepoIds(String userId) async {
+    try {
+      final data = await _supabase
+          .from('app_user_interactions')
+          .select('repo_github_id')
+          .eq('user_id', userId)
+          .inFilter('action', ['view', 'like', 'skip', 'save']);
+
+      return (data as List)
+          .map((row) => row['repo_github_id'] as int)
+          .toSet()
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting seen repo IDs: $e');
+      return [];
+    }
+  }
+
   // ---------------------------------------------------------------------------
-  // ONBOARDING  (legacy iOS recommendation tables — unchanged)
+  // RECOMMENDATION BUILD  →  precompute_user_recommendations RPC
   // ---------------------------------------------------------------------------
 
-  /// Saves structured onboarding data to the iOS-specific recommendation tables
-  /// AND updates the `app_user_preferences` row.
+  /// Calls the Supabase RPC that scores all candidate repos and writes
+  /// up to 500 personalised entries into `repo_recommendations_feed`.
+  ///
+  /// Returns the number of repos built (0 if something went wrong).
+  Future<int> buildRecommendations(String userId) async {
+    try {
+      debugPrint('🔨 Building recommendations for $userId...');
+      final result = await _supabase.rpc(
+        'precompute_user_recommendations',
+        params: {'p_user_id': userId, 'p_limit': 500},
+      );
+      final count = (result as num?)?.toInt() ?? 0;
+      debugPrint('✅ Built $count recommendations');
+      return count;
+    } catch (e) {
+      debugPrint('❌ Error building recommendations: $e');
+      return 0;
+    }
+  }
+
+  /// True if the user already has a pre-built feed (can skip rebuild on
+  /// subsequent launches).
+  Future<bool> hasRecommendationFeed(String userId) async {
+    try {
+      final data = await _supabase
+          .from('repo_recommendations_feed')
+          .select('repo_id')
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
+      return data != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // LEGACY  —  kept so older callers don't break; delegates to app tables
+  // ---------------------------------------------------------------------------
+
   Future<void> saveOnboardingData({
     required String userId,
     required List<String> interests,
@@ -264,114 +228,46 @@ class AppSupabaseService extends ChangeNotifier {
     required String? repoSizePref,
     required String? currentProject,
   }) async {
-    try {
-      // 1. user_interests (iOS recommendation engine)
-      if (interests.isNotEmpty) {
-        await _supabase.from('user_interests').delete().eq('user_id', userId);
-        for (int i = 0; i < interests.length; i++) {
-          final weight = i == 0 ? 1.0 : (i == 1 ? 0.8 : (i == 2 ? 0.6 : 0.5));
-          await _supabase.from('user_interests').insert({
-            'user_id': userId,
-            'interest_slug': interests[i],
-            'weight': weight,
-          });
-        }
-      }
+    // Build a primary cluster from the first interest
+    final clusterMap = {
+      'ai_ml': 'ai_ml',
+      'web_dev': 'web_dev',
+      'mobile': 'mobile',
+      'devops': 'devops',
+      'data_science': 'data_science',
+      'game_dev': 'game_dev',
+      'cybersecurity': 'cybersecurity',
+      'automation': 'automation',
+      'blockchain': 'blockchain',
+      'open_source': 'open_source',
+      'database': 'database',
+    };
+    final primaryCluster =
+        interests.isNotEmpty ? (clusterMap[interests.first] ?? interests.first) : 'web_dev';
+    final secondaryClusters = interests.length > 1
+        ? interests
+            .skip(1)
+            .map((i) => clusterMap[i] ?? i)
+            .toList()
+        : <String>[];
 
-      // 2. user_tech_stack (iOS recommendation engine)
-      if (techStack.isNotEmpty) {
-        await _supabase.from('user_tech_stack').delete().eq('user_id', userId);
-        for (int i = 0; i < techStack.length; i++) {
-          final weight = i == 0 ? 1.0 : (i == 1 ? 0.9 : 0.8);
-          await _supabase.from('user_tech_stack').insert({
-            'user_id': userId,
-            'tech_slug': techStack[i],
-            'weight': weight,
-          });
-        }
-      }
-
-      // 3. user_profile (skill level / complexity vector)
-      Map<String, double> complexityVector = {};
-      if (skillLevel == 'beginner') {
-        complexityVector = {
-          'tutorial': 1.0, 'boilerplate': 0.8,
-          'full_app': 0.3, 'infra': 0.0, 'framework': 0.0,
-        };
-      } else if (skillLevel == 'intermediate') {
-        complexityVector = {
-          'tutorial': 0.4, 'boilerplate': 0.7,
-          'full_app': 1.0, 'infra': 0.3, 'framework': 0.2,
-        };
-      } else if (skillLevel == 'advanced') {
-        complexityVector = {
-          'tutorial': 0.1, 'boilerplate': 0.3,
-          'full_app': 0.7, 'infra': 1.0, 'framework': 1.0,
-        };
-      }
-
-      if (skillLevel != null) {
-        await _supabase.from('user_profile').upsert({
-          'user_id': userId,
-          'skill_level': skillLevel,
-          'complexity_vector': complexityVector,
-        }, onConflict: 'user_id');
-      }
-
-      // 4. user_goals (iOS recommendation engine)
-      if (goals.isNotEmpty) {
-        await _supabase.from('user_goals').delete().eq('user_id', userId);
-        for (final goal in goals) {
-          await _supabase.from('user_goals').insert({
-            'user_id': userId,
-            'goal_slug': goal,
-          });
-        }
-      }
-
-      // 5. user_current_projects
-      if (currentProject != null && currentProject.isNotEmpty) {
-        await _supabase.from('user_current_projects').upsert({
-          'user_id': userId,
-          'text_input': currentProject,
-          'extracted_clusters': {},
-        }, onConflict: 'user_id');
-      }
-
-      // 6. user_vectors (composite recommendation vector)
-      final interestVector = {
-        for (int i = 0; i < interests.length; i++)
-          interests[i]: i == 0 ? 0.9 : (i == 1 ? 0.7 : (i == 2 ? 0.5 : 0.3))
-      };
-      final techVector = {
-        for (int i = 0; i < techStack.length; i++)
-          techStack[i]: i == 0 ? 1.0 : (i == 1 ? 0.6 : 0.4)
-      };
-      final goalVector = {for (final g in goals) g: 1.0};
-
-      await _supabase.from('user_vectors').upsert({
-        'user_id': userId,
-        'interest_vector': interestVector,
-        'tech_vector': techVector,
-        'complexity_vector': complexityVector,
-        'goal_vector': goalVector,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id');
-
-      // 7. Also update the app_user_preferences row so preferences
-      //    are stored in the mobile-specific table.
-      await _supabase.from('app_user_preferences').upsert({
-        'user_id': userId,
-        'tech_stack': techStack,
-        'interests': interests,
-        'goals': goals,
-        'experience_level': skillLevel ?? 'intermediate',
-        'onboarding_completed': true,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id');
-    } catch (e) {
-      debugPrint('Error saving onboarding data: $e');
-      rethrow;
-    }
+    await saveUserPreferences(
+      userId,
+      UserPreferences(
+        primaryCluster: primaryCluster,
+        secondaryClusters: secondaryClusters,
+        techStack: techStack,
+        interests: interests,
+        goals: goals,
+        projectTypes: [],
+        experienceLevel: skillLevel ?? 'intermediate',
+        activityPreference: 'any',
+        popularityWeight: 'medium',
+        documentationImportance: 'important',
+        licensePreference: [],
+        repoSize: repoSizePref != null ? [repoSizePref] : [],
+        onboardingCompleted: true,
+      ),
+    );
   }
 }

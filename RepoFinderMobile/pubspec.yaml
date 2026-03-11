@@ -49,11 +49,8 @@ dependencies:
   flutter_dotenv: ^5.1.0
   
   # Gestures & Animations
-  appinio_swiper: ^2.0.1
   flutter_swipe_action_cell: ^2.0.0
-
-  # UUID generation
-  uuid: ^4.0.0
+  appinio_swiper: ^2.1.1
   
   # Markdown
   flutter_markdown: ^0.6.18
