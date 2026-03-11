@@ -26,7 +26,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   String? _skillLevel; // beginner, intermediate, advanced
   List<String> _selectedGoals = [];
   String? _repoSizePref; // small, medium, large
-  bool _githubConnected = false;
   String _currentProject = '';
   
   late AnimationController _fadeController;
@@ -176,7 +175,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   void _nextStep() {
     HapticFeedback.selectionClick();
-    if (_currentStep < 6) {
+    if (_currentStep < 5) {
       // Smooth exit
       _fadeController.reverse();
       _scaleController.reverse();
@@ -268,9 +267,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return _selectedGoals.isNotEmpty;
       case 4: // Repo Size
         return _repoSizePref != null;
-      case 5: // GitHub Connect (optional)
-        return true;
-      case 6: // Current Project (optional)
+      case 5: // Current Project (optional)
         return true;
       default:
         return false;
@@ -309,6 +306,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       debugPrint('Error saving onboarding data: $e');
       // Continue anyway - user can retry later
     }
+
+    // Always mark onboarding completed locally so it never shows again
+    await supabaseService.markOnboardingCompleted();
 
     if (!mounted) return;
 
@@ -354,14 +354,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: Row(
-                children: List.generate(7, (index) {
+                children: List.generate(6, (index) {
                   return Expanded(
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 600), // Slower progress animation
                       curve: Curves.easeInOut,
                       height: 3,
                       margin: EdgeInsets.only(
-                        right: index < 6 ? 8 : 0,
+                        right: index < 5 ? 8 : 0,
                       ),
                       decoration: BoxDecoration(
                         color: index <= _currentStep 
@@ -386,7 +386,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   _buildSkillLevelStep(),
                   _buildGoalsStep(),
                   _buildRepoSizeStep(),
-                  _buildGitHubConnectStep(),
                   _buildCurrentProjectStep(),
                 ],
               ),
@@ -438,7 +437,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         elevation: 0,
                       ),
                       child: Text(
-                        _currentStep < 6 ? 'Next' : 'Complete',
+                        _currentStep < 5 ? 'Next' : 'Complete',
                         style: AppTheme.buttonText,
                       ),
                     ),
@@ -1018,92 +1017,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  // Screen 6: GitHub Connect (Optional)
-  Widget _buildGitHubConnectStep() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                Text(
-                  'Connect GitHub to personalize instantly',
-                  style: AppTheme.displayLarge,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Optional - We\'ll use your starred repos and contributions to improve recommendations',
-                  style: AppTheme.bodyMedium.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 48),
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.code,
-                          size: 80,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () {
-                            HapticFeedback.selectionClick();
-                            // TODO: Implement GitHub OAuth
-                            setState(() {
-                              _githubConnected = true;
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _githubConnected 
-                                ? AppTheme.accent 
-                                : AppTheme.surface,
-                            foregroundColor: AppTheme.textPrimary,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 16,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                            ),
-                          ),
-                          child: Text(
-                            _githubConnected ? 'Connected' : 'Connect GitHub',
-                            style: AppTheme.buttonText,
-                          ),
-                        ),
-                        if (_githubConnected)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16),
-                            child: Text(
-                              'GitHub connected successfully',
-                              style: AppTheme.metaText.copyWith(
-                                color: AppTheme.accent,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Screen 7: Current Project (Optional)
+  // Screen 6: Current Project (Optional)
   Widget _buildCurrentProjectStep() {
     return FadeTransition(
       opacity: _fadeAnimation,

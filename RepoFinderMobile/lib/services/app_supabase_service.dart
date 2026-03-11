@@ -158,8 +158,25 @@ class AppSupabaseService extends ChangeNotifier {
   }
 
   Future<bool> isOnboardingCompleted(String userId) async {
+    // Check local cache first — survives UUID rotation
+    final sharedPrefs = await SharedPreferences.getInstance();
+    final localDone = sharedPrefs.getBool('onboarding_completed') ?? false;
+    if (localDone) return true;
+
+    // Fall back to Supabase
     final prefs = await getUserPreferences(userId);
-    return prefs?.onboardingCompleted ?? false;
+    final done = prefs?.onboardingCompleted ?? false;
+    if (done) {
+      // Cache locally so next check is instant even if UUID changes
+      await sharedPrefs.setBool('onboarding_completed', true);
+    }
+    return done;
+  }
+
+  /// Call after onboarding finishes to persist completion locally.
+  Future<void> markOnboardingCompleted() async {
+    final sharedPrefs = await SharedPreferences.getInstance();
+    await sharedPrefs.setBool('onboarding_completed', true);
   }
 
   // ---------------------------------------------------------------------------

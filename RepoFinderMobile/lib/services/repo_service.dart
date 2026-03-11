@@ -473,25 +473,37 @@ class RepoService extends ChangeNotifier {
     }
   }
 
-  /// Like a repository.  Writes to the unified `liked_repos` table.
+  /// Like a repository.  Writes to `liked_repos` AND `saved_repos` so liked
+  /// repos also appear in the Saved tab.
   Future<void> likeRepo(String userId, Repository repo) async {
-    try {
-      // upsert so liking the same repo twice doesn't crash on unique constraint
-      await _supabase.from('liked_repos').upsert({
-        'user_id': userId,
-        'repo_id': repo.githubId.toString(),
-        'repo_name': repo.name,
-        'repo_full_name': repo.fullName,
-        'repo_description': repo.description,
-        'repo_stars': repo.stars,
-        'repo_language': repo.language,
-        'repo_url': repo.repoUrl,
-        'repo_tags': <String>[],
-        'repo_topics': repo.topics,
-        'liked_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id,repo_id');
+    final now = DateTime.now().toIso8601String();
+    final payload = {
+      'user_id': userId,
+      'repo_id': repo.githubId.toString(),
+      'repo_name': repo.name,
+      'repo_full_name': repo.fullName,
+      'repo_description': repo.description,
+      'repo_stars': repo.stars,
+      'repo_language': repo.language,
+      'repo_url': repo.repoUrl,
+      'repo_tags': <String>[],
+      'repo_topics': repo.topics,
+    };
 
-      // Track in unified user_interactions
+    try {
+      // Write to liked_repos
+      await _supabase.from('liked_repos').upsert(
+        {...payload, 'liked_at': now},
+        onConflict: 'user_id,repo_id',
+      );
+
+      // Also write to saved_repos so liked repos appear in the Saved section
+      await _supabase.from('saved_repos').upsert(
+        {...payload, 'saved_at': now},
+        onConflict: 'user_id,repo_id',
+      );
+
+      // Track in user_interactions
       try {
         await _supabase.from('user_interactions').insert({
           'user_id': userId,

@@ -5,7 +5,6 @@ import '../services/auth_service.dart';
 import '../services/app_supabase_service.dart';
 import '../services/revenuecat_service.dart';
 import '../models/user_preferences.dart';
-import '../widgets/github_connect_card.dart';
 import '../theme/app_theme.dart';
 import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
@@ -152,11 +151,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 16),
                     if (_preferences != null) _buildPreferencesCard(),
                     if (_preferences != null) const SizedBox(height: 16),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: GitHubConnectCard(),
-                    ),
-                    const SizedBox(height: 16),
                     _buildActionsCard(),
                   ],
                 ),
