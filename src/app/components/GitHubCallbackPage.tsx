@@ -27,7 +27,15 @@ export function GitHubCallbackPage() {
 
     async function run() {
       try {
-        const userId = await supabaseService.getOrCreateUserId();
+        // Always use the persistent anon_id — not the transient Supabase OAuth
+        // session user. After handleCallback calls supabase.auth.signOut(), the
+        // app reverts to anon_id for all lookups, so we must save the connection
+        // under that same key to avoid a mismatch in ProfileScreen.
+        let userId = localStorage.getItem('anon_id');
+        if (!userId) {
+          userId = `anon_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+          localStorage.setItem('anon_id', userId);
+        }
 
         // ── Step 1: Extract GitHub token from Supabase OAuth session ──────
         const result = await gitHubAuthService.handleCallback(userId);
