@@ -5,7 +5,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { gitHubAuthService, GitHubConnection, StarredRepo } from '@/services/github-auth.service';
-import { supabaseService } from '@/services/supabase.service';
+
+// Always use the stable anon_id from localStorage — never the transient Supabase
+// OAuth session UUID. This must match exactly what GitHubCallbackPage saves under.
+function getStableUserId(): string {
+  let id = localStorage.getItem('anon_id');
+  if (!id) {
+    id = `anon_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    localStorage.setItem('anon_id', id);
+  }
+  return id;
+}
 
 export function useGitHubAuth() {
   const [connection, setConnection] = useState<GitHubConnection | null>(null);
@@ -18,7 +28,7 @@ export function useGitHubAuth() {
   const loadConnection = useCallback(async () => {
     try {
       setLoading(true);
-      const userId = await supabaseService.getOrCreateUserId();
+      const userId = getStableUserId();
       const conn = await gitHubAuthService.getConnection(userId);
       setConnection(conn);
     } catch (err) {
@@ -48,7 +58,7 @@ export function useGitHubAuth() {
     try {
       setLoading(true);
       setError(null);
-      const userId = await supabaseService.getOrCreateUserId();
+      const userId = getStableUserId();
       await gitHubAuthService.disconnect(userId);
       setConnection(null);
     } catch (err: any) {
@@ -64,7 +74,7 @@ export function useGitHubAuth() {
       setSyncing(true);
       setError(null);
       setSyncProgress({ synced: 0, total: 0 });
-      const userId = await supabaseService.getOrCreateUserId();
+      const userId = getStableUserId();
       const count = await gitHubAuthService.syncStarredRepos(userId, (synced, total) => {
         setSyncProgress({ synced, total });
       });
@@ -83,7 +93,7 @@ export function useGitHubAuth() {
   // ── Load starred repos (paginated) ────────────────────────────────────────
   const getStarredRepos = useCallback(
     async (limit = 50, offset = 0): Promise<StarredRepo[]> => {
-      const userId = await supabaseService.getOrCreateUserId();
+      const userId = getStableUserId();
       return gitHubAuthService.getStarredRepos(userId, limit, offset);
     },
     []
@@ -91,7 +101,7 @@ export function useGitHubAuth() {
 
   // ── Search starred repos ──────────────────────────────────────────────────
   const searchStarredRepos = useCallback(async (query: string): Promise<StarredRepo[]> => {
-    const userId = await supabaseService.getOrCreateUserId();
+    const userId = getStableUserId();
     return gitHubAuthService.searchStarredRepos(userId, query);
   }, []);
 
