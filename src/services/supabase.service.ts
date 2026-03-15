@@ -450,6 +450,78 @@ class SupabaseService {
       return false;
     }
   }
+  /**
+   * Fetch trending repos from trending_repos_v2 table.
+   * Always returns the most recent batch for the given period.
+   */
+  async getTrendingRepos(options?: {
+    timeRange?: 'daily' | 'weekly' | 'monthly';
+    language?: string;
+    limit?: number;
+  }): Promise<any[]> {
+    try {
+      const period = options?.timeRange === 'weekly' ? 'weekly' : 'daily';
+      const limit  = options?.limit || 100;
+
+      // Find the most recent date we have data for this period
+      const { data: latest } = await supabase
+        .from('trending_repos_v2')
+        .select('date')
+        .eq('period', period)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!latest) return [];
+
+      const latestDate = latest.date;
+
+      let query = supabase
+        .from('trending_repos_v2')
+        .select('*')
+        .eq('period', period)
+        .eq('date', latestDate)
+        .order('total_score', { ascending: false })
+        .limit(limit);
+
+      if (options?.language) {
+        query = query.ilike('language', options.language);
+      }
+
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) return [];
+
+      console.log(`✅ Loaded ${data.length} trending repos from DB (${period}, ${latestDate})`);
+
+      // Map to the shape github.service.ts expects
+      return data.map((row: any) => ({
+        repo_id:               String(row.github_id),
+        repo_name:             row.repo,
+        repo_full_name:        row.name,
+        repo_description:      row.description || '',
+        repo_tags:             Array.isArray(row.topics) ? row.topics : [],
+        repo_stars:            row.stars   || 0,
+        repo_forks:            row.forks   || 0,
+        repo_updated_at:       row.github_pushed_at || '',
+        repo_pushed_at:        row.github_pushed_at || '',
+        repo_language:         row.language || null,
+        repo_url:              row.url,
+        repo_owner_login:      row.owner   || '',
+        repo_owner_avatar_url: `https://github.com/${row.owner}.png`,
+        repo_topics:           Array.isArray(row.topics) ? row.topics : [],
+        trending_score:        row.total_score || 0,
+        rank:                  0,
+        health_grade:          row.health_grade  || null,
+        health_status:         row.health_status || null,
+        category:              row.category      || null,
+        stars_last_24_hours:   row.stars_today        || row.stars_last_24_hours || 0,
+        stars_last_7_days:     row.stars_this_week    || row.stars_last_7_days   || 0,
+      }));
+    } catch (err) {
+      console.error('getTrendingRepos error:', err);
+      return [];
+    }
+  }
 }
 
 export const supabaseService = new SupabaseService();

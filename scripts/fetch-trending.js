@@ -520,6 +520,26 @@ async function main() {
     }
   }
 
+  // ── Cleanup old rows ────────────────────────────────────────────
+  // Keep only last 3 days for daily, last 3 weeks for weekly
+  const keepDays  = RUN_TYPE === 'weekly' ? 21 : 3;
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - keepDays);
+  const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+  console.log(`\nCleaning rows older than ${cutoffStr} (${RUN_TYPE})…`);
+  const { error: cleanErr, count } = await supabase
+    .from('trending_repos_v2')
+    .delete({ count: 'exact' })
+    .eq('period', RUN_TYPE)
+    .lt('date', cutoffStr);
+
+  if (cleanErr) {
+    console.error('  Cleanup error:', cleanErr.message);
+  } else {
+    console.log(`  ✓ Deleted ${count ?? '?'} stale rows`);
+  }
+
   // ── Summary ──────────────────────────────────────────────────────
   const elapsed = Math.round((Date.now() - startTime) / 1000);
   const top3    = allRecords.slice(0, 3);
