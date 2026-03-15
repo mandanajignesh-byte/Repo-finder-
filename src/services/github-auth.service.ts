@@ -101,8 +101,6 @@ class GitHubAuthService {
 
             // Clear the hash from the URL so back-navigation doesn't re-trigger
             window.history.replaceState(null, '', window.location.pathname);
-            // Sign out of the temporary Supabase OAuth session
-            await supabase.auth.signOut().catch(() => {});
             return { profile, token: providerToken };
           }
         } catch (err) {
@@ -128,7 +126,6 @@ class GitHubAuthService {
         const profile = await this.fetchGitHubProfile(token);
         if (!profile) { settle(null); return; }
         await this.saveConnection(userId, profile, token); // throws on error
-        await supabase.auth.signOut().catch(() => {});
         settle({ profile, token });
       };
 
