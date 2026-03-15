@@ -88,13 +88,9 @@ class SupabaseService {
         .from('user_preferences')
         .select('user_id, primary_cluster, tech_stack, goals, onboarding_completed')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows returned - user hasn't completed onboarding
-          return null;
-        }
         console.error('Error getting preferences:', error);
         return null;
       }
